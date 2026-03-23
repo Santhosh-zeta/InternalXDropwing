@@ -8,6 +8,11 @@ const router = express.Router();
 const { Client } = require('pg');
 
 const SETUP_SQL = `
+-- Optional: enrich user_roles with HR fields (safe if columns already exist)
+ALTER TABLE IF EXISTS user_roles
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS designation TEXT;
+
 CREATE TABLE IF NOT EXISTS teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -58,6 +63,35 @@ CREATE TABLE IF NOT EXISTS tasks (
   due_date DATE,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Onboarding invites (secure-by-token public form + admin approval pipeline)
+CREATE TABLE IF NOT EXISTS onboarding_invites (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  venture_id UUID REFERENCES ventures(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  kind TEXT NOT NULL DEFAULT 'member' CHECK (kind IN ('member','client')),
+  token TEXT NOT NULL UNIQUE,
+  status TEXT NOT NULL DEFAULT 'created' CHECK (status IN ('created','submitted','approved','rejected','onboarded','expired')),
+  created_by UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  expires_at TIMESTAMPTZ,
+  submitted_at TIMESTAMPTZ,
+  approved_at TIMESTAMPTZ,
+  rejected_at TIMESTAMPTZ,
+  onboarded_at TIMESTAMPTZ,
+  onboarded_user_id UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  decided_by UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  decision_note TEXT,
+  assigned_role TEXT CHECK (assigned_role IN ('managing_director','ceo','manager','intern','client','admin')),
+  designation TEXT,
+  submission JSONB
+);
+
+CREATE INDEX IF NOT EXISTS onboarding_invites_venture_status_idx
+  ON onboarding_invites (venture_id, status, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS onboarding_invites_token_idx
+  ON onboarding_invites (token);
 `;
 
 router.post('/', async (req, res) => {

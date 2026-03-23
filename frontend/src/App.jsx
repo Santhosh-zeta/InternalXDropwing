@@ -22,6 +22,7 @@ import MessagesPage from './pages/messages/MessagesPage';
 import ReviewsPage from './pages/reviews/ReviewsPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import WebforgeCeoDashboard from './pages/dashboard/WebforgeCeoDashboard';
+import OnboardInvitePage from './pages/onboarding/OnboardInvitePage';
 
 const ALL_ROLES = ['managing_director', 'ceo', 'manager', 'intern', 'client', 'admin'];
 const STAFF_ROLES = ['managing_director', 'ceo', 'manager', 'intern', 'admin'];
@@ -43,6 +44,9 @@ function App() {
       />
       <BrowserRouter>
         <Routes>
+          {/* Public invite onboarding (no auth) */}
+          <Route path="/onboard/:token" element={<OnboardInvitePage />} />
+
           {/* Public Routes */}
           <Route element={<PublicRoute />}>
             <Route path="/login" element={<LoginPage />} />

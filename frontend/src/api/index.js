@@ -45,3 +45,14 @@ export const createProject = (data) => api.post('/api/projects', data);
 export const updateProject = (id, data) => api.put(`/api/projects/${id}`, data);
 export const assignClientToProject = (projectId, clientId) =>
     api.post(`/api/projects/${projectId}/clients`, { client_id: clientId });
+
+// ─── Onboarding (Invite Links) ──────────────────────────────────────────────
+export const listOnboardingInvites = () => api.get('/api/onboarding/invites');
+export const createOnboardingInvite = (data) => api.post('/api/onboarding/invites', data);
+export const updateOnboardingInvite = (id, data) => api.patch(`/api/onboarding/invites/${id}`, data);
+export const decideOnboardingInvite = (id, data) => api.post(`/api/onboarding/invites/${id}/decision`, data);
+export const onboardFromInvite = (id) => api.post(`/api/onboarding/invites/${id}/onboard`);
+
+// Public-by-token (no auth required)
+export const getPublicInvite = (token) => api.get(`/api/onboarding/public/${token}`);
+export const submitPublicInvite = (token, data) => api.post(`/api/onboarding/public/${token}/submit`, data);

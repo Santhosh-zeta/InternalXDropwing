@@ -105,7 +105,7 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 -- The backend bypasses RLS automatically when using service role key
 -- The following policies allow authenticated users to read their own profile:
 
-CREATE POLICY IF NOT EXISTS "own_profile_read" ON profiles
+CREATE POLICY "own_profile_read" ON profiles
   FOR SELECT USING (auth.uid() = id);
 
 -- ── Handle on_auth_user_created trigger (auto-create profile placeholder) ──

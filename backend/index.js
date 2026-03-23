@@ -19,6 +19,7 @@ app.use(morgan('dev'));
 app.use('/api/users', require('./src/routes/users'));
 app.use('/api/ventures', require('./src/routes/companies'));
 app.use('/api/companies', require('./src/routes/companies'));
+app.use('/api/onboarding', require('./src/routes/onboarding'));
 app.use('/api/teams', require('./src/routes/teams'));
 app.use('/api/announcements', require('./src/routes/announcements'));
 app.use('/api/tasks', require('./src/routes/tasks'));
