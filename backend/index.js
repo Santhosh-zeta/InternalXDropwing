@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
@@ -15,9 +16,29 @@ app.use(cors({
 app.use(express.json());
 app.use(morgan('dev'));
 
+// ─── Rate Limiting ────────────────────────────────────────────────────────
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,   // 15 minutes
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests. Please try again in 15 minutes.' },
+});
+
+const writeLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 50,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many write requests. Please slow down.' },
+});
+
+app.use('/api/', generalLimiter);
+
+
 // ─── Routes ───────────────────────────────────────────────────────────────
 app.use('/api/users', require('./src/routes/users'));
-app.use('/api/ventures', require('./src/routes/companies'));
+app.use('/api/companies', require('./src/routes/companies'));
 app.use('/api/companies', require('./src/routes/companies'));
 app.use('/api/onboarding', require('./src/routes/onboarding'));
 app.use('/api/teams', require('./src/routes/teams'));
@@ -27,6 +48,8 @@ app.use('/api/projects', require('./src/routes/projects'));
 app.use('/api/leave', require('./src/routes/leave'));
 app.use('/api/setup', require('./src/routes/setup'));
 app.use('/api/marketing', require('./src/routes/marketingRoutes'));
+app.use('/api/timeline', require('./src/routes/timeline'));
+
 
 // ─── Health Check ──────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {

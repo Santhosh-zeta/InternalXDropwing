@@ -12,9 +12,9 @@ export default function OnboardInvitePage() {
   const [form, setForm] = useState({ full_name: '', phone: '', notes: '' });
 
   const title = useMemo(() => {
-    const ventureName = invite?.venture?.name;
-    if (!ventureName) return 'Onboarding';
-    return `Onboarding • ${ventureName}`;
+    const companyName = invite?.company?.name;
+    if (!companyName) return 'Onboarding';
+    return `Onboarding • ${companyName}`;
   }, [invite]);
 
   useEffect(() => {

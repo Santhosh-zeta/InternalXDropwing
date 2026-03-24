@@ -7,7 +7,7 @@ import {
     LayoutDashboard, Users, Building2, Users2, Megaphone,
     ListTodo, FolderKanban, LogOut, Moon, Sun, Bell, X,
     UserCircle, CalendarClock, MessageSquare, BarChart2,
-    ClipboardList, Plane, Briefcase
+    ClipboardList, Plane, Briefcase, Activity
 } from 'lucide-react';
 
 const ROLE_LABELS = {
@@ -29,7 +29,7 @@ export default function Sidebar() {
     const role = profile?.role;
     const isAdmin = role === 'managing_director' || role === 'admin';
     const isCEO = role === 'ceo';
-    const isWebforgeCEO = isCEO; // Currently visible to any CEO. Can be restricted by venture ID later.
+    const isWebforgeCEO = isCEO; // Currently visible to any CEO. Can be restricted by company ID later.
     const isClient = role === 'client';
 
     const handleLogout = async () => {
@@ -69,13 +69,14 @@ export default function Sidebar() {
                         <div className="nav-section-label">Overview</div>
                         {navLink('/dashboard', <LayoutDashboard size={18} />, 'Dashboard')}
                         {navLink('/analytics', <BarChart2 size={18} />, 'Analytics', !isClient)}
+                        {navLink('/activity', <Activity size={18} />, 'Activity', !isClient)}
                     </div>
 
                     <div className="nav-section">
                         <div className="nav-section-label">Management</div>
                         {navLink('/webforge', <Briefcase size={18} />, 'Webforge Desk', isWebforgeCEO)}
                         {navLink('/users', <Users size={18} />, 'Team Members', isAdmin || isCEO)}
-                        {navLink('/companies', <Building2 size={18} />, 'Ventures', isAdmin || isCEO)}
+                        {navLink('/companies', <Building2 size={18} />, 'Companies', isAdmin || isCEO)}
                         {navLink('/teams', <Users2 size={18} />, 'Teams', !isClient)}
                     </div>
 

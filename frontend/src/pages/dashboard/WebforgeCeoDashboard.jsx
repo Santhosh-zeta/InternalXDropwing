@@ -54,7 +54,7 @@ export default function WebforgeCeoDashboard() {
                 description: newTaskDesc,
                 team_id: selectedTeam,
                 status: 'pending',
-                venture_id: profile.company_id
+                company_id: profile.company_id
             });
             toast.success('Task assigned to team successfully!');
             setIsAssignModalOpen(false);
@@ -80,7 +80,7 @@ export default function WebforgeCeoDashboard() {
 
     if (loading) return <div className="p-8 text-center text-[var(--color-text-secondary)]">Loading Webforge Desk...</div>;
 
-    const webforgeTeams = teams.filter(t => t.venture_id === profile.company_id);
+    const webforgeTeams = teams.filter(t => t.company_id === profile.company_id);
 
     return (
         <div className="space-y-6">

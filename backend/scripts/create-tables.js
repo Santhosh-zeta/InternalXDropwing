@@ -14,8 +14,8 @@ const SQL = `
 CREATE TABLE IF NOT EXISTS teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  venture_id UUID REFERENCES ventures(id) ON DELETE CASCADE,
-  manager_id UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  manager_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
@@ -23,7 +23,7 @@ ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS team_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES user_roles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   UNIQUE (team_id, user_id)
 );
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
@@ -32,8 +32,8 @@ CREATE TABLE IF NOT EXISTS announcements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   body TEXT,
-  venture_id UUID REFERENCES ventures(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  venture_id UUID REFERENCES ventures(id) ON DELETE SET NULL,
+  company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','completed','on_hold')),
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -50,7 +50,7 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 
 CREATE TABLE IF NOT EXISTS client_projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id UUID REFERENCES user_roles(id) ON DELETE CASCADE,
+  client_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   UNIQUE (client_id, project_id)
 );
@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
-  assignee_id UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  assignee_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'todo' CHECK (status IN ('todo','in_progress','done')),
   due_date DATE,

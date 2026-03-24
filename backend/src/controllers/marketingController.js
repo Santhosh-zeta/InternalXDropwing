@@ -3,15 +3,15 @@ const { supabase } = require('../config/supabase');
 // GET /api/marketing
 const getLeads = async (req, res) => {
     try {
-        const { role, venture_id } = req.user;
+        const { role, company_id } = req.user;
 
         let query = supabase
             .from('marketing_leads')
-            .select('*, assigned:user_roles!marketing_leads_assigned_to_fkey(id, full_name)')
+            .select('*, assigned:profiles!marketing_leads_assigned_to_fkey(id, full_name)')
             .order('created_at', { ascending: false });
 
         if (role !== 'managing_director' && role !== 'admin') {
-            query = query.eq('venture_id', venture_id);
+            query = query.eq('company_id', company_id);
         }
 
         const { data, error } = await query;
@@ -27,7 +27,7 @@ const getLeads = async (req, res) => {
 const createLead = async (req, res) => {
     try {
         const { client_name, project_type, estimated_value, assigned_to } = req.body;
-        const { venture_id } = req.user;
+        const { company_id } = req.user;
 
         const { data, error } = await supabase
             .from('marketing_leads')
@@ -36,7 +36,7 @@ const createLead = async (req, res) => {
                 project_type,
                 estimated_value: estimated_value || 0,
                 assigned_to,
-                venture_id
+                company_id
             })
             .select()
             .single();

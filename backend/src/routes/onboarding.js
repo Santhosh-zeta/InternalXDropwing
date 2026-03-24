@@ -3,7 +3,7 @@ const crypto = require('crypto');
 const router = express.Router();
 
 const { supabase } = require('../config/supabase');
-const { authenticate, requireRole, requireSameVenture } = require('../middleware/auth');
+const { authenticate, requireRole, requireSameCompany } = require('../middleware/auth');
 
 function isExpired(invite) {
   return invite?.expires_at && new Date(invite.expires_at).getTime() < Date.now();
@@ -28,7 +28,7 @@ router.get('/public/:token', async (req, res) => {
     const { token } = req.params;
     const { data, error } = await supabase
       .from('onboarding_invites')
-      .select('id, email, kind, status, venture_id, expires_at, submitted_at, ventures(id, name)')
+      .select('id, email, kind, status, company_id, expires_at, submitted_at, companies(id, name)')
       .eq('token', token)
       .single();
     if (error) return res.status(404).json({ error: 'Invalid invite link' });
@@ -47,7 +47,7 @@ router.get('/public/:token', async (req, res) => {
       email: data.email,
       kind: data.kind,
       status: data.status,
-      venture: data.ventures || null,
+      company: data.companies || null,
       expires_at: data.expires_at,
       submitted_at: data.submitted_at,
     });
@@ -120,11 +120,11 @@ router.get('/invites', requireRole('managing_director', 'admin', 'ceo'), async (
   try {
     let query = supabase
       .from('onboarding_invites')
-      .select('*, ventures(id, name)')
+      .select('*, companies(id, name)')
       .order('created_at', { ascending: false });
 
     if (req.user.role === 'ceo') {
-      query = query.eq('venture_id', req.user.venture_id);
+      query = query.eq('company_id', req.user.company_id);
     }
 
     const { data, error } = await query;
@@ -136,14 +136,14 @@ router.get('/invites', requireRole('managing_director', 'admin', 'ceo'), async (
 });
 
 // POST /api/onboarding/invites
-router.post('/invites', requireRole('managing_director', 'admin', 'ceo'), requireSameVenture, async (req, res) => {
+router.post('/invites', requireRole('managing_director', 'admin', 'ceo'), requireSameCompany, async (req, res) => {
   try {
-    const { email, venture_id, kind, expires_in_days } = req.body || {};
+    const { email, company_id, kind, expires_in_days } = req.body || {};
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const targetVentureId = req.user.role === 'ceo' ? req.user.venture_id : (venture_id || null);
-    if (!targetVentureId) return res.status(400).json({ error: 'venture_id is required' });
+    const targetCompanyId = req.user.role === 'ceo' ? req.user.company_id : (company_id || null);
+    if (!targetCompanyId) return res.status(400).json({ error: 'company_id is required' });
 
     const token = makeToken();
     const days = Number.isFinite(Number(expires_in_days)) ? Number(expires_in_days) : 7;
@@ -152,7 +152,7 @@ router.post('/invites', requireRole('managing_director', 'admin', 'ceo'), requir
     const { data, error } = await supabase
       .from('onboarding_invites')
       .insert({
-        venture_id: targetVentureId,
+        company_id: targetCompanyId,
         email: normalizedEmail,
         kind: kind === 'client' ? 'client' : 'member',
         token,
@@ -160,7 +160,7 @@ router.post('/invites', requireRole('managing_director', 'admin', 'ceo'), requir
         created_by: req.user.id,
         expires_at: expiresAt,
       })
-      .select('*, ventures(id, name)')
+      .select('*, companies(id, name)')
       .single();
 
     if (error) throw error;
@@ -182,7 +182,7 @@ router.patch('/invites/:id', requireRole('managing_director', 'admin', 'ceo'), a
     if (inviteRes.error || !inviteRes.data) return res.status(404).json({ error: 'Invite not found' });
     const invite = inviteRes.data;
 
-    if (req.user.role === 'ceo' && invite.venture_id !== req.user.venture_id) {
+    if (req.user.role === 'ceo' && invite.company_id !== req.user.company_id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -196,7 +196,7 @@ router.patch('/invites/:id', requireRole('managing_director', 'admin', 'ceo'), a
       .from('onboarding_invites')
       .update(patch)
       .eq('id', id)
-      .select('*, ventures(id, name)')
+      .select('*, companies(id, name)')
       .single();
     if (error) throw error;
 
@@ -219,7 +219,7 @@ router.post('/invites/:id/decision', requireRole('managing_director', 'admin', '
     if (inviteRes.error || !inviteRes.data) return res.status(404).json({ error: 'Invite not found' });
     const invite = inviteRes.data;
 
-    if (req.user.role === 'ceo' && invite.venture_id !== req.user.venture_id) {
+    if (req.user.role === 'ceo' && invite.company_id !== req.user.company_id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -242,7 +242,7 @@ router.post('/invites/:id/decision', requireRole('managing_director', 'admin', '
       .from('onboarding_invites')
       .update(patch)
       .eq('id', id)
-      .select('*, ventures(id, name)')
+      .select('*, companies(id, name)')
       .single();
     if (error) throw error;
     res.json(data);
@@ -260,7 +260,7 @@ router.post('/invites/:id/onboard', requireRole('managing_director', 'admin', 'c
     if (inviteRes.error || !inviteRes.data) return res.status(404).json({ error: 'Invite not found' });
     const invite = inviteRes.data;
 
-    if (req.user.role === 'ceo' && invite.venture_id !== req.user.venture_id) {
+    if (req.user.role === 'ceo' && invite.company_id !== req.user.company_id) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -289,13 +289,13 @@ router.post('/invites/:id/onboard', requireRole('managing_director', 'admin', 'c
     if (authError) throw authError;
 
     const { data: userRole, error: roleError } = await supabase
-      .from('user_roles')
+      .from('profiles')
       .insert({
         id: authUser.user.id,
         email: invite.email,
         full_name: invite.submission.full_name,
         role: roleToAssign,
-        venture_id: invite.venture_id,
+        company_id: invite.company_id,
         phone: invite.submission.phone || null,
         designation: invite.designation || null,
       })

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../api/supabase';
-import { getTasks, getTeams, getUsers } from '../../api';
+import { getTasks, getTeams, getUsers, extractData } from '../../api';
 import { useEffect } from 'react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -31,9 +31,9 @@ export default function AnalyticsPage() {
                     getUsers().catch(() => ({ data: [] })),
                 ]);
 
-                const tasks = tasksRes.data || [];
-                const teams = teamsRes.data || [];
-                const users = usersRes.data || [];
+                const tasks = extractData(tasksRes.data);
+                const teams = extractData(teamsRes.data);
+                const users = extractData(usersRes.data);
 
                 // Tasks by status
                 const statusCount = { todo: 0, in_progress: 0, done: 0 };

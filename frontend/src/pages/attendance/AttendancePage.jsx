@@ -45,7 +45,7 @@ export default function AttendancePage() {
                 if (isManagerPlus) {
                     const { data: teamData } = await supabase
                         .from('attendance')
-                        .select('*, user:user_roles(full_name, venture_id)')
+                        .select('*, user:profiles(full_name, company_id)')
                         .eq('date', todayStr)
                         .order('checked_in_at');
                     setTeamRecords(teamData || []);

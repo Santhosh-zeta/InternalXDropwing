@@ -6,7 +6,7 @@ const CACHE_DURATION_MS = 1000 * 60 * 5; // 5 minutes
 
 /**
  * Verifies the Bearer token from the Authorization header.
- * Attaches user from user_roles to req.user on success.
+ * Attaches user from profiles to req.user on success.
  */
 const authenticate = async (req, res, next) => {
     try {
@@ -30,9 +30,9 @@ const authenticate = async (req, res, next) => {
         }
         const user = authResult.data.user;
 
-        // Fetch the user's role info from user_roles (keyed by id = auth user id)
+        // Fetch the user's role info from profiles (keyed by id = auth user id)
         const { data: userRole, error: roleError } = await supabase
-            .from('user_roles')
+            .from('profiles')
             .select('*')
             .eq('id', user.id)
             .single();
@@ -41,14 +41,14 @@ const authenticate = async (req, res, next) => {
             return res.status(401).json({ error: 'User profile not found. Contact your administrator.' });
         }
 
-        let ventureData = null;
-        if (userRole.venture_id) {
+        let companyData = null;
+        if (userRole.company_id) {
             const { data: vData } = await supabase
-                .from('ventures')
+                .from('companies')
                 .select('*')
-                .eq('id', userRole.venture_id)
+                .eq('id', userRole.company_id)
                 .single();
-            ventureData = vData;
+            companyData = vData;
         }
 
         // Attach combined user to request
@@ -57,8 +57,8 @@ const authenticate = async (req, res, next) => {
             email: user.email,
             full_name: userRole.full_name,
             role: userRole.role,
-            venture_id: userRole.venture_id,
-            venture: ventureData,
+            company_id: userRole.company_id,
+            company: companyData,
         };
 
         // Cache the verified user for future requests
@@ -92,17 +92,17 @@ const requireRole = (...roles) => {
 };
 
 /**
- * Ensures non-MD users can only access data in their own venture.
+ * Ensures non-MD users can only access data in their own company.
  */
-const requireSameVenture = (req, res, next) => {
-    const { role, venture_id } = req.user;
+const requireSameCompany = (req, res, next) => {
+    const { role, company_id } = req.user;
     if (role === 'managing_director' || role === 'admin') return next();
 
-    const targetVentureId = req.params.ventureId || req.body.venture_id || req.query.venture_id;
-    if (targetVentureId && targetVentureId !== venture_id) {
-        return res.status(403).json({ error: 'Access denied: cross-venture access not allowed' });
+    const targetCompanyId = req.params.companyId || req.body.company_id || req.query.company_id;
+    if (targetCompanyId && targetCompanyId !== company_id) {
+        return res.status(403).json({ error: 'Access denied: cross-company access not allowed' });
     }
     next();
 };
 
-module.exports = { authenticate, requireRole, requireSameVenture };
+module.exports = { authenticate, requireRole, requireSameCompany };

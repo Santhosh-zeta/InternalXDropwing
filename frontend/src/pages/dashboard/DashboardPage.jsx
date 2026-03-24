@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { getUsers, getVentures, getAnnouncements, getTasks, getTeams, getProjects } from '../../api';
+import { getUsers, getCompanies, getAnnouncements, getTasks, getTeams, getProjects, extractData } from '../../api';
 import { Users, Building2, ListTodo, FolderKanban, Bell, Clock } from 'lucide-react';
 
 const ROLE_GREET = {
     managing_director: 'Here\'s the Dropwing Groups overview',
     admin: 'Welcome, Admin',
-    ceo: 'Here\'s your venture overview',
+    ceo: 'Here\'s your company overview',
     manager: 'Here\'s your team summary',
     intern: 'Here\'s your work summary',
     client: 'Here\'s your project status',
@@ -49,19 +49,19 @@ export default function DashboardPage() {
                     role !== 'client' ? getAnnouncements() : Promise.resolve({ data: [] }),
                     getTasks().catch(() => ({ data: [] })),
                     (role === 'managing_director' || role === 'admin') ? getUsers() : Promise.resolve({ data: [] }),
-                    (role === 'managing_director' || role === 'admin') ? getVentures() : Promise.resolve({ data: [] }),
+                    (role === 'managing_director' || role === 'admin') ? getCompanies() : Promise.resolve({ data: [] }),
                     (role !== 'client') ? getTeams().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                     (role !== 'intern') ? getProjects().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
                 ]);
 
-                const getValue = (r) => r.status === 'fulfilled' ? r.value?.data : [];
+                const getValue = (r) => r.status === 'fulfilled' ? extractData(r.value?.data) : [];
                 const [ann, tsk, usr, ven, tms, prj] = results.map(getValue);
 
                 setAnnouncements((ann || []).slice(0, 5));
                 setTasks((tsk || []).slice(0, 10));
                 setStats({
                     users: usr?.length || 0,
-                    ventures: ven?.length || 0,
+                    companies: ven?.length || 0,
                     teams: tms?.length || 0,
                     projects: prj?.length || 0,
                     totalTasks: tsk?.length || 0,
@@ -83,7 +83,7 @@ export default function DashboardPage() {
         const { role } = profile;
         if (role === 'managing_director' || role === 'admin') {
             return [
-                <StatCard key="v" icon={<Building2 size={24} />} label="Ventures" value={stats.ventures} color="var(--color-primary)" />,
+                <StatCard key="v" icon={<Building2 size={24} />} label="Companies" value={stats.companies} color="var(--color-primary)" />,
                 <StatCard key="u" icon={<Users size={24} />} label="Total Members" value={stats.users} color="var(--color-info)" />,
                 <StatCard key="t" icon={<ListTodo size={24} />} label="Active Tasks" value={stats.pendingTasks} color="var(--color-warning)" subtitle={`${stats.doneTasks} completed`} />,
                 <StatCard key="p" icon={<FolderKanban size={24} />} label="Projects" value={stats.projects} color="var(--color-success)" />,
@@ -133,7 +133,7 @@ export default function DashboardPage() {
                         </h1>
                         <p style={{ fontSize: '0.9rem' }}>
                             {ROLE_GREET[profile?.role] || 'Welcome back'}
-                            {profile?.ventures?.name && ` · ${profile.ventures.name}`}
+                            {profile?.companies?.name && ` · ${profile.companies.name}`}
                         </p>
                     </div>
                     <div style={{ textAlign: 'right' }}>

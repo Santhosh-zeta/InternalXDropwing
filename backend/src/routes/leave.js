@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
     try {
         const { data, error } = await supabase
             .from('leave_requests')
-            .select('*, user:user_roles!leave_requests_user_id_fkey(full_name, email), reviewer:user_roles!leave_requests_reviewed_by_fkey(full_name)')
+            .select('*, user:profiles!leave_requests_user_id_fkey(full_name, email), reviewer:profiles!leave_requests_reviewed_by_fkey(full_name)')
             .eq('user_id', req.user.id)
             .order('created_at', { ascending: false });
         if (error) throw error;
@@ -24,7 +24,7 @@ router.get('/pending', requireRole('managing_director', 'admin', 'ceo', 'manager
     try {
         const { data, error } = await supabase
             .from('leave_requests')
-            .select('*, user:user_roles!leave_requests_user_id_fkey(full_name, email, venture_id)')
+            .select('*, user:profiles!leave_requests_user_id_fkey(full_name, email, company_id)')
             .eq('status', 'pending')
             .order('created_at');
         if (error) throw error;
@@ -51,7 +51,7 @@ router.put('/:id', requireRole('managing_director', 'admin', 'ceo', 'manager'), 
         const { status } = req.body;
         const { data: leave, error: fetchErr } = await supabase
             .from('leave_requests')
-            .select('*, user:user_roles!leave_requests_user_id_fkey(full_name, email)')
+            .select('*, user:profiles!leave_requests_user_id_fkey(full_name, email)')
             .eq('id', req.params.id).single();
         if (fetchErr) throw fetchErr;
 

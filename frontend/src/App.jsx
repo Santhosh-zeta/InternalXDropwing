@@ -23,6 +23,7 @@ import ReviewsPage from './pages/reviews/ReviewsPage';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import WebforgeCeoDashboard from './pages/dashboard/WebforgeCeoDashboard';
 import OnboardInvitePage from './pages/onboarding/OnboardInvitePage';
+import ActivityPage from './pages/activity/ActivityPage';
 
 const ALL_ROLES = ['managing_director', 'ceo', 'manager', 'intern', 'client', 'admin'];
 const STAFF_ROLES = ['managing_director', 'ceo', 'manager', 'intern', 'admin'];
@@ -69,6 +70,7 @@ function App() {
             <Route path="/messages" element={<MessagesPage />} />
             <Route path="/reviews" element={<ReviewsPage />} />
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/activity" element={<ActivityPage />} />
           </Route>
 
           {/* Admin / CEO */}

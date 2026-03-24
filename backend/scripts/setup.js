@@ -18,15 +18,15 @@ const sb = createClient(
 async function checkAndReport() {
     console.log('\n🔍 Checking existing data...\n');
 
-    const [ventures, userRoles] = await Promise.all([
-        sb.from('ventures').select('*'),
-        sb.from('user_roles').select('*'),
+    const [companies, userRoles] = await Promise.all([
+        sb.from('companies').select('*'),
+        sb.from('profiles').select('*'),
     ]);
 
-    console.log('✅ Ventures:');
-    ventures.data?.forEach(v => console.log(`   • ${v.name} (${v.id})`));
+    console.log('✅ Companies:');
+    companies.data?.forEach(v => console.log(`   • ${v.name} (${v.id})`));
 
-    console.log('\n✅ Users (user_roles):');
+    console.log('\n✅ Users (profiles):');
     userRoles.data?.forEach(u => console.log(`   • ${u.full_name} — ${u.role} — ${u.email}`));
 
     // Check for missing tables
@@ -46,7 +46,7 @@ async function checkAndReport() {
     console.log('   The teams, announcements, projects, and tasks tables need to be');
     console.log('   created via the Supabase SQL editor. Copy and run this SQL:\n');
 
-    const ventures_data = ventures.data || [];
+    const companies_data = companies.data || [];
     console.log('-- Copy and paste this into your Supabase SQL editor:\n');
 
     const sql = `
@@ -54,8 +54,8 @@ async function checkAndReport() {
 CREATE TABLE IF NOT EXISTS teams (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
-  venture_id UUID REFERENCES ventures(id) ON DELETE CASCADE,
-  manager_id UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  manager_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
@@ -64,7 +64,7 @@ ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS team_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   team_id UUID REFERENCES teams(id) ON DELETE CASCADE,
-  user_id UUID REFERENCES user_roles(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   UNIQUE (team_id, user_id)
 );
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
@@ -74,8 +74,8 @@ CREATE TABLE IF NOT EXISTS announcements (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   body TEXT,
-  venture_id UUID REFERENCES ventures(id) ON DELETE CASCADE,
-  created_by UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+  created_by UUID REFERENCES profiles(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   description TEXT,
-  venture_id UUID REFERENCES ventures(id) ON DELETE SET NULL,
+  company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'active' CHECK (
     status IN ('active','completed','on_hold')
   ),
@@ -96,7 +96,7 @@ ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 -- Client Projects
 CREATE TABLE IF NOT EXISTS client_projects (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  client_id UUID REFERENCES user_roles(id) ON DELETE CASCADE,
+  client_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
   project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
   UNIQUE (client_id, project_id)
 );
@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
   description TEXT,
-  assignee_id UUID REFERENCES user_roles(id) ON DELETE SET NULL,
+  assignee_id UUID REFERENCES profiles(id) ON DELETE SET NULL,
   team_id UUID REFERENCES teams(id) ON DELETE SET NULL,
   status TEXT NOT NULL DEFAULT 'todo' CHECK (
     status IN ('todo','in_progress','done')
@@ -125,18 +125,18 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 async function seedSampleData() {
     console.log('\n🌱 Seeding sample data...\n');
 
-    // Get ventures and users
-    const { data: ventures } = await sb.from('ventures').select('*');
-    const { data: users } = await sb.from('user_roles').select('*');
+    // Get companies and users
+    const { data: companies } = await sb.from('companies').select('*');
+    const { data: users } = await sb.from('profiles').select('*');
 
-    if (!ventures || !users) {
-        console.log('❌ Cannot fetch ventures or users');
+    if (!companies || !users) {
+        console.log('❌ Cannot fetch companies or users');
         return;
     }
 
-    const webforge = ventures.find(v => v.name === 'Webforge');
-    const grovia = ventures.find(v => v.name === 'Grovia');
-    const designStudio = ventures.find(v => v.name.includes('Design'));
+    const webforge = companies.find(v => v.name === 'Webforge');
+    const grovia = companies.find(v => v.name === 'Grovia');
+    const designStudio = companies.find(v => v.name.includes('Design'));
 
     const ashwin = users.find(u => u.email === 'ashwin@dropwing.io');
     const yazhini = users.find(u => u.email === 'yazhini@dropwing.io');
@@ -149,10 +149,10 @@ async function seedSampleData() {
     if (!teamsExist) {
         // Seed teams
         const { data: teams, error: teamsErr } = await sb.from('teams').insert([
-            { name: 'Frontend Team', venture_id: webforge?.id, manager_id: ashwin?.id },
-            { name: 'Backend Team', venture_id: webforge?.id, manager_id: ashwin?.id },
-            { name: 'Marketing', venture_id: grovia?.id, manager_id: yazhini?.id },
-            { name: 'Design Team', venture_id: designStudio?.id },
+            { name: 'Frontend Team', company_id: webforge?.id, manager_id: ashwin?.id },
+            { name: 'Backend Team', company_id: webforge?.id, manager_id: ashwin?.id },
+            { name: 'Marketing', company_id: grovia?.id, manager_id: yazhini?.id },
+            { name: 'Design Team', company_id: designStudio?.id },
         ]).select();
 
         if (teamsErr) console.log('Teams:', teamsErr.message);
@@ -166,19 +166,19 @@ async function seedSampleData() {
             {
                 title: 'Welcome to Dropwing Groups Internal Portal!',
                 body: 'We are excited to launch our internal team portal. This platform will be your central hub for team communication, task management, and project tracking.',
-                venture_id: null,
+                company_id: null,
                 created_by: santhosh?.id,
             },
             {
                 title: 'Q1 2026 Goals',
                 body: 'All CEOs please submit your quarterly goals by end of this week.',
-                venture_id: null,
+                company_id: null,
                 created_by: santhosh?.id,
             },
             {
                 title: 'Webforge: Sprint Review',
                 body: 'The frontend team sprint review is scheduled for this Friday at 3pm.',
-                venture_id: webforge?.id,
+                company_id: webforge?.id,
                 created_by: ashwin?.id,
             },
         ]);
@@ -190,10 +190,10 @@ async function seedSampleData() {
     const { data: existingProj } = await sb.from('projects').select('id').limit(1);
     if (!existingProj || existingProj.length === 0) {
         const { error: projErr } = await sb.from('projects').insert([
-            { name: 'Dropwing Portal v1.0', description: 'Internal employee portal development', venture_id: webforge?.id, status: 'active' },
-            { name: 'E-Commerce Platform', description: 'Client-facing online store', venture_id: webforge?.id, status: 'active' },
-            { name: 'Brand Identity 2026', description: 'New brand guidelines and visual identity', venture_id: designStudio?.id, status: 'in_progress' },
-            { name: 'Grovia App', description: 'Mobile app for Grovia services', venture_id: grovia?.id, status: 'active' },
+            { name: 'Dropwing Portal v1.0', description: 'Internal employee portal development', company_id: webforge?.id, status: 'active' },
+            { name: 'E-Commerce Platform', description: 'Client-facing online store', company_id: webforge?.id, status: 'active' },
+            { name: 'Brand Identity 2026', description: 'New brand guidelines and visual identity', company_id: designStudio?.id, status: 'in_progress' },
+            { name: 'Grovia App', description: 'Mobile app for Grovia services', company_id: grovia?.id, status: 'active' },
         ]);
         if (projErr) console.log('Projects:', projErr.message);
         else console.log('✅ Created 4 projects');

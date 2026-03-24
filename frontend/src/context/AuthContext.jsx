@@ -16,7 +16,7 @@ export const AuthProvider = ({ children }) => {
         try {
             // First fetch the raw profile
             const { data, error } = await supabase
-                .from('user_roles')
+                .from('profiles')
                 .select('*')
                 .eq('id', userId)
                 .single();
@@ -28,22 +28,22 @@ export const AuthProvider = ({ children }) => {
             }
 
             if (data) {
-                let venturesData = null;
-                // If they have a venture, fetch it separately to avoid 406 join errors
-                if (data.venture_id) {
+                let companiesData = null;
+                // If they have a company, fetch it separately to avoid 406 join errors
+                if (data.company_id) {
                     const { data: vData } = await supabase
-                        .from('ventures')
+                        .from('companies')
                         .select('id, name')
-                        .eq('id', data.venture_id)
+                        .eq('id', data.company_id)
                         .single();
-                    venturesData = vData;
+                    companiesData = vData;
                 }
 
                 setProfile({
                     ...data,
-                    company_id: data.venture_id,
-                    companies: venturesData,
-                    ventures: venturesData,
+                    company_id: data.company_id,
+                    companies: companiesData,
+                    companies: companiesData,
                 });
             }
         } catch (err) {

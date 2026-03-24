@@ -88,7 +88,7 @@ export default function LeavePage() {
             if (isManagerPlus) {
                 const { data: all } = await supabase
                     .from('leave_requests')
-                    .select('*, user:user_roles!leave_requests_user_id_fkey(full_name, email, venture_id), reviewer:user_roles!leave_requests_reviewed_by_fkey(full_name)')
+                    .select('*, user:profiles!leave_requests_user_id_fkey(full_name, company_id), reviewer:profiles!leave_requests_reviewed_by_fkey(full_name)')
                     .eq('status', 'pending')
                     .order('created_at');
                 setAllRequests(all || []);

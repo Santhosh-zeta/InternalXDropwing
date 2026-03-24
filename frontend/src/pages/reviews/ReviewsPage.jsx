@@ -108,8 +108,8 @@ export default function ReviewsPage() {
         setLoading(true);
         try {
             const [given, received, usersRes] = await Promise.all([
-                supabase.from('reviews').select('*, reviewee:user_roles!reviews_reviewee_id_fkey(full_name)').eq('reviewer_id', profile.id).order('created_at', { ascending: false }),
-                supabase.from('reviews').select('*, reviewer:user_roles!reviews_reviewer_id_fkey(full_name, role)').eq('reviewee_id', profile.id).order('created_at', { ascending: false }),
+                supabase.from('reviews').select('*, reviewee:profiles!reviews_reviewee_id_fkey(full_name)').eq('reviewer_id', profile.id).order('created_at', { ascending: false }),
+                supabase.from('reviews').select('*, reviewer:profiles!reviews_reviewer_id_fkey(full_name, role)').eq('reviewee_id', profile.id).order('created_at', { ascending: false }),
                 getUsers(),
             ]);
             setReviewsGiven(given.data || []);

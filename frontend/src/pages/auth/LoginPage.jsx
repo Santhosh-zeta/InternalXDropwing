@@ -83,10 +83,39 @@ export default function LoginPage() {
                     </button>
                 </form>
 
-                <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                <div style={{ marginTop: '24px', borderTop: '1px solid var(--color-border)', paddingTop: '16px' }}>
+                    <p style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '12px' }}>
+                        Use a test account:
+                    </p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'center' }}>
+                        {[
+                            { role: 'CEO', email: 'ceo@dropwinggroups.com', pass: 'password123' },
+                            { role: 'MD', email: 'md@dropwinggroups.com', pass: 'password123' },
+                            { role: 'Manager', email: 'manager@dropwinggroups.com', pass: 'password123' },
+                            { role: 'Intern', email: 'intern@dropwinggroups.com', pass: 'password123' },
+                            { role: 'Client', email: 'client@company.com', pass: 'password123' },
+                        ].map(t => (
+                            <button
+                                key={t.role}
+                                type="button"
+                                onClick={() => { setEmail(t.email); setPassword(t.pass); }}
+                                style={{
+                                    fontSize: '0.75rem', padding: '4px 10px', borderRadius: '12px',
+                                    border: '1px solid var(--color-border)', background: 'var(--color-bg-elevated)',
+                                    color: 'var(--color-text-primary)', cursor: 'pointer'
+                                }}
+                            >
+                                {t.role}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
                     Contact your administrator to get access.
                 </p>
             </div>
         </div>
+
     );
 }

@@ -3,16 +3,16 @@ const { supabase } = require('../config/supabase');
 // GET /api/announcements
 const getAnnouncements = async (req, res) => {
     try {
-        const { role, venture_id } = req.user;
+        const { role, company_id } = req.user;
         if (role === 'client') return res.status(403).json({ error: 'Access denied' });
 
         let query = supabase
             .from('announcements')
-            .select('*, author:user_roles!announcements_created_by_fkey(id, full_name, role), venture:ventures(name)')
+            .select('*, author:profiles!announcements_created_by_fkey(id, full_name, role), company:companies!company_id(id, name)')
             .order('created_at', { ascending: false });
 
         if (role !== 'managing_director' && role !== 'admin') {
-            query = query.or(`venture_id.is.null,venture_id.eq.${venture_id}`);
+            query = query.or(`company_id.is.null,company_id.eq.${company_id}`);
         }
 
         const { data, error } = await query;
@@ -26,14 +26,14 @@ const getAnnouncements = async (req, res) => {
 // POST /api/announcements
 const createAnnouncement = async (req, res) => {
     try {
-        const { title, body, venture_id } = req.body;
-        const { role, id: userId, venture_id: userVentureId } = req.user;
-        const effectiveVentureId = (role === 'managing_director' || role === 'admin')
-            ? (venture_id || null) : userVentureId;
+        const { title, body, company_id } = req.body;
+        const { role, id: userId, company_id: userCompanyId } = req.user;
+        const effectiveCompanyId = (role === 'managing_director' || role === 'admin')
+            ? (company_id || null) : userCompanyId;
 
         const { data, error } = await supabase
             .from('announcements')
-            .insert({ title, body, venture_id: effectiveVentureId, created_by: userId })
+            .insert({ title, body, company_id: effectiveCompanyId, created_by: userId })
             .select()
             .single();
         if (error) throw error;
