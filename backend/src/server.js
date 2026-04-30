@@ -45,6 +45,7 @@ app.use('/api/budget', require('./routes/budget.routes'));
 app.use('/api/kpis', require('./routes/kpis.routes'));
 app.use('/api/client-portal', require('./routes/client_portal.routes'));
 app.use('/api/learning', require('./routes/learning.routes'));
+app.use('/api/database', require('./routes/database.routes'));
 
 // Serve uploads directory
 const path = require('path');

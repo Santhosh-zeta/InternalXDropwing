@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { logoutUser } from '@/lib/api';
@@ -21,6 +21,9 @@ import BudgetView from './BudgetView';
 import DepartmentKPIsView from './DepartmentKPIsView';
 import ClientPortalView from './ClientPortalView';
 import NotificationBell from './NotificationBell';
+import DatabaseView from './DatabaseView';
+import LearningHubView from './LearningHubView';
+import StrategyView from './StrategyView';
 
 const LEVEL_COLORS: Record<number, string> = {
   1: '#8b5cf6', 2: '#a78bfa', 3: '#7c3aed',
@@ -29,11 +32,11 @@ const LEVEL_COLORS: Record<number, string> = {
 };
 
 const ACCESS_MENUS: Record<number, string[]> = {
-  1: ['System Overview', 'Projects', 'Tasks', 'Documents', 'User Management', 'Access Control', 'Audit Logs', 'Team Chat', 'Settings', 'Invoices', 'Database', 'Reports'],
-  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Documents', 'Strategy', 'Financials', 'HR Overview', 'Team Chat', 'Invoices', 'Settings', 'Reports'],
-  3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Documents', 'Team Chat', 'Invoices', 'Settings', 'Reports'],
-  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Documents', 'Team Management', 'Team Chat', 'Settings', 'Budget', 'Reports'],
-  5: ['Team Dashboard', 'Projects', 'Tasks', 'Documents', 'Team Members', 'Team Chat', 'Settings', 'Reports'],
+  1: ['System Overview', 'Projects', 'Tasks', 'Documents', 'User Management', 'Access Control', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Database', 'Reports'],
+  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Documents', 'Strategy', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
+  3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Documents', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
+  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Documents', 'Team Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
+  5: ['Team Dashboard', 'Projects', 'Tasks', 'Documents', 'Team Members', 'Team Chat', 'Learning Hub', 'Settings', 'Reports'],
   6: ['My Projects', 'Tasks', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
   7: ['My Dashboard', 'My Projects', 'My Tasks', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
   8: ['My Dashboard', 'My Projects', 'My Tasks', 'Documents', 'Learning Hub', 'Team Chat', 'Settings'],
@@ -44,6 +47,20 @@ export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [activeMenu, setActiveMenu] = useState(0);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const stored = localStorage.getItem('internalx_user');
@@ -75,6 +92,35 @@ export default function DashboardPage() {
   const color = LEVEL_COLORS[user.accessLevel] || '#8b5cf6';
   const menus = ACCESS_MENUS[user.accessLevel] || ACCESS_MENUS[7];
   const ventureColor = user.venture?.primaryColor || color;
+
+  const getSearchResults = () => {
+    const q = searchQuery.toLowerCase();
+    if (!q) return [];
+    
+    const results: { type: string, title: string, subtitle?: string, action: () => void, icon: string }[] = [];
+    
+    // 1. Navigation / Menu matches
+    menus.forEach((item, index) => {
+      if (item.toLowerCase().includes(q)) {
+        results.push({ type: 'module', title: item, subtitle: 'Go to module', action: () => setActiveMenu(index), icon: '✦' });
+      }
+    });
+
+    // 2. Mock Global Items based on query keywords
+    if ('marketing campaign'.includes(q)) {
+      results.push({ type: 'task', title: 'Q3 Marketing Campaign', subtitle: 'Task in Dropwing Design', action: () => { setActiveMenu(menus.indexOf('Tasks') !== -1 ? menus.indexOf('Tasks') : 0); }, icon: '✓' });
+    }
+    if ('invoice'.includes(q) || 'payment'.includes(q)) {
+      results.push({ type: 'document', title: 'Invoice #INV-2026', subtitle: 'Document / Financials', action: () => { setActiveMenu(menus.indexOf('Invoices') !== -1 ? menus.indexOf('Invoices') : 0); }, icon: '📄' });
+    }
+    if ('john doe'.includes(q) || 'user'.includes(q)) {
+      results.push({ type: 'user', title: 'John Doe', subtitle: 'Level 5 Developer', action: () => { setActiveMenu(menus.indexOf('User Management') !== -1 ? menus.indexOf('User Management') : 0); }, icon: '👤' });
+    }
+
+    return results;
+  };
+
+  const searchResults = getSearchResults();
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--color-bg-primary)' }}>
@@ -216,7 +262,78 @@ export default function DashboardPage() {
               {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* Global Search Bar */}
+            <div style={{ position: 'relative' }}>
+              <div 
+                style={{ 
+                  display: 'flex', alignItems: 'center', background: 'var(--color-bg-tertiary)', 
+                  border: `1px solid ${isSearchFocused ? color : 'var(--color-border)'}`, 
+                  borderRadius: 12, padding: '8px 16px', width: 280, transition: 'all 0.2s',
+                  boxShadow: isSearchFocused ? `0 0 0 2px ${color}33` : 'none'
+                }}
+              >
+                <span style={{ marginRight: 8, opacity: 0.5, fontSize: 14 }}>🔍</span>
+                <input 
+                  ref={searchInputRef}
+                  type="text" 
+                  placeholder="Search globally... (Ctrl+K)" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                  style={{ 
+                    border: 'none', background: 'transparent', outline: 'none', 
+                    color: 'var(--color-text-primary)', width: '100%', fontSize: 13 
+                  }}
+                />
+              </div>
+
+              {/* Search Results Dropdown */}
+              {isSearchFocused && searchQuery.trim() && (
+                <div 
+                  className="glass"
+                  style={{ 
+                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 8, 
+                    borderRadius: 12, overflow: 'hidden', zIndex: 100,
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', border: '1px solid var(--color-border)',
+                    maxHeight: 300, overflowY: 'auto'
+                  }}
+                >
+                  {searchResults.length > 0 ? (
+                    searchResults.map((res, i) => (
+                      <div 
+                        key={i}
+                        onClick={() => {
+                          res.action();
+                          setSearchQuery('');
+                          setIsSearchFocused(false);
+                        }}
+                        style={{ 
+                          padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
+                          borderBottom: i < searchResults.length - 1 ? '1px solid var(--color-border)' : 'none'
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-card-hover)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0, border: '1px solid var(--color-border)' }}>
+                          {res.icon}
+                        </div>
+                        <div style={{ overflow: 'hidden' }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{res.title}</div>
+                          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{res.subtitle}</div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                      No results found for "{searchQuery}"
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             <NotificationBell color={color} />
             <div
               style={{
@@ -306,6 +423,8 @@ export default function DashboardPage() {
           <DocumentsView currentUser={user} />
         ) : menus[activeMenu] === 'Timesheets' ? (
           <TimesheetsView currentUser={user} />
+        ) : menus[activeMenu] === 'Strategy' ? (
+          <StrategyView currentUser={user} />
         ) : menus[activeMenu] === 'Financials' || menus[activeMenu] === 'Budget' ? (
           <BudgetView currentUser={user} />
         ) : menus[activeMenu] === 'Department KPIs' || menus[activeMenu] === 'HR Overview' || menus[activeMenu] === 'Team Management' ? (
@@ -318,6 +437,10 @@ export default function DashboardPage() {
           <SettingsView currentUser={user} />
         ) : menus[activeMenu] === 'Reports' ? (
           <ReportsView currentUser={user} />
+        ) : menus[activeMenu] === 'Learning Hub' ? (
+          <LearningHubView currentUser={user} />
+        ) : menus[activeMenu] === 'Database' ? (
+          <DatabaseView />
         ) : menus[activeMenu] === 'Access Control' ? (
           <AccessControlView currentUser={user} />
         ) : (
