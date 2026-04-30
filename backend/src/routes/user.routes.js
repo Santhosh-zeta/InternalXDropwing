@@ -232,7 +232,10 @@ router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
     const updates = [];
     const params = [];
     if (access_level !== undefined) { updates.push('access_level = ?'); params.push(access_level); }
-    if (venture_id !== undefined) { updates.push('venture_id = ?'); params.push(venture_id); }
+    if (venture_id !== undefined) { 
+      updates.push('venture_id = ?'); 
+      params.push(venture_id === 0 ? null : venture_id); 
+    }
     if (is_active !== undefined) { updates.push('is_active = ?'); params.push(is_active); }
     if (full_name !== undefined) { updates.push('full_name = ?'); params.push(full_name); }
     if (department !== undefined) { updates.push('department = ?'); params.push(department); }
@@ -271,6 +274,39 @@ router.delete('/:id', authenticate, requireLevel(3), async (req, res) => {
 
     await pool.query('DELETE FROM users WHERE id = ?', [userId]);
     res.json({ success: true, message: 'User deleted successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// POST /api/users — Create a new user (Admin only)
+router.post('/', authenticate, requireLevel(2), async (req, res) => {
+  try {
+    const { full_name, email, password, access_level, venture_id, department, designation } = req.body;
+    
+    if (!full_name || !email || !password || !access_level) {
+      return res.status(400).json({ success: false, message: 'Required fields missing' });
+    }
+
+    // Check if user exists
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length) {
+      return res.status(400).json({ success: false, message: 'Email already registered' });
+    }
+
+    const hash = await bcrypt.hash(password, 12);
+    const employeeId = 'EMP' + Date.now().toString().slice(-6);
+
+    const [result] = await pool.query(
+      `INSERT INTO users (employee_id, full_name, email, password_hash, access_level, venture_id, department, designation)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [employeeId, full_name, email, hash, access_level, venture_id || null, department || null, designation || null]
+    );
+
+    await logAudit(req.user.id, 'CREATE_USER', 'user', result.insertId, { full_name, email });
+
+    res.json({ success: true, message: 'User created successfully', userId: result.insertId });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });

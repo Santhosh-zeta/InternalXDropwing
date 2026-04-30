@@ -72,12 +72,62 @@ router.get('/', authenticate, async (req, res) => {
       }
     });
 
+    // 4. Recent Activity (Audit Logs)
+    let auditQuery = `
+      SELECT a.action_type as action, a.created_at, u.full_name as user_name
+      FROM audit_logs a
+      LEFT JOIN users u ON a.user_id = u.id
+    `;
+    const auditParams = [];
+    if (accessLevel > 2) {
+      auditQuery += ` WHERE u.venture_id = ? OR u.venture_id IS NULL`;
+      auditParams.push(userVentureId);
+    }
+    auditQuery += ` ORDER BY a.created_at DESC LIMIT 10`;
+    const [auditRows] = await pool.query(auditQuery, auditParams);
+
+    // 5. Monthly Performance (Last 6 Months)
+    const [monthlyTasks] = await pool.query(`
+      SELECT DATE_FORMAT(updated_at, '%b') as name, COUNT(*) as tasks, MONTH(updated_at) as m
+      FROM tasks
+      WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+      GROUP BY DATE_FORMAT(updated_at, '%b'), MONTH(updated_at)
+      ORDER BY m ASC
+    `);
+
+    const [monthlyProjects] = await pool.query(`
+      SELECT DATE_FORMAT(updated_at, '%b') as name, COUNT(*) as projects, MONTH(updated_at) as m
+      FROM projects
+      WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+      GROUP BY DATE_FORMAT(updated_at, '%b'), MONTH(updated_at)
+      ORDER BY m ASC
+    `);
+
+    // Merge monthly data robustly
+    const allMonths = [...new Set([...monthlyTasks.map(t => t.name), ...monthlyProjects.map(p => p.name)])];
+    const monthlyPerformance = allMonths.map(month => {
+      const t = monthlyTasks.find(mt => mt.name === month);
+      const p = monthlyProjects.find(mp => mp.name === month);
+      return {
+        name: month,
+        tasks: t ? t.tasks : 0,
+        projects: p ? p.projects : 0,
+        m: t ? t.m : (p ? p.m : 0)
+      };
+    }).sort((a, b) => a.m - b.m);
+
+    // 6. Announcements
+    const [announcements] = await pool.query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 5');
+
     res.json({
       success: true,
       data: {
         budgetDistribution,
         taskVelocity: velocityFormatted,
-        userDistribution: userDistRows.map(row => ({ name: row.name, value: row.value, color: row.color }))
+        userDistribution: userDistRows.map(row => ({ name: row.name, value: row.value, color: row.color })),
+        recentActivity: auditRows,
+        monthlyPerformance,
+        announcements
       }
     });
   } catch (err) {

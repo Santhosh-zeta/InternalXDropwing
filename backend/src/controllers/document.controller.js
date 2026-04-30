@@ -64,11 +64,24 @@ exports.getDocuments = async (req, res, next) => {
       values.push(projectId);
     }
 
-    // Role-based filtering
+    // Role-based filtering: L6+ (Executive Staff and below) can only see documents 
+    // from their own venture or global documents.
     if (req.user.accessLevel >= 6) {
       if (req.user.ventureId) {
-         query += ` AND (d.venture_id = ? OR d.venture_id IS NULL)`;
-         if (!values.includes(req.user.ventureId)) values.push(req.user.ventureId);
+        // If they already filtered by a specific ventureId, check if it's theirs
+        if (ventureId && parseInt(ventureId) !== req.user.ventureId) {
+           return res.status(403).json({ success: false, message: 'You can only view documents from your own venture' });
+        }
+        // If no ventureId filter was applied yet, restrict to their venture or global
+        if (!ventureId) {
+          query += ` AND (d.venture_id = ? OR d.venture_id IS NULL)`;
+          values.push(req.user.ventureId);
+        }
+      } else {
+        // User with L6+ but no venture assigned? Restrict to global only just in case
+        if (!ventureId) {
+          query += ` AND d.venture_id IS NULL`;
+        }
       }
     }
 

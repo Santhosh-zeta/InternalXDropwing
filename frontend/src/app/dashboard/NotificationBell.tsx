@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getNotifications, markNotificationRead, markAllNotificationsRead, clearReadNotifications } from '@/lib/api';
 import toast from 'react-hot-toast';
+import { 
+  Bell, BellRing, CheckCircle2, AlertCircle, MessageSquare, 
+  Clock, Info, X, Trash2, Check, RefreshCw, Inbox
+} from 'lucide-react';
 
 interface Notification {
   id: number;
@@ -14,13 +18,13 @@ interface Notification {
   created_at: string;
 }
 
-const TYPE_CONFIG: Record<string, { icon: string; color: string }> = {
-  task_assigned: { icon: '✅', color: '#10b981' },
-  task_updated:  { icon: '✏️', color: '#06b6d4' },
-  project_update:{ icon: '📁', color: '#8b5cf6' },
-  mention:       { icon: '💬', color: '#f59e0b' },
-  deadline:      { icon: '⏰', color: '#f43f5e' },
-  system:        { icon: '🔔', color: '#6366f1' },
+const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
+  task_assigned: { icon: CheckCircle2, color: '#10b981' },
+  task_updated:  { icon: RefreshCw, color: '#06b6d4' },
+  project_update:{ icon: Inbox, color: '#8b5cf6' },
+  mention:       { icon: MessageSquare, color: '#f59e0b' },
+  deadline:      { icon: Clock, color: '#f43f5e' },
+  system:        { icon: Info, color: '#6366f1' },
 };
 
 function timeAgo(dateStr: string): string {
@@ -32,16 +36,6 @@ function timeAgo(dateStr: string): string {
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 }
-
-// Seeded demo notifications for when the DB table is empty
-const DEMO_NOTIFICATIONS: Notification[] = [
-  { id: 1, type: 'task_assigned', title: 'New Task Assigned', message: 'You have been assigned: "Design landing page hero section"', is_read: false, created_at: new Date(Date.now() - 5 * 60000).toISOString() },
-  { id: 2, type: 'deadline', title: 'Deadline Tomorrow', message: 'Project "SerphoSoft Website Redesign" is due tomorrow', is_read: false, created_at: new Date(Date.now() - 30 * 60000).toISOString() },
-  { id: 3, type: 'mention', title: 'Mentioned in Chat', message: '@you was mentioned in #dropwing-general', is_read: false, created_at: new Date(Date.now() - 2 * 3600000).toISOString() },
-  { id: 4, type: 'project_update', title: 'Project Status Changed', message: 'PerSyniX AI Dashboard moved to "In Progress"', is_read: true, created_at: new Date(Date.now() - 5 * 3600000).toISOString() },
-  { id: 5, type: 'task_updated', title: 'Task Completed', message: '"Set up CI/CD pipeline" was marked complete by Intern SerphoSoft', is_read: true, created_at: new Date(Date.now() - 86400000).toISOString() },
-  { id: 6, type: 'system', title: 'System Update', message: 'InternalX v2.4 deployed — new Reports & Analytics module live', is_read: true, created_at: new Date(Date.now() - 2 * 86400000).toISOString() },
-];
 
 interface NotificationBellProps {
   color?: string;
@@ -59,14 +53,12 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
     setLoading(true);
     try {
       const res = await getNotifications();
-      if (res.success && res.data.length >= 0) {
-        const notifs = res.data.length > 0 ? res.data : DEMO_NOTIFICATIONS;
-        setNotifications(notifs);
-        setUnread(notifs.filter((n: Notification) => !n.is_read).length);
+      if (res.success) {
+        setNotifications(res.data);
+        setUnread(res.unreadCount || res.data.filter((n: Notification) => !n.is_read).length);
       }
     } catch {
-      setNotifications(DEMO_NOTIFICATIONS);
-      setUnread(DEMO_NOTIFICATIONS.filter(n => !n.is_read).length);
+      // If API fails, keep existing or show empty
     } finally {
       setLoading(false);
     }
@@ -74,13 +66,11 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
 
   useEffect(() => { load(); }, [load]);
 
-  // Poll every 60s for new notifications
   useEffect(() => {
-    const interval = setInterval(load, 60000);
+    const interval = setInterval(load, 30000); // Poll every 30s
     return () => clearInterval(interval);
   }, [load]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
@@ -118,138 +108,133 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
 
   return (
     <div style={{ position: 'relative' }} ref={panelRef}>
-      {/* Bell Button */}
       <button
         id="btn-notifications"
         onClick={() => setOpen(o => !o)}
+        className="relative group flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 border"
         style={{
-          position: 'relative', width: 40, height: 40, borderRadius: 12,
-          border: open ? `1px solid ${color}50` : '1px solid var(--color-border)',
-          background: open ? `${color}18` : 'rgba(255,255,255,0.04)',
-          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 18, transition: 'all 0.2s',
+          borderColor: open ? `${color}40` : 'var(--color-border)',
+          background: open ? `${color}10` : 'var(--color-bg-secondary)',
+          color: open ? color : 'var(--color-text-muted)',
         }}
-        title="Notifications"
       >
-        🔔
+        {unread > 0 ? (
+          <BellRing size={20} strokeWidth={open ? 2.5 : 2} className="group-hover:text-[var(--color-text-primary)]" />
+        ) : (
+          <Bell size={20} strokeWidth={open ? 2.5 : 2} className="group-hover:text-[var(--color-text-primary)]" />
+        )}
+        
         {unread > 0 && (
-          <div style={{
-            position: 'absolute', top: -4, right: -4,
-            width: 18, height: 18, borderRadius: '50%',
-            background: '#f43f5e', border: '2px solid var(--color-bg-primary)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 9, fontWeight: 800, color: '#fff',
-            animation: 'pulse 2s infinite',
-          }}>
+          <div className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 border-2 border-[var(--color-bg-primary)] text-[10px] font-bold text-white shadow-sm animate-in zoom-in duration-300">
             {unread > 9 ? '9+' : unread}
           </div>
         )}
       </button>
 
-      {/* Dropdown Panel */}
       {open && (
-        <div style={{
-          position: 'absolute', right: 0, top: 48,
-          width: 380, maxHeight: 520, display: 'flex', flexDirection: 'column',
-          background: 'var(--color-bg-secondary, #1a1b2e)',
-          border: '1px solid var(--color-border)',
-          borderRadius: 18, zIndex: 1000, overflow: 'hidden',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.5)',
-          animation: 'slideDown 0.18s ease-out',
-        }}>
-          {/* Panel Header */}
-          <div style={{
-            padding: '16px 18px', borderBottom: '1px solid var(--color-border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            flexShrink: 0,
-          }}>
+        <div className="absolute right-0 top-12 w-[380px] max-h-[520px] flex flex-col bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-2xl z-[1000] overflow-hidden shadow-2xl animate-in slide-in-from-top-2 duration-200">
+          
+          <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between shrink-0 bg-[var(--color-bg-card)]/50">
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>Notifications</div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 2 }}>
-                {unread > 0 ? `${unread} unread` : 'All caught up'}
+              <div className="text-sm font-bold text-[var(--color-text-primary)]">Activity Feed</div>
+              <div className="text-[11px] text-[var(--color-text-muted)] mt-0.5">
+                {unread > 0 ? `${unread} unread updates` : 'Everything is up to date'}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div className="flex gap-2">
               {unread > 0 && (
-                <button onClick={handleMarkAllRead} style={{
-                  padding: '5px 10px', borderRadius: 8, border: `1px solid ${color}30`,
-                  background: `${color}15`, color, cursor: 'pointer', fontSize: 11, fontWeight: 600,
-                }}>Mark all read</button>
+                <button 
+                  onClick={handleMarkAllRead}
+                  className="p-1.5 rounded-lg hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                  title="Mark all as read"
+                >
+                  <Check size={14} />
+                </button>
               )}
-              <button onClick={handleClear} style={{
-                padding: '5px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)',
-                background: 'rgba(255,255,255,0.04)', color: 'var(--color-text-muted)', cursor: 'pointer', fontSize: 11,
-              }}>Clear read</button>
+              <button 
+                onClick={handleClear}
+                className="p-1.5 rounded-lg hover:bg-rose-500/10 text-[var(--color-text-muted)] hover:text-rose-500 transition-colors"
+                title="Clear read"
+              >
+                <Trash2 size={14} />
+              </button>
             </div>
           </div>
 
-          {/* Filter Tabs */}
-          <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--color-border)', display: 'flex', gap: 6, flexShrink: 0 }}>
+          <div className="p-2 border-b border-[var(--color-border)] flex gap-1 shrink-0">
             {(['all', 'unread'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: '5px 12px', borderRadius: 8, border: `1px solid ${filter === f ? color+'40' : 'transparent'}`,
-                background: filter === f ? `${color}18` : 'transparent',
-                color: filter === f ? color : 'var(--color-text-muted)',
-                cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.15s',
-              }}>{f === 'all' ? `All (${notifications.length})` : `Unread (${unread})`}</button>
+              <button 
+                key={f} 
+                onClick={() => setFilter(f)} 
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  filter === f 
+                    ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm' 
+                    : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                }`}
+              >
+                {f === 'all' ? `All (${notifications.length})` : `Unread (${unread})`}
+              </button>
             ))}
           </div>
 
-          {/* Notifications List */}
-          <div style={{ overflowY: 'auto', flex: 1 }}>
-            {loading ? (
-              <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {[1,2,3].map(i => (
-                  <div key={i} style={{ height: 64, borderRadius: 12, background: 'rgba(255,255,255,0.04)' }} />
-                ))}
+          <div className="overflow-y-auto flex-1 custom-scrollbar">
+            {loading && notifications.length === 0 ? (
+              <div className="p-8 flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-5 h-5 animate-spin text-[var(--color-text-muted)]" />
+                <div className="text-[11px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider">Syncing feed...</div>
               </div>
             ) : displayed.length === 0 ? (
-              <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <div style={{ fontSize: 32, marginBottom: 12 }}>🎉</div>
-                <div style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-                  {filter === 'unread' ? 'No unread notifications' : 'No notifications yet'}
+              <div className="p-12 text-center flex flex-col items-center justify-center">
+                <div className="w-12 h-12 rounded-full bg-[var(--color-bg-secondary)] flex items-center justify-center mb-4 border border-[var(--color-border)]">
+                  <CheckCircle2 size={24} className="text-[var(--color-text-muted)] opacity-20" />
+                </div>
+                <div className="text-sm font-semibold text-[var(--color-text-primary)]">All Caught Up!</div>
+                <div className="text-[12px] text-[var(--color-text-muted)] mt-1 max-w-[200px] mx-auto">
+                  {filter === 'unread' ? 'You have no unread notifications.' : 'New activity will appear here as it happens.'}
                 </div>
               </div>
             ) : (
-              <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="p-2 flex flex-col gap-1">
                 {displayed.map(notif => {
                   const cfg = TYPE_CONFIG[notif.type] || TYPE_CONFIG.system;
+                  const Icon = cfg.icon;
                   return (
                     <div
                       key={notif.id}
                       onClick={() => !notif.is_read && handleRead(notif.id)}
-                      style={{
-                        padding: '12px 14px', borderRadius: 12, cursor: notif.is_read ? 'default' : 'pointer',
-                        background: notif.is_read ? 'transparent' : `${cfg.color}10`,
-                        border: `1px solid ${notif.is_read ? 'transparent' : cfg.color + '25'}`,
-                        transition: 'all 0.15s', display: 'flex', gap: 12, alignItems: 'flex-start',
-                      }}
-                      onMouseEnter={e => { if (!notif.is_read) (e.currentTarget as HTMLDivElement).style.background = `${cfg.color}18`; }}
-                      onMouseLeave={e => { if (!notif.is_read) (e.currentTarget as HTMLDivElement).style.background = `${cfg.color}10`; }}
+                      className={`group flex gap-3 p-3 rounded-xl transition-all relative ${
+                        notif.is_read 
+                          ? 'hover:bg-[var(--color-bg-card)]/50' 
+                          : 'bg-[var(--color-bg-card)] border border-[var(--color-border)] shadow-sm'
+                      }`}
                     >
-                      {/* Icon */}
-                      <div style={{
-                        width: 34, height: 34, borderRadius: 10, flexShrink: 0,
-                        background: `${cfg.color}20`, border: `1px solid ${cfg.color}30`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
-                      }}>{cfg.icon}</div>
+                      <div 
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105"
+                        style={{ 
+                          background: `${cfg.color}10`, 
+                          borderColor: `${cfg.color}25`,
+                          color: cfg.color
+                        }}
+                      >
+                        <Icon size={18} strokeWidth={2.5} />
+                      </div>
 
-                      {/* Content */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                          <div style={{ fontSize: 12, fontWeight: notif.is_read ? 500 : 700, color: notif.is_read ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start gap-2 mb-1">
+                          <div className={`text-[13px] truncate ${notif.is_read ? 'text-[var(--color-text-secondary)] font-medium' : 'text-[var(--color-text-primary)] font-bold'}`}>
                             {notif.title}
                           </div>
-                          <div style={{ fontSize: 10, color: 'var(--color-text-muted)', flexShrink: 0 }}>{timeAgo(notif.created_at)}</div>
+                          <div className="text-[10px] font-medium text-[var(--color-text-muted)] whitespace-nowrap pt-0.5">
+                            {timeAgo(notif.created_at)}
+                          </div>
                         </div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 3, lineHeight: 1.5, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        <div className={`text-[11px] leading-relaxed line-clamp-2 ${notif.is_read ? 'text-[var(--color-text-muted)]' : 'text-[var(--color-text-secondary)] font-medium'}`}>
                           {notif.message}
                         </div>
                       </div>
 
-                      {/* Unread dot */}
                       {!notif.is_read && (
-                        <div style={{ width: 7, height: 7, borderRadius: '50%', background: cfg.color, flexShrink: 0, marginTop: 4 }} />
+                        <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
                       )}
                     </div>
                   );
@@ -258,28 +243,17 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
             )}
           </div>
 
-          {/* Footer */}
-          <div style={{
-            padding: '10px 18px', borderTop: '1px solid var(--color-border)', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <button onClick={() => { setOpen(false); load(); }} style={{
-              fontSize: 12, color: 'var(--color-text-muted)', background: 'none', border: 'none', cursor: 'pointer',
-            }}>↻ Refresh notifications</button>
+          <div className="p-3 border-t border-[var(--color-border)] flex items-center justify-center bg-[var(--color-bg-card)]/50">
+            <button 
+              onClick={() => { setOpen(false); load(); }}
+              className="flex items-center gap-2 text-[11px] font-bold text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors uppercase tracking-widest"
+            >
+              <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+              Refresh Feed
+            </button>
           </div>
         </div>
       )}
-
-      <style>{`
-        @keyframes slideDown {
-          from { opacity: 0; transform: translateY(-8px) scale(0.97); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); }
-          50% { transform: scale(1.1); }
-        }
-      `}</style>
     </div>
   );
 }

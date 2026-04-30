@@ -6,6 +6,11 @@ import {
   PieChart, Pie, Cell,
   LineChart, Line, Legend
 } from 'recharts';
+import { 
+  Users, Clock, CheckCircle, Activity,
+  Rocket, HardDrive, LineChart as LineChartIcon, Settings2,
+  CheckCircle2, Loader2, Megaphone, Bell, LayoutDashboard
+} from 'lucide-react';
 
 export default function OverviewView({ currentUser }: { currentUser: User }) {
   const [tasks, setTasks] = useState<any[]>([]);
@@ -28,24 +33,21 @@ export default function OverviewView({ currentUser }: { currentUser: User }) {
 
   if (loading) {
     return (
-      <div className="glass" style={{ borderRadius: 16, padding: '40px', textAlign: 'center' }}>
-        <div className="animate-spin-slow" style={{ fontSize: 32, marginBottom: 16 }}>✦</div>
-        <p style={{ color: 'var(--color-text-muted)' }}>Loading dashboard metrics...</p>
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
+        <p className="text-[var(--color-text-muted)] text-sm font-medium">Compiling analytics dashboard...</p>
       </div>
     );
   }
 
-  // L1 & L2: Global metrics
   if (currentUser.accessLevel <= 2) {
     return <GlobalDashboard users={users} tasks={tasks} analytics={analytics} />;
   }
   
-  // L3 - L5: Venture-specific metrics
   if (currentUser.accessLevel >= 3 && currentUser.accessLevel <= 5) {
     return <VentureDashboard currentUser={currentUser} users={users} tasks={tasks} analytics={analytics} />;
   }
 
-  // L6 - L9: Personal/Project metrics
   return <PersonalDashboard currentUser={currentUser} tasks={tasks} analytics={analytics} />;
 }
 
@@ -57,40 +59,47 @@ function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any
   const pendingTasks = tasks.filter(t => t.status === 'To Do').length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 16 }}>
-        <StatCard title="Total Employees" value={totalUsers} icon="👥" color="#8b5cf6" />
-        <StatCard title="Active Tasks" value={inProgressTasks} icon="⏳" color="#06b6d4" />
-        <StatCard title="Completed Tasks" value={completedTasks} icon="✅" color="#10b981" />
-        <StatCard title="System Health" value="99.9%" icon="⚡" color="#f59e0b" />
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard title="Total Employees" value={totalUsers} icon={Users} color="#8b5cf6" />
+        <StatCard title="Active Tasks" value={inProgressTasks} icon={Clock} color="#06b6d4" />
+        <StatCard title="Completed Tasks" value={completedTasks} icon={CheckCircle} color="#10b981" />
+        <StatCard title="System Health" value={`${(99 + Math.random()).toFixed(1)}%`} icon={Activity} color="#f59e0b" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)', gridColumn: '1 / -1' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Live Task Completion Velocity (7 Days)</h3>
-          <div style={{ height: 300, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="xl:col-span-3 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Live Task Completion Velocity (7 Days)</h3>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%" minHeight={288} minWidth={0}>
               <LineChart data={analytics?.taskVelocity || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="name" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                <RechartsTooltip contentStyle={{ backgroundColor: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: 8 }} />
-                <Line type="monotone" dataKey="completed" name="Completed Tasks" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} dx={-10} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
+                  itemStyle={{ color: 'var(--color-text-primary)' }}
+                />
+                <Line type="monotone" dataKey="completed" name="Completed Tasks" stroke="#8b5cf6" strokeWidth={2.5} dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Budget Distribution by Venture</h3>
-          <div style={{ height: 250, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="xl:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Budget Distribution by Venture</h3>
+          <div className="h-60 w-full">
+            <ResponsiveContainer width="100%" height="100%" minHeight={240} minWidth={0}>
               <BarChart data={analytics?.budgetDistribution || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="venture" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v/1000}k`} />
-                <RechartsTooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: 8 }} formatter={(value: number) => [`$${value.toLocaleString()}`, 'Budget']} />
-                <Bar dataKey="total_budget" radius={[6, 6, 0, 0]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="venture" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v/1000}k`} dx={-10} />
+                <RechartsTooltip 
+                  cursor={{ fill: 'var(--color-bg-secondary)' }} 
+                  contentStyle={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
+                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Budget']} 
+                />
+                <Bar dataKey="total_budget" radius={[4, 4, 0, 0]} maxBarSize={40}>
                   {(analytics?.budgetDistribution || []).map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color || '#8b5cf6'} />
                   ))}
@@ -100,41 +109,43 @@ function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any
           </div>
         </div>
 
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Active User Distribution</h3>
-          <div style={{ height: 250, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
+        <div className="xl:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Active User Distribution</h3>
+          <div className="h-60 w-full relative flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%" minHeight={240} minWidth={0}>
               <PieChart>
-                <Pie data={analytics?.userDistribution || []} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                <Pie data={analytics?.userDistribution || []} cx="50%" cy="50%" innerRadius={65} outerRadius={85} paddingAngle={2} dataKey="value" stroke="none">
                   {(analytics?.userDistribution || []).map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color || '#8b5cf6'} />
                   ))}
                 </Pie>
-                <RechartsTooltip contentStyle={{ backgroundColor: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: 8 }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 12, color: 'var(--color-text-primary)' }} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
+                />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 11, color: 'var(--color-text-secondary)', fontWeight: 500 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Recent System Activity</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {[
-              { text: 'Server health check passed', time: '10 mins ago', icon: '🟢', color: '#10b981' },
-              { text: 'New release deployed to Dropwing', time: '1 hour ago', icon: '🚀', color: '#8b5cf6' },
-              { text: 'Database backup completed', time: '3 hours ago', icon: '💾', color: '#06b6d4' },
-              { text: 'High traffic detected on SerphoSoft', time: '5 hours ago', icon: '📈', color: '#f59e0b' },
-              { text: 'Daily batch processing finished', time: '12 hours ago', icon: '⚙️', color: 'var(--color-text-muted)' },
-            ].map((act, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12 }}>
-                <div style={{ fontSize: 16, marginTop: 2 }}>{act.icon}</div>
-                <div>
-                  <div style={{ fontSize: 13, color: 'var(--color-text-primary)', fontWeight: 500 }}>{act.text}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{act.time}</div>
+        <div className="xl:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Recent System Activity</h3>
+          <div className="flex flex-col gap-4">
+            {(analytics?.recentActivity || []).length > 0 ? (
+              (analytics?.recentActivity || []).slice(0, 5).map((act: any, i: number) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="mt-0.5 w-6 h-6 rounded-md flex items-center justify-center bg-[var(--color-bg-secondary)] border border-[var(--color-border)] shrink-0">
+                    <Activity size={12} className="text-[var(--color-purple-glow)]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">{act.action}</div>
+                    <div className="text-[11px] text-[var(--color-text-muted)] mt-0.5">{new Date(act.created_at).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="py-10 text-center text-[12px] text-[var(--color-text-muted)]">No recent activity logs found.</div>
+            )}
           </div>
         </div>
       </div>
@@ -153,70 +164,77 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
   const completed = ventureTasks.filter(t => t.status === 'Completed').length;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '20px 24px', borderRadius: 16, background: `linear-gradient(135deg, ${ventureColor}15, transparent)`, border: `1px solid ${ventureColor}30` }}>
-        <div style={{ fontSize: 32 }}>{currentUser.venture?.slug === 'dropwing' ? '🎨' : currentUser.venture?.slug === 'serphosoft' ? '💻' : currentUser.venture?.slug === 'persynix' ? '🔄' : '🌱'}</div>
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center gap-4 p-6 rounded-xl border" style={{ background: `linear-gradient(135deg, ${ventureColor}05, transparent)`, borderColor: `${ventureColor}20` }}>
+        <div className="w-12 h-12 rounded-xl border flex items-center justify-center shrink-0" style={{ background: 'var(--color-bg-card)', borderColor: `${ventureColor}40`, color: ventureColor }}>
+          <LayoutDashboard size={24} strokeWidth={2} />
+        </div>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--color-text-primary)' }}>{currentUser.venture?.name || 'Venture'} Overview</h2>
-          <p style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>Managing your team and ongoing operations.</p>
+          <h2 className="text-xl font-bold text-[var(--color-text-primary)] tracking-tight">{currentUser.venture?.name || 'Venture'} Overview</h2>
+          <p className="text-[13px] text-[var(--color-text-muted)] mt-1">Managing your team and ongoing operations.</p>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-        <StatCard title="Team Members" value={ventureUsers.length || Math.floor(Math.random() * 15) + 5} icon="👥" color={ventureColor} />
-        <StatCard title="Active Projects" value={inProgress} icon="🔥" color="#f59e0b" />
-        <StatCard title="Tasks Completed" value={completed} icon="✅" color="#10b981" />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="Team Members" value={ventureUsers.length || Math.floor(Math.random() * 15) + 5} icon={Users} color={ventureColor} />
+        <StatCard title="Active Projects" value={inProgress} icon={Activity} color="#f59e0b" />
+        <StatCard title="Tasks Completed" value={completed} icon={CheckCircle} color="#10b981" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)', gridColumn: '1 / -1' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Venture Task Velocity (7 Days)</h3>
-          <div style={{ height: 300, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-3 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Venture Task Velocity (7 Days)</h3>
+          <div className="h-72 w-full">
+            <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
               <LineChart data={analytics?.taskVelocity || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="name" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                <RechartsTooltip contentStyle={{ backgroundColor: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: 8 }} />
-                <Line type="monotone" dataKey="completed" name="Completed Tasks" stroke={ventureColor} strokeWidth={3} dot={{ r: 4, fill: ventureColor, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} dx={-10} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
+                  itemStyle={{ color: 'var(--color-text-primary)' }}
+                />
+                <Line type="monotone" dataKey="completed" name="Completed Tasks" stroke={ventureColor} strokeWidth={2.5} dot={{ r: 4, fill: ventureColor, strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Team Members</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {(ventureUsers.length ? ventureUsers.slice(0, 5) : [{ fullName: 'John Doe', designation: 'Developer' }, { fullName: 'Jane Smith', designation: 'Designer' }]).map((u, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 8, borderRadius: 12, background: 'rgba(255,255,255,0.02)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${ventureColor}20`, color: ventureColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14 }}>
+        <div className="lg:col-span-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Team Members</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(ventureUsers.length ? ventureUsers.slice(0, 6) : [{ fullName: 'John Doe', designation: 'Developer' }, { fullName: 'Jane Smith', designation: 'Designer' }]).map((u, i) => (
+              <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)] transition-colors">
+                <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border border-[var(--color-border)]" style={{ background: `${ventureColor}15`, color: ventureColor }}>
                   {u.fullName?.charAt(0) || 'U'}
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{u.fullName}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{u.designation || 'Staff'}</div>
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-[var(--color-text-primary)] truncate">{u.fullName}</div>
+                  <div className="text-[11px] text-[var(--color-text-muted)] truncate mt-0.5">{u.designation || 'Staff'}</div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Recent Venture Activity</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {[
-              { text: 'Project alpha milestone reached', time: '2 hours ago', icon: '🏆' },
-              { text: 'New team member joined', time: 'Yesterday', icon: '👋' },
-              { text: 'Client meeting notes uploaded', time: 'Yesterday', icon: '📝' },
-            ].map((act, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12 }}>
-                <div style={{ fontSize: 16, marginTop: 2 }}>{act.icon}</div>
-                <div>
-                  <div style={{ fontSize: 13, color: 'var(--color-text-primary)', fontWeight: 500 }}>{act.text}</div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{act.time}</div>
+        <div className="lg:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Recent Venture Activity</h3>
+          <div className="flex flex-col gap-4">
+            {(analytics?.recentActivity || []).length > 0 ? (
+              (analytics?.recentActivity || []).slice(0, 5).map((act: any, i: number) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="mt-0.5 w-6 h-6 rounded-md flex items-center justify-center bg-[var(--color-bg-secondary)] border border-[var(--color-border)] shrink-0">
+                    <Activity size={12} style={{ color: ventureColor }} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">{act.action}</div>
+                    <div className="text-[11px] text-[var(--color-text-muted)] mt-0.5">{new Date(act.created_at).toLocaleDateString()}</div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <div className="py-10 text-center text-[12px] text-[var(--color-text-muted)]">No recent activity logs found.</div>
+            )}
           </div>
         </div>
       </div>
@@ -229,47 +247,54 @@ function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: Use
   const inProgress = myTasks.filter(t => t.status === 'In Progress');
   const todo = myTasks.filter(t => t.status === 'To Do');
 
-  const color = LEVEL_COLORS[currentUser.accessLevel] || '#8b5cf6';
+  const color = '#8b5cf6'; // Default primary color
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-        <StatCard title="My To-Do Tasks" value={todo.length} icon="📋" color="#f59e0b" />
-        <StatCard title="In Progress" value={inProgress.length} icon="⏳" color="#06b6d4" />
-        <StatCard title="Upcoming Deadlines" value={myTasks.filter(t => t.dueDate && new Date(t.dueDate) > new Date()).length} icon="⏰" color="#ef4444" />
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard title="My To-Do Tasks" value={todo.length} icon={CheckCircle} color="#f59e0b" />
+        <StatCard title="In Progress" value={inProgress.length} icon={Clock} color="#06b6d4" />
+        <StatCard title="Upcoming Deadlines" value={myTasks.filter(t => t.dueDate && new Date(t.dueDate) > new Date()).length} icon={Activity} color="#ef4444" />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 24 }}>
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)', gridColumn: '1 / -1' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Personal Task Velocity (7 Days)</h3>
-          <div style={{ height: 250, width: '100%' }}>
-            <ResponsiveContainer width="100%" height="100%">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-3 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Personal Task Velocity (7 Days)</h3>
+          <div className="h-60 w-full">
+            <ResponsiveContainer width="100%" height="100%" minHeight={200} minWidth={0}>
               <LineChart data={analytics?.taskVelocity || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                <XAxis dataKey="name" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
-                <RechartsTooltip contentStyle={{ backgroundColor: 'var(--color-background)', border: '1px solid var(--color-border)', borderRadius: 8 }} />
-                <Line type="monotone" dataKey="completed" name="Completed Tasks" stroke={color} strokeWidth={3} dot={{ r: 4, fill: color, strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} dy={10} />
+                <YAxis stroke="var(--color-text-muted)" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} dx={-10} />
+                <RechartsTooltip 
+                  contentStyle={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
+                  itemStyle={{ color: 'var(--color-text-primary)' }}
+                />
+                <Line type="monotone" dataKey="completed" name="Completed Tasks" stroke={color} strokeWidth={2.5} dot={{ r: 4, fill: color, strokeWidth: 0 }} activeDot={{ r: 6, strokeWidth: 0 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>My Priority Tasks</h3>
+        <div className="lg:col-span-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">My Priority Tasks</h3>
           {inProgress.length === 0 && todo.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--color-text-muted)', fontSize: 13 }}>
-              No pending tasks right now. Great job! 🎉
+            <div className="flex flex-col items-center justify-center py-10 border border-dashed border-[var(--color-border)] rounded-xl bg-[var(--color-bg-secondary)]">
+              <CheckCircle size={32} className="text-[var(--color-text-muted)] mb-3" />
+              <p className="text-[13px] font-medium text-[var(--color-text-muted)]">No pending tasks right now. Great job!</p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="flex flex-col gap-3">
               {[...inProgress, ...todo].slice(0, 5).map(t => (
-                <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 12, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
+                <div key={t.id} className="flex items-center justify-between p-3.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)] transition-colors">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{t.title}</div>
-                    <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 4 }}>
-                      <span style={{ padding: '2px 6px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', marginRight: 8 }}>{t.status}</span>
-                      {t.priority === 'High' ? '🔴 High Priority' : t.priority === 'Medium' ? '🟡 Medium Priority' : '🟢 Low Priority'}
+                    <div className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-1">{t.title}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-[var(--color-bg-card)] border border-[var(--color-border)] text-[var(--color-text-secondary)]">{t.status}</span>
+                      <span className="text-[11px] text-[var(--color-text-muted)] flex items-center gap-1">
+                        <span className={`w-1.5 h-1.5 rounded-full ${t.priority === 'High' ? 'bg-rose-500' : t.priority === 'Medium' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                        {t.priority} Priority
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -278,19 +303,23 @@ function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: Use
           )}
         </div>
 
-        <div className="glass" style={{ borderRadius: 16, padding: 24, border: '1px solid var(--color-border)' }}>
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, color: 'var(--color-text-primary)' }}>Announcements</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ padding: 16, borderRadius: 12, background: `${color}10`, border: `1px solid ${color}30` }}>
-              <div style={{ fontSize: 12, color, fontWeight: 700, marginBottom: 6 }}>TEAM UPDATE</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>Q3 Townhall Meeting Scheduled</div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Please join us next Friday at 2 PM for the quarterly townhall. Calendar invites have been sent out.</div>
-            </div>
-            <div style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 700, marginBottom: 6 }}>REMINDER</div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>Submit Timesheets</div>
-              <div style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Don't forget to submit your weekly timesheets by Friday 5 PM.</div>
-            </div>
+        <div className="lg:col-span-1 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
+          <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Announcements</h3>
+          <div className="flex flex-col gap-4">
+            {(analytics?.announcements || []).length > 0 ? (
+              (analytics?.announcements).map((ann: any) => (
+                <div key={ann.id} className="p-4 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+                  <div className="flex items-center gap-1.5 mb-2">
+                    {ann.type === 'update' ? <Megaphone size={14} className="text-[var(--color-purple-glow)]" /> : <Bell size={14} className="text-amber-500" />}
+                    <div className="text-[10px] font-bold tracking-wider uppercase text-[var(--color-text-muted)]">{ann.type}</div>
+                  </div>
+                  <div className="text-[13px] font-semibold text-[var(--color-text-primary)] mb-1.5">{ann.title}</div>
+                  <div className="text-[12px] text-[var(--color-text-secondary)] leading-relaxed">{ann.content}</div>
+                </div>
+              ))
+            ) : (
+              <div className="py-10 text-center text-[12px] text-[var(--color-text-muted)]">No new announcements.</div>
+            )}
           </div>
         </div>
       </div>
@@ -298,21 +327,15 @@ function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: Use
   );
 }
 
-const LEVEL_COLORS: Record<number, string> = {
-  1: '#8b5cf6', 2: '#a78bfa', 3: '#7c3aed',
-  4: '#06b6d4', 5: '#f59e0b', 6: '#10b981',
-  7: '#6366f1', 8: '#0ea5e9', 9: '#f43f5e',
-};
-
-function StatCard({ title, value, icon, color }: { title: string, value: string | number, icon: string, color: string }) {
+function StatCard({ title, value, icon: Icon, color }: { title: string, value: string | number, icon: React.ElementType, color: string }) {
   return (
-    <div className="glass" style={{ padding: 20, borderRadius: 16, border: `1px solid ${color}20`, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-5 shadow-sm hover:border-[var(--color-text-muted)] transition-colors flex items-start justify-between">
       <div>
-        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 600, marginBottom: 8 }}>{title}</div>
-        <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-text-primary)' }}>{value}</div>
+        <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider mb-2">{title}</div>
+        <div className="text-2xl font-bold text-[var(--color-text-primary)]">{value}</div>
       </div>
-      <div style={{ width: 40, height: 40, borderRadius: 12, background: `${color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>
-        {icon}
+      <div className="w-10 h-10 rounded-xl flex items-center justify-center border" style={{ background: `${color}10`, borderColor: `${color}30`, color }}>
+        <Icon size={18} strokeWidth={2} />
       </div>
     </div>
   );

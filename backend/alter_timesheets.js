@@ -14,8 +14,8 @@ async function alterTimesheets() {
         task_id INT,
         project_id INT,
         venture_id INT,
-        hours DECIMAL(5, 2) NOT NULL,
-        activity_date DATE NOT NULL,
+        hours_worked DECIMAL(5, 2) NOT NULL,
+        date DATE NOT NULL,
         notes TEXT,
         status ENUM('pending', 'approved', 'rejected') DEFAULT 'pending',
         approved_by INT,
@@ -48,12 +48,12 @@ async function alterTimesheets() {
       const [existing] = await conn.query('SELECT id FROM timesheets WHERE user_id = ? LIMIT 1', [u.id]);
       if (existing.length === 0) {
         await conn.query(`
-          INSERT INTO timesheets (user_id, task_id, project_id, venture_id, hours, activity_date, notes, status)
+          INSERT INTO timesheets (user_id, task_id, project_id, venture_id, hours_worked, date, notes, status)
           VALUES (?, ?, ?, ?, ?, CURDATE() - INTERVAL 1 DAY, 'Worked on initial setup', 'pending')
         `, [u.id, taskId, projectId, u.venture_id, 4.5]);
         
         await conn.query(`
-          INSERT INTO timesheets (user_id, task_id, project_id, venture_id, hours, activity_date, notes, status)
+          INSERT INTO timesheets (user_id, task_id, project_id, venture_id, hours_worked, date, notes, status)
           VALUES (?, ?, ?, ?, ?, CURDATE() - INTERVAL 2 DAY, 'Reviewing requirements', 'approved')
         `, [u.id, taskId, projectId, u.venture_id, 3.0]);
       }

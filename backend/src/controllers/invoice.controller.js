@@ -26,8 +26,8 @@ exports.getInvoices = async (req, res, next) => {
       SELECT 
         t.venture_id,
         v.name as venture_name,
-        DATE_FORMAT(t.activity_date, '%Y-%m') as invoice_month,
-        SUM(t.hours) as total_hours,
+        DATE_FORMAT(t.date, '%Y-%m') as invoice_month,
+        SUM(t.hours_worked) as total_hours,
         COUNT(t.id) as timesheet_count
       FROM timesheets t
       JOIN ventures v ON t.venture_id = v.id
@@ -83,8 +83,8 @@ exports.getInvoiceDetails = async (req, res, next) => {
       JOIN users u ON t.user_id = u.id
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN tasks ts ON t.task_id = ts.id
-      WHERE t.status = 'approved' AND t.venture_id = ? AND DATE_FORMAT(t.activity_date, '%Y-%m') = ?
-      ORDER BY t.activity_date ASC
+      WHERE t.status = 'approved' AND t.venture_id = ? AND DATE_FORMAT(t.date, '%Y-%m') = ?
+      ORDER BY t.date ASC
     `;
 
     const [timesheets] = await pool.query(query, [ventureId, month]);
@@ -93,11 +93,11 @@ exports.getInvoiceDetails = async (req, res, next) => {
     let totalHours = 0;
     
     const items = timesheets.map(t => {
-      const hours = parseFloat(t.hours);
+      const hours = parseFloat(t.hours_worked);
       totalHours += hours;
       return {
         id: t.id,
-        date: t.activity_date,
+        date: t.date,
         developer: t.user_name,
         project: t.project_name || 'General Deliverables',
         task: t.task_title || t.notes,

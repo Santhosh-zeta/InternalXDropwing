@@ -1,48 +1,16 @@
+import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
+import { getStrategyData } from '@/lib/api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
+import { Target, CheckCircle2, Circle, TrendingUp, ShieldAlert, AlertTriangle, Lock, Loader2 } from 'lucide-react';
 
 interface StrategyViewProps {
   currentUser: User;
 }
 
-const OKRS = [
-  { 
-    id: 1, 
-    venture: 'SerphoSoft', 
-    objective: 'Accelerate Enterprise AI Adoption', 
-    progress: 68, 
-    color: 'var(--serphosoft-color)',
-    keyResults: [
-      { text: 'Deploy v2.0 AI Engine', done: true },
-      { text: 'Onboard 15 new Fortune 500 clients', done: false },
-      { text: 'Achieve 99.99% uptime', done: true }
-    ]
-  },
-  { 
-    id: 2, 
-    venture: 'Dropwing Design', 
-    objective: 'Establish Global Brand Presence', 
-    progress: 45, 
-    color: 'var(--dropwing-color)',
-    keyResults: [
-      { text: 'Open London Studio', done: false },
-      { text: 'Win 3 Major Design Awards', done: false },
-      { text: 'Increase retainer revenue by 30%', done: true }
-    ]
-  },
-  { 
-    id: 3, 
-    venture: 'PerSyniX', 
-    objective: 'Optimize Supply Chain Analytics', 
-    progress: 85, 
-    color: 'var(--persynix-color)',
-    keyResults: [
-      { text: 'Launch Predictive Model Beta', done: true },
-      { text: 'Reduce client churn to <5%', done: true },
-      { text: 'Integrate with top 5 ERP systems', done: false }
-    ]
-  },
-];
+const CHART_STYLE = {
+  contentStyle: { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text-primary)', fontSize: 12 },
+};
 
 const GROWTH_DATA = [
   { quarter: 'Q1', target: 400, actual: 420 },
@@ -52,105 +20,169 @@ const GROWTH_DATA = [
 ];
 
 export default function StrategyView({ currentUser }: StrategyViewProps) {
+  const [okrs, setOkrs] = useState<any[]>([]);
+  const [risks, setRisks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await getStrategyData();
+      if (res.success) {
+        setOkrs(res.data.okrs);
+        setRisks(res.data.risks);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (currentUser.accessLevel <= 2) {
+      fetchData();
+    }
+  }, [fetchData, currentUser.accessLevel]);
+
   if (currentUser.accessLevel > 2) {
     return (
-      <div className="glass" style={{ padding: 40, borderRadius: 16, textAlign: 'center' }}>
-        <h3 style={{ color: 'var(--color-rose)' }}>Access Denied</h3>
-        <p style={{ color: 'var(--color-text-muted)' }}>This view is restricted to Managing Directors (L2) and Super Admins.</p>
+      <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-16 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-4">
+          <Lock size={28} className="text-rose-500" />
+        </div>
+        <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-2">Access Denied</h3>
+        <p className="text-[var(--color-text-secondary)] text-sm font-medium">This view is restricted to Managing Directors (L2) and Super Admins.</p>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
+        <p className="text-[var(--color-text-muted)] font-medium text-sm">Synchronizing strategic directives...</p>
       </div>
     );
   }
 
   return (
-    <div className="fade-in" style={{ maxWidth: 1200, margin: '0 auto' }}>
-      <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-text-primary)' }}>Corporate Strategy & OKRs</h2>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: 14 }}>High-level objectives, key results, and growth targets across all Dropwing ventures.</p>
+    <div className="flex flex-col gap-6 pb-10">
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-black text-[var(--color-text-primary)]">Corporate Strategy &amp; OKRs</h2>
+        <p className="text-[var(--color-text-secondary)] text-sm font-medium mt-1">
+          High-level objectives, key results, and growth targets across all Dropwing ventures.
+        </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* OKRs Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            🎯 Active Objectives (OKRs)
-          </h3>
-          
-          {OKRS.map(okr => (
-            <div key={okr.id} className="glass" style={{ padding: 20, borderRadius: 16, borderLeft: `4px solid ${okr.color}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                <div>
-                  <div style={{ fontSize: 12, color: okr.color, fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 1 }}>{okr.venture}</div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-primary)' }}>{okr.objective}</div>
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: okr.color }}>{okr.progress}%</div>
-              </div>
-              
-              {/* Progress Bar */}
-              <div style={{ width: '100%', height: 8, background: 'var(--color-bg-primary)', borderRadius: 4, overflow: 'hidden', marginBottom: 16 }}>
-                <div style={{ width: `${okr.progress}%`, height: '100%', background: okr.color, borderRadius: 4 }} />
-              </div>
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center gap-2">
+            <Target size={18} className="text-[var(--color-purple-glow)]" />
+            <h3 className="text-base font-bold text-[var(--color-text-primary)]">Active Objectives (OKRs)</h3>
+          </div>
 
-              {/* Key Results */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {okr.keyResults.map((kr, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{ color: kr.done ? 'var(--color-emerald)' : 'var(--color-text-muted)', fontSize: 14, marginTop: 2 }}>
-                      {kr.done ? '✓' : '○'}
-                    </div>
-                    <div style={{ fontSize: 13, color: kr.done ? 'var(--color-text-secondary)' : 'var(--color-text-primary)', textDecoration: kr.done ? 'line-through' : 'none' }}>
-                      {kr.text}
-                    </div>
-                  </div>
-                ))}
-              </div>
+          {okrs.length === 0 ? (
+            <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-10 text-center text-[var(--color-text-muted)] text-sm">
+              No objectives defined yet.
             </div>
-          ))}
+          ) : (
+            okrs.map(okr => (
+              <div
+                key={okr.id}
+                className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm"
+                style={{ borderLeftWidth: '4px', borderLeftColor: okr.color }}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <div>
+                    <div className="text-[11px] font-bold tracking-widest uppercase mb-1" style={{ color: okr.color }}>{okr.venture_name}</div>
+                    <div className="text-base font-bold text-[var(--color-text-primary)] leading-snug">{okr.objective}</div>
+                  </div>
+                  <div className="text-xl font-black ml-4 shrink-0" style={{ color: okr.color }}>{okr.progress}%</div>
+                </div>
+
+                <div className="h-2 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] overflow-hidden mb-4">
+                  <div
+                    className="h-full rounded-full transition-all duration-700"
+                    style={{ width: `${okr.progress}%`, background: okr.color }}
+                  />
+                </div>
+
+                <div className="flex flex-col gap-2.5">
+                  {(okr.keyResults || []).map((kr: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2.5">
+                      {kr.done
+                        ? <CheckCircle2 size={15} className="text-emerald-500 mt-0.5 shrink-0" />
+                        : <Circle size={15} className="text-[var(--color-text-muted)] mt-0.5 shrink-0" />
+                      }
+                      <span className={`text-[13px] font-medium leading-snug ${kr.done ? 'line-through text-[var(--color-text-muted)]' : 'text-[var(--color-text-primary)]'}`}>
+                        {kr.text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
         </div>
 
-        {/* Charts & Metrics Section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        {/* Charts & Metrics */}
+        <div className="flex flex-col gap-6">
           {/* Revenue Growth Chart */}
-          <div className="glass" style={{ padding: 24, borderRadius: 16 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 20 }}>Projected vs Actual Revenue Growth ($M)</h3>
-            <div style={{ height: 260 }}>
-              <ResponsiveContainer width="100%" height="100%">
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-5">
+              <TrendingUp size={16} className="text-emerald-500" />
+              <h3 className="text-[14px] font-bold text-[var(--color-text-primary)]">Projected vs Actual Revenue Growth ($M)</h3>
+            </div>
+            <div className="h-[240px]">
+              <ResponsiveContainer width="100%" height="100%" minHeight={240} minWidth={0}>
                 <LineChart data={GROWTH_DATA}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                   <XAxis dataKey="quarter" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(val) => `$${val}`} />
-                  <Tooltip 
-                    contentStyle={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 8 }}
-                    itemStyle={{ color: 'var(--color-text-primary)' }}
-                  />
+                  <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={val => `$${val}`} />
+                  <Tooltip contentStyle={CHART_STYLE.contentStyle} />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
                   <Line type="monotone" dataKey="target" name="Target" stroke="var(--color-text-muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                  <Line type="monotone" dataKey="actual" name="Actual" stroke="var(--color-emerald)" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="actual" name="Actual" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           </div>
 
           {/* Strategic Risks */}
-          <div className="glass" style={{ padding: 24, borderRadius: 16 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 16 }}>High-Level Risks & Mitigations</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ padding: 12, borderRadius: 10, background: 'rgba(244,63,94,0.1)', border: '1px solid rgba(244,63,94,0.2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-rose)' }}>Talent Retention (Engineering)</span>
-                  <span style={{ fontSize: 11, color: 'var(--color-rose)', fontWeight: 700 }}>HIGH</span>
-                </div>
-                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Mitigation: Revamping ESOP structure by Q3; initiating bi-annual market salary adjustments.</p>
-              </div>
-              <div style={{ padding: 12, borderRadius: 10, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.2)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-amber)' }}>Competitor AI Disruption</span>
-                  <span style={{ fontSize: 11, color: 'var(--color-amber)', fontWeight: 700 }}>MEDIUM</span>
-                </div>
-                <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Mitigation: Accelerating SerphoSoft v2.0 R&D; forming strategic partnership with OpenAI.</p>
-              </div>
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-5">
+              <ShieldAlert size={16} className="text-[var(--color-purple-glow)]" />
+              <h3 className="text-[14px] font-bold text-[var(--color-text-primary)]">High-Level Risks &amp; Mitigations</h3>
+            </div>
+            <div className="flex flex-col gap-3">
+              {risks.length === 0 ? (
+                <div className="text-[var(--color-text-muted)] text-[12px] text-center py-4">No critical risks identified.</div>
+              ) : (
+                risks.map(risk => {
+                  const isHigh = risk.severity === 'HIGH' || risk.severity === 'CRITICAL';
+                  const colorClass = isHigh ? 'rose' : risk.severity === 'MEDIUM' ? 'amber' : 'emerald';
+                  const hex = isHigh ? '#f43f5e' : risk.severity === 'MEDIUM' ? '#f59e0b' : '#10b981';
+
+                  return (
+                    <div key={risk.id} className={`p-4 rounded-xl border`} style={{ background: `${hex}10`, borderColor: `${hex}30` }}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-[13px] font-bold flex items-center gap-2" style={{ color: hex }}>
+                          <AlertTriangle size={13} /> {risk.risk_name} {risk.venture_name ? `(${risk.venture_name})` : ''}
+                        </span>
+                        <span className="text-[10px] font-black tracking-widest" style={{ color: hex }}>{risk.severity}</span>
+                      </div>
+                      <p className="text-[12px] font-medium text-[var(--color-text-secondary)] leading-relaxed">
+                        Mitigation: {risk.mitigation}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
-          
         </div>
       </div>
     </div>

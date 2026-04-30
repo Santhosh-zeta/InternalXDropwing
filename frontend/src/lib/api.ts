@@ -39,6 +39,11 @@ export const getUsers = async () => {
   return res.data;
 };
 
+export const createUser = async (data: any) => {
+  const res = await api.post('/users', data);
+  return res.data;
+};
+
 export const updateUser = async (id: number, data: any) => {
   const res = await api.put(`/users/${id}`, data);
   return res.data;
@@ -76,15 +81,9 @@ export const deleteTask = async (id: number) => {
 };
 
 // Projects
-export const getProjects = async () => {
-  const res = await api.get('/projects');
-  return res.data;
-};
-
-export const createProject = async (data: any) => {
-  const res = await api.post('/projects', data);
-  return res.data;
-};
+export const getProjects = () => api.get('/projects').then(res => res.data);
+export const getProject = (id: number) => api.get(`/projects/${id}`).then(res => res.data);
+export const createProject = (data: any) => api.post('/projects', data).then(res => res.data);
 
 export const updateProject = async (id: number, data: any) => {
   const res = await api.put(`/projects/${id}`, data);
@@ -206,6 +205,12 @@ export const createLearningFeedback = async (data: any) => {
 
 export const deleteLearningFeedback = async (id: number) => {
   const res = await api.delete(`/learning/feedback/${id}`);
+  return res.data;
+};
+
+// Strategy
+export const getStrategyData = async () => {
+  const res = await api.get('/strategy');
   return res.data;
 };
 
