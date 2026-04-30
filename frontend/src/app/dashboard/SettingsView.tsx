@@ -26,8 +26,17 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
   // Preferences state
   const [muteChatAfter5, setMuteChatAfter5] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
+    // Initialize theme from local storage or document
+    const localTheme = localStorage.getItem('internalx_theme') as 'dark' | 'light' | null;
+    if (localTheme) {
+      setTheme(localTheme);
+    } else if (typeof document !== 'undefined') {
+      setTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
+    }
+
     // Fetch full profile including preferences
     const fetchProfile = async () => {
       try {
@@ -51,6 +60,12 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
     };
     fetchProfile();
   }, []);
+
+  const handleThemeToggle = (newTheme: 'dark' | 'light') => {
+    setTheme(newTheme);
+    localStorage.setItem('internalx_theme', newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+  };
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -224,7 +239,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Email Address</label>
                   <input
                     type="email" value={currentUser.email} disabled
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }}
                   />
                   <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>Email cannot be changed directly. Contact IT.</span>
                 </div>
@@ -240,7 +255,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Role / Designation</label>
                   <input
                     type="text" value={currentUser.designation || currentUser.levelName} disabled
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.2)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }}
+                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }}
                   />
                 </div>
               </div>
@@ -307,6 +322,29 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
                 <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
                   <input type="checkbox" checked={emailNotifications} onChange={e => setEmailNotifications(e.target.checked)} style={{ width: 18, height: 18, accentColor: '#8b5cf6', cursor: 'pointer' }} />
                 </label>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--color-bg-tertiary)', borderRadius: 12, border: '1px solid var(--color-border)' }}>
+                <div>
+                  <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>App Theme</h4>
+                  <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Choose between Dark and Light mode for the dashboard.</p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, background: 'var(--color-bg-primary)', padding: 4, borderRadius: 8, border: '1px solid var(--color-border)' }}>
+                  <button 
+                    type="button"
+                    onClick={() => handleThemeToggle('dark')}
+                    style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: theme === 'dark' ? 'var(--color-bg-card)' : 'transparent', color: theme === 'dark' ? 'var(--color-text-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, boxShadow: theme === 'dark' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+                  >
+                    Dark
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => handleThemeToggle('light')}
+                    style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: theme === 'light' ? 'var(--color-bg-card)' : 'transparent', color: theme === 'light' ? 'var(--color-text-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, boxShadow: theme === 'light' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+                  >
+                    Light
+                  </button>
+                </div>
               </div>
               
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>

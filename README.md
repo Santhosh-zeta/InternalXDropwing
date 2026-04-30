@@ -111,6 +111,7 @@ InternalX uses a **9-tier access level hierarchy**:
 | Reports & Analytics | `ReportsView.tsx` | ✅ Live | L1–L5 |
 | Access Control | `AccessControlView.tsx` | ✅ Live | L1 only |
 | Budget / Financials | `BudgetView.tsx` | ✅ Live | L2, L4 |
+| Strategy | `StrategyView.tsx` | ✅ Live | L1, L2 |
 | Department KPIs | `DepartmentKPIsView.tsx` | ✅ Live | L4 (also HR Overview, Team Mgmt) |
 | Client Portal | `ClientPortalView.tsx` | ✅ Live | L9 |
 | Notification Bell | `NotificationBell.tsx` | ✅ Live | L1–L9 |
@@ -137,7 +138,7 @@ InternalX uses a **9-tier access level hierarchy**:
 | Team Management | L4 | ✅ Live (uses DepartmentKPIsView) |
 | Client Portal (Deliverables) | L9 | ✅ Live |
 | Notification Bell | All | ✅ Live |
-| **Strategy** | L2 | 🚧 Coming Soon |
+| **Strategy** | L2 | ✅ Live |
 | **Database** | L1 | 🚧 Coming Soon |
 | **Learning Hub** | L8 | 🚧 Coming Soon (backend ready, view missing) |
 
@@ -626,10 +627,7 @@ When a task is assigned, InternalX automatically emails the assignee via Hosting
 | Feature | Status | Priority |
 |---------|--------|----------|
 | Learning Hub Frontend (`LearningHubView.tsx`) | Backend ready, view pending | 🔴 High |
-| Strategy View (L2 MD) | Not started | 🟡 Medium |
 | Database Admin View (L1) | Not started | 🟡 Medium |
-| Dark/Light Mode Toggle in Settings | Not started | 🟡 Medium |
-| Global Search Bar | Not started | 🟡 Medium |
 | Mobile Responsive Sidebar | Not started | 🟡 Medium |
 | 2FA / Security Settings | Not started | 🟠 Low |
 | Avatar Upload | Not started | 🟠 Low |
