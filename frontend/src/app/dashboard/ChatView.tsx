@@ -1,367 +1,401 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { User, VENTURES } from '@/lib/constants';
 import { getChatMessages, sendChatMessage, getUsers } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { io, Socket } from 'socket.io-client';
-import { 
-  Send, Search, Users, Hash, MessageSquare, 
-  ChevronRight, UserCircle2, Circle
-} from 'lucide-react';
+import { Send, Hash, MessageSquare, AtSign, ChevronDown, Loader2, Globe, Sparkles } from 'lucide-react';
 
-interface ChatViewProps {
-  currentUser: User;
+interface ChatViewProps { currentUser: User; }
+interface Channel { type: 'venture' | 'dm'; id: string | number; name: string; color: string; }
+interface Msg { id: number; sender_id: number; sender_name: string; content: string; created_at: string; ventureId?: any; receiver_id?: number; }
+
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg,#8b5cf6,#6d28d9)',
+  'linear-gradient(135deg,#06b6d4,#0284c7)',
+  'linear-gradient(135deg,#10b981,#059669)',
+  'linear-gradient(135deg,#f59e0b,#d97706)',
+  'linear-gradient(135deg,#f43f5e,#e11d48)',
+  'linear-gradient(135deg,#a78bfa,#7c3aed)',
+];
+
+function getGradient(name: string) {
+  const code = name ? name.charCodeAt(0) % AVATAR_GRADIENTS.length : 0;
+  return AVATAR_GRADIENTS[code];
+}
+
+function Avatar({ name, size = 32 }: { name: string; size?: number }) {
+  return (
+    <div className="rounded-xl flex items-center justify-center font-black text-white shrink-0 shadow-sm"
+      style={{ width: size, height: size, background: getGradient(name || '?'), fontSize: size * 0.38 }}>
+      {(name || '?').charAt(0).toUpperCase()}
+    </div>
+  );
+}
+
+function formatTime(dt: string) {
+  return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function formatDateLabel(dt: string) {
+  const d = new Date(dt);
+  const today = new Date();
+  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === today.toDateString()) return 'Today';
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+function isSameDay(a: string, b: string) {
+  return new Date(a).toDateString() === new Date(b).toDateString();
 }
 
 export default function ChatView({ currentUser }: ChatViewProps) {
   const [socket, setSocket] = useState<Socket | null>(null);
-  
-  // Channels and Users
   const [allUsers, setAllUsers] = useState<any[]>([]);
-  const [activeChannel, setActiveChannel] = useState<{ type: 'venture' | 'dm', id: string | number, name: string, color: string }>({
-    type: 'venture', id: 'global', name: 'Global HQ', color: '#8b5cf6'
-  });
-
-  // Messages State
-  const [messages, setMessages] = useState<any[]>([]);
+  const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'venture', id: 'global', name: 'Global HQ', color: '#8b5cf6' });
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [inputMsg, setInputMsg] = useState('');
   const [loading, setLoading] = useState(false);
-  
+  const [isTyping, setIsTyping] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [dmSearch, setDmSearch] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimer = useRef<any>(null);
 
-  // Initialize socket and fetch users
+  // Init socket & users
   useEffect(() => {
-    // We expect the backend to be running on the same host but port 5000 based on standard setup,
-    // actually our nextjs is usually 3000 and backend is 5000. Let's use the env or default to 5000.
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
-    
-    const newSocket = io(backendUrl, {
-      withCredentials: true,
-    });
-    setSocket(newSocket);
-
-    fetchUsers();
-
-    return () => {
-      newSocket.close();
-    };
+    const url = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const s = io(url, { withCredentials: true });
+    setSocket(s);
+    getUsers().then(r => { if (r.success) setAllUsers(r.data.filter((u: any) => u.id !== currentUser.id)); });
+    return () => { s.close(); };
   }, []);
 
-  // Fetch users for DM list
-  const fetchUsers = async () => {
-    try {
-      const res = await getUsers();
-      if (res.success) {
-        setAllUsers(res.data.filter((u: any) => u.id !== currentUser.id)); // exclude self
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err);
-    }
-  };
-
-  // Join channel and fetch history
+  // Join channel + listen
   useEffect(() => {
     if (!socket) return;
-
-    let channelStr = '';
-    if (activeChannel.type === 'venture') {
-      channelStr = activeChannel.id === 'global' ? 'global' : `venture_${activeChannel.id}`;
-    } else {
-      // DM channel string logic is tricky if we want a shared room. 
-      // We will just let the backend broadcast it to `dm_RECEIVER` and we listen to our own `dm_ME`.
-      channelStr = `dm_${currentUser.id}`;
-    }
-
-    socket.emit('join_channel', channelStr);
-
+    const ch = activeChannel.type === 'venture'
+      ? (activeChannel.id === 'global' ? 'global' : `venture_${activeChannel.id}`)
+      : `dm_${currentUser.id}`;
+    socket.emit('join_channel', ch);
     fetchMessages();
 
-    const messageHandler = (msg: any) => {
+    const handler = (msg: Msg) => {
       setMessages(prev => {
-        // Prevent duplicate keys
         if (prev.some(m => m.id === msg.id)) return prev;
-
-        // Check if message belongs to current view
         if (activeChannel.type === 'venture') {
-          if (msg.ventureId === activeChannel.id || (msg.ventureId === null && activeChannel.id === 'global')) {
-            return [...prev, msg];
-          }
+          if (msg.ventureId === activeChannel.id || (msg.ventureId === null && activeChannel.id === 'global')) return [...prev, msg];
         } else {
-          // DM
-          if ((msg.sender_id === activeChannel.id && msg.receiver_id === currentUser.id) || 
-              (msg.sender_id === currentUser.id && msg.receiver_id === activeChannel.id)) {
-            return [...prev, msg];
-          }
+          if ((msg.sender_id === activeChannel.id && msg.receiver_id === currentUser.id) ||
+            (msg.sender_id === currentUser.id && msg.receiver_id === activeChannel.id)) return [...prev, msg];
         }
         return prev;
       });
+      setIsTyping(false);
     };
 
-    socket.on('receive_message', messageHandler);
-
-    return () => {
-      socket.off('receive_message', messageHandler);
+    const typingHandler = () => {
+      setIsTyping(true);
+      clearTimeout(typingTimer.current);
+      typingTimer.current = setTimeout(() => setIsTyping(false), 2500);
     };
+
+    socket.on('receive_message', handler);
+    socket.on('user_typing', typingHandler);
+    return () => { socket.off('receive_message', handler); socket.off('user_typing', typingHandler); };
   }, [activeChannel, socket]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   const fetchMessages = async () => {
     setLoading(true);
+    setMessages([]);
     try {
-      const params = activeChannel.type === 'venture' 
-        ? { ventureId: activeChannel.id } 
-        : { receiverId: activeChannel.id as number };
-        
+      const params = activeChannel.type === 'venture' ? { ventureId: activeChannel.id } : { receiverId: activeChannel.id as number };
       const res = await getChatMessages(params);
-      if (res.success) {
-        setMessages(res.data);
-      }
-    } catch (error) {
-      console.error('Failed to load messages:', error);
-    } finally {
-      setLoading(false);
-    }
+      if (res.success) setMessages(res.data);
+    } catch { /* silent */ }
+    finally { setLoading(false); }
   };
+
+  const emitTyping = useCallback(() => {
+    socket?.emit('typing', activeChannel.id);
+  }, [socket, activeChannel]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputMsg.trim()) return;
-
+    if (!inputMsg.trim() || sending) return;
     const content = inputMsg.trim();
     setInputMsg('');
-
+    setSending(true);
     try {
       const payload = {
         content,
         ventureId: activeChannel.type === 'venture' ? activeChannel.id : undefined,
-        receiverId: activeChannel.type === 'dm' ? activeChannel.id as number : undefined
+        receiverId: activeChannel.type === 'dm' ? activeChannel.id as number : undefined,
       };
-
       const res = await sendChatMessage(payload);
       if (res.success) {
-        // Only append if it's a DM sent by me, or venture. Wait, the DB response is perfectly formatted.
-        // If we broadcast, we might get double. To prevent double, we could just rely on the socket.
-        // But since we built the REST, let's append the REST result if socket doesn't echo to sender.
-        // Actually, our socket broadcasts to the channel. Since we joined the channel, we will get it.
-        // To be safe, we emit to socket so OTHERS get it.
-        socket?.emit('send_message', {
-          ...res.data, // It has sender_name, created_at, etc from DB
-          ventureId: payload.ventureId,
-          receiverId: payload.receiverId
-        });
-        
-        // Add locally to avoid delay
+        socket?.emit('send_message', { ...res.data, ventureId: payload.ventureId, receiverId: payload.receiverId });
         setMessages(prev => [...prev.filter(m => m.id !== res.data.id), res.data]);
       }
-    } catch (error) {
-      toast.error('Failed to send message');
-    }
+    } catch { toast.error('Failed to send message'); }
+    finally { setSending(false); inputRef.current?.focus(); }
   };
 
-  const getInitials = (name: string) => name ? name.charAt(0).toUpperCase() : '?';
+  const switchChannel = (ch: Channel) => { setActiveChannel(ch); setDmSearch(''); };
+
+  const filteredUsers = allUsers.filter(u => u.full_name?.toLowerCase().includes(dmSearch.toLowerCase()));
+
+  const VENTURE_CHANNELS = VENTURES.map((v, i) => ({ v, vId: i + 1 })).filter(({ vId }) => currentUser.accessLevel <= 2 || currentUser.venture?.id === vId);
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 140px)', gap: 24 }}>
-      {/* Sidebar */}
-      <div className="glass" style={{ width: 300, borderRadius: 20, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ padding: 20, borderBottom: '1px solid var(--color-border)' }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)' }}>Communications</h2>
+    <div className="flex h-[calc(100vh-120px)] gap-0 rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-2xl">
+
+      {/* ── Sidebar ───────────────────────────────────────────── */}
+      <div className="w-64 shrink-0 flex flex-col bg-[var(--color-bg-secondary)] border-r border-[var(--color-border)]">
+
+        {/* Sidebar Header */}
+        <div className="px-4 py-4 border-b border-[var(--color-border)] flex items-center justify-between">
+          <div>
+            <h2 className="font-black text-[15px] text-[var(--color-text-primary)] flex items-center gap-2">
+              <MessageSquare size={16} className="text-[var(--color-purple-glow)]" /> Communications
+            </h2>
+            <p className="text-[10px] font-bold text-[var(--color-text-muted)] mt-0.5 uppercase tracking-widest">InternalX Chat</p>
+          </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+        <div className="flex-1 overflow-y-auto py-3 px-2 space-y-5">
+
           {/* Channels */}
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, paddingLeft: 8 }}>
-              Channels
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <button
-                onClick={() => setActiveChannel({ type: 'venture', id: 'global', name: 'Global HQ', color: '#8b5cf6' })}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10,
-                  background: activeChannel.id === 'global' ? 'rgba(139, 92, 246, 0.15)' : 'transparent',
-                  border: 'none', cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left',
-                  color: activeChannel.id === 'global' ? '#fff' : 'var(--color-text-secondary)'
-                }}
-              >
-                <Hash size={16} color="#8b5cf6" />
-                <span style={{ fontSize: 14, fontWeight: activeChannel.id === 'global' ? 600 : 500 }}>Global HQ</span>
-              </button>
-              
-              {VENTURES.map(v => {
-                // Only show if user has access
-                if (currentUser.accessLevel > 2 && currentUser.venture?.id !== v.id && v.id !== undefined) return null;
-                
-                // Hack: We don't have venture IDs perfectly mapped in constants, assuming 1 to 4 based on index
-                const vId = VENTURES.indexOf(v) + 1; 
-                const isActive = activeChannel.id === vId;
-                
-                return (
-                  <button
-                    key={v.slug}
-                    onClick={() => setActiveChannel({ type: 'venture', id: vId, name: v.name, color: v.color })}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 10,
-                      background: isActive ? `${v.color}20` : 'transparent',
-                      border: 'none', cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left',
-                      color: isActive ? '#fff' : 'var(--color-text-secondary)'
-                    }}
-                  >
-                    <Hash size={16} color={v.color} />
-                    <span style={{ fontSize: 14, fontWeight: isActive ? 600 : 500 }}>{v.name}</span>
-                  </button>
-                );
-              })}
+          <div>
+            <div className="px-2 mb-1.5 text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest flex items-center gap-1.5">
+              <Hash size={10} /> Channels
             </div>
+            {/* Global */}
+            <SidebarBtn
+              active={activeChannel.id === 'global'}
+              color="#8b5cf6"
+              onClick={() => switchChannel({ type: 'venture', id: 'global', name: 'Global HQ', color: '#8b5cf6' })}
+              icon={<Globe size={14} />}
+              label="Global HQ"
+            />
+            {VENTURE_CHANNELS.map(({ v, vId }) => (
+              <SidebarBtn key={v.slug} active={activeChannel.id === vId && activeChannel.type === 'venture'}
+                color={v.color}
+                onClick={() => switchChannel({ type: 'venture', id: vId, name: v.name, color: v.color })}
+                icon={<Hash size={14} />}
+                label={v.name}
+              />
+            ))}
           </div>
 
-          {/* Direct Messages */}
+          {/* DMs */}
           <div>
-            <h3 style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, paddingLeft: 8 }}>
-              Direct Messages
-            </h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {allUsers.map(u => {
-                const isActive = activeChannel.id === u.id && activeChannel.type === 'dm';
-                return (
-                  <button
-                    key={u.id}
-                    onClick={() => setActiveChannel({ type: 'dm', id: u.id, name: u.full_name, color: '#06b6d4' })}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', borderRadius: 10,
-                      background: isActive ? 'rgba(6, 182, 212, 0.15)' : 'transparent',
-                      border: 'none', cursor: 'pointer', transition: 'all 0.2s', width: '100%', textAlign: 'left',
-                      color: isActive ? '#fff' : 'var(--color-text-secondary)'
-                    }}
-                  >
-                    <div style={{ position: 'relative' }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700 }}>
-                        {getInitials(u.full_name)}
-                      </div>
-                      <Circle size={8} fill={u.is_active ? '#10b981' : '#64748b'} color={u.is_active ? '#10b981' : '#64748b'} style={{ position: 'absolute', bottom: -2, right: -2, border: '2px solid var(--color-bg-primary)', borderRadius: '50%' }} />
-                    </div>
-                    <span style={{ fontSize: 13, fontWeight: isActive ? 600 : 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {u.full_name}
-                    </span>
-                  </button>
-                );
-              })}
+            <div className="px-2 mb-1.5 text-[10px] font-black text-[var(--color-text-muted)] uppercase tracking-widest flex items-center gap-1.5">
+              <AtSign size={10} /> Direct Messages
             </div>
+            {/* DM search */}
+            <div className="mx-1 mb-2">
+              <input value={dmSearch} onChange={e => setDmSearch(e.target.value)} placeholder="Search people..." className="w-full px-2.5 py-1.5 text-[12px] rounded-lg bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]" />
+            </div>
+            {filteredUsers.map(u => {
+              const isActive = activeChannel.id === u.id && activeChannel.type === 'dm';
+              return (
+                <button key={u.id} onClick={() => switchChannel({ type: 'dm', id: u.id, name: u.full_name, color: '#06b6d4' })}
+                  className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition-all mb-0.5 border ${isActive ? 'bg-[var(--color-purple-glow)]/15 border-[var(--color-purple-glow)]/30' : 'border-transparent hover:bg-[var(--color-bg-primary)]'}`}
+                >
+                  <div className="relative shrink-0">
+                    <Avatar name={u.full_name} size={26} />
+                    <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg-secondary)] ${u.is_active ? 'bg-emerald-500' : 'bg-[var(--color-border)]'}`} />
+                  </div>
+                  <span className={`text-[13px] font-semibold truncate flex-1 ${isActive ? 'text-[var(--color-purple-glow)]' : 'text-[var(--color-text-secondary)]'}`}>{u.full_name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Self info */}
+        <div className="px-3 py-3 border-t border-[var(--color-border)] flex items-center gap-2.5 bg-[var(--color-bg-primary)]/50">
+          <div className="relative shrink-0">
+            <Avatar name={currentUser.fullName || currentUser.name} size={28} />
+            <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg-secondary)] bg-emerald-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-[12px] font-bold text-[var(--color-text-primary)] truncate">{currentUser.fullName || currentUser.name}</div>
+            <div className="text-[10px] font-medium text-emerald-500">● Online</div>
           </div>
         </div>
       </div>
 
-      {/* Main Chat Area */}
-      <div className="glass" style={{ flex: 1, borderRadius: 20, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* ── Main Chat ─────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col bg-[var(--color-bg-card)] min-w-0">
+
         {/* Chat Header */}
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', alignItems: 'center', gap: 16, background: 'rgba(0,0,0,0.2)' }}>
-          {activeChannel.type === 'venture' ? (
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: `${activeChannel.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Hash size={20} color={activeChannel.color} />
-            </div>
-          ) : (
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: `${activeChannel.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 16, color: activeChannel.color }}>
-              {getInitials(activeChannel.name)}
-            </div>
-          )}
-          <div>
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)' }}>
+        <div className="px-6 py-3.5 border-b border-[var(--color-border)] flex items-center gap-3 bg-[var(--color-bg-secondary)]/60 backdrop-blur-sm">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm" style={{ background: `${activeChannel.color}20` }}>
+            {activeChannel.type === 'venture'
+              ? <Hash size={16} style={{ color: activeChannel.color }} />
+              : <Avatar name={activeChannel.name} size={28} />
+            }
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-black text-[14px] text-[var(--color-text-primary)]">
               {activeChannel.type === 'venture' ? `# ${activeChannel.name}` : activeChannel.name}
             </h3>
-            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-              {activeChannel.type === 'venture' ? 'Company-wide announcements and team chat.' : 'Direct, end-to-end communication.'}
+            <p className="text-[11px] font-medium text-[var(--color-text-muted)]">
+              {activeChannel.type === 'venture' ? 'Company-wide team channel' : 'Direct message'}
             </p>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[11px] font-bold text-[var(--color-text-muted)]">
+            <Sparkles size={11} className="text-[var(--color-purple-glow)]" /> {messages.length} messages
           </div>
         </div>
 
-        {/* Messages List */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-1 scroll-smooth">
           {loading ? (
-            <div style={{ margin: 'auto', display: 'flex', alignItems: 'center', gap: 12, color: 'var(--color-text-muted)' }}>
-              <div className="animate-spin-slow">✦</div> Loading history...
+            <div className="flex flex-col items-center justify-center h-full text-[var(--color-text-muted)]">
+              <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-3" />
+              <p className="font-medium text-sm">Loading history...</p>
             </div>
           ) : messages.length === 0 ? (
-            <div style={{ margin: 'auto', textAlign: 'center', color: 'var(--color-text-muted)' }}>
-              <MessageSquare size={48} style={{ margin: '0 auto 16px', opacity: 0.2 }} />
-              <p>No messages yet. Start the conversation!</p>
+            <div className="flex flex-col items-center justify-center h-full text-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: `${activeChannel.color}20` }}>
+                <MessageSquare size={32} style={{ color: activeChannel.color }} />
+              </div>
+              <h3 className="font-bold text-base text-[var(--color-text-primary)] mb-1">Start the conversation</h3>
+              <p className="text-[var(--color-text-muted)] text-sm font-medium">No messages yet in {activeChannel.type === 'venture' ? `#${activeChannel.name}` : activeChannel.name}</p>
             </div>
           ) : (
             messages.map((msg, idx) => {
               const isMe = msg.sender_id === currentUser.id;
-              const showAvatar = idx === 0 || messages[idx - 1].sender_id !== msg.sender_id;
+              const prevMsg = messages[idx - 1];
+              const showAvatar = !prevMsg || prevMsg.sender_id !== msg.sender_id || !isSameDay(msg.created_at, prevMsg.created_at);
+              const showDate = !prevMsg || !isSameDay(msg.created_at, prevMsg.created_at);
+              const grouped = !!prevMsg && prevMsg.sender_id === msg.sender_id && isSameDay(msg.created_at, prevMsg.created_at);
 
               return (
-                <div key={msg.id || Math.random()} style={{ display: 'flex', gap: 16, flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end' }}>
-                  {showAvatar ? (
-                    <div style={{ width: 32, height: 32, borderRadius: '50%', background: isMe ? 'rgba(139, 92, 246, 0.2)' : 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: isMe ? '#a78bfa' : '#fff', flexShrink: 0 }}>
-                      {getInitials(msg.sender_name || currentUser.name)}
+                <div key={msg.id ?? `${msg.sender_id}-${idx}`}>
+                  {/* Date Separator */}
+                  {showDate && (
+                    <div className="flex items-center gap-3 my-5">
+                      <div className="flex-1 h-px bg-[var(--color-border)]" />
+                      <span className="text-[11px] font-bold text-[var(--color-text-muted)] px-3 py-1 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">{formatDateLabel(msg.created_at)}</span>
+                      <div className="flex-1 h-px bg-[var(--color-border)]" />
                     </div>
-                  ) : (
-                    <div style={{ width: 32, flexShrink: 0 }} /> // Spacer
                   )}
-                  
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: isMe ? 'flex-end' : 'flex-start', maxWidth: '70%' }}>
-                    {showAvatar && (
-                      <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ fontWeight: 600, color: isMe ? '#a78bfa' : 'var(--color-text-primary)' }}>{isMe ? 'You' : msg.sender_name}</span>
-                        <span style={{ opacity: 0.5 }}>{new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+
+                  {/* Message Row */}
+                  <div className={`flex gap-3 group items-end ${isMe ? 'flex-row-reverse' : ''} ${grouped ? 'mt-0.5' : 'mt-4'}`}>
+                    {/* Avatar */}
+                    <div className="shrink-0" style={{ width: 32 }}>
+                      {showAvatar && <Avatar name={msg.sender_name} size={32} />}
+                    </div>
+
+                    <div className={`flex flex-col gap-1 max-w-[65%] ${isMe ? 'items-end' : 'items-start'}`}>
+                      {showAvatar && (
+                        <div className={`flex items-baseline gap-2 ${isMe ? 'flex-row-reverse' : ''}`}>
+                          <span className="text-[12px] font-bold text-[var(--color-text-primary)]">{isMe ? 'You' : msg.sender_name}</span>
+                          <span className="text-[10px] font-medium text-[var(--color-text-muted)]">{formatTime(msg.created_at)}</span>
+                        </div>
+                      )}
+
+                      <div className="relative group/msg">
+                        <div
+                          className="px-4 py-2.5 text-[14px] leading-relaxed font-medium shadow-sm"
+                          style={{
+                            background: isMe ? `linear-gradient(135deg, ${activeChannel.color}cc, ${activeChannel.color}99)` : 'var(--color-bg-secondary)',
+                            color: isMe ? '#fff' : 'var(--color-text-primary)',
+                            border: isMe ? `1px solid ${activeChannel.color}50` : '1px solid var(--color-border)',
+                            borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                          }}
+                        >
+                          {msg.content}
+                        </div>
+
+                        {/* Time tooltip on hover */}
+                        {!showAvatar && (
+                          <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 transition-opacity text-[10px] font-medium text-[var(--color-text-muted)] whitespace-nowrap ${isMe ? 'right-full mr-2' : 'left-full ml-2'}`}>
+                            {formatTime(msg.created_at)}
+                          </div>
+                        )}
                       </div>
-                    )}
-                    <div style={{ 
-                      padding: '12px 16px', 
-                      background: isMe ? 'linear-gradient(135deg, rgba(139, 92, 246, 0.8), rgba(109, 40, 217, 0.8))' : 'rgba(255,255,255,0.05)',
-                      border: isMe ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid rgba(255,255,255,0.1)',
-                      borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                      color: '#fff', fontSize: 14, lineHeight: 1.5,
-                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                    }}>
-                      {msg.content}
                     </div>
                   </div>
                 </div>
               );
             })
           )}
+
+          {/* Typing indicator */}
+          {isTyping && (
+            <div className="flex items-end gap-3 mt-4">
+              <div className="w-8 h-8 rounded-xl bg-[var(--color-bg-secondary)] flex items-center justify-center">
+                <div className="flex gap-1">
+                  {[0, 1, 2].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-[var(--color-purple-glow)] animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}
+                </div>
+              </div>
+              <div className="px-4 py-2.5 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-2xl text-[12px] font-medium text-[var(--color-text-muted)]">
+                Someone is typing...
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
         {/* Input Area */}
-        <div style={{ padding: 20, borderTop: '1px solid var(--color-border)', background: 'rgba(0,0,0,0.2)' }}>
-          <form onSubmit={handleSend} style={{ display: 'flex', gap: 12 }}>
-            <input 
-              type="text"
-              value={inputMsg}
-              onChange={e => setInputMsg(e.target.value)}
-              placeholder={`Message ${activeChannel.type === 'venture' ? '#' + activeChannel.name : activeChannel.name}...`}
+        <div className="px-5 py-4 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)]/40">
+          <form onSubmit={handleSend} className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <input
+                ref={inputRef}
+                type="text"
+                value={inputMsg}
+                onChange={e => { setInputMsg(e.target.value); emitTyping(); }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
+                placeholder={`Message ${activeChannel.type === 'venture' ? '#' + activeChannel.name : activeChannel.name}...`}
+                className="w-full pl-4 pr-4 py-3 rounded-2xl bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[14px] font-medium text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-purple-glow)] focus:shadow-[0_0_0_3px_rgba(139,92,246,0.12)]"
+              />
+            </div>
+
+            {/* Send button */}
+            <button type="submit" disabled={!inputMsg.trim() || sending}
+              className="w-11 h-11 rounded-2xl flex items-center justify-center transition-all font-bold shadow-sm shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
               style={{
-                flex: 1, padding: '14px 20px', borderRadius: 16,
-                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border)',
-                color: '#fff', fontSize: 14, outline: 'none', transition: 'border-color 0.2s'
-              }}
-              onFocus={e => e.target.style.borderColor = activeChannel.color}
-              onBlur={e => e.target.style.borderColor = 'var(--color-border)'}
-            />
-            <button 
-              type="submit"
-              disabled={!inputMsg.trim()}
-              style={{
-                width: 50, height: 50, borderRadius: 16,
-                background: inputMsg.trim() ? activeChannel.color : 'rgba(255,255,255,0.05)',
+                background: inputMsg.trim() ? `linear-gradient(135deg, ${activeChannel.color}, ${activeChannel.color}cc)` : 'var(--color-bg-primary)',
+                boxShadow: inputMsg.trim() ? `0 4px 16px ${activeChannel.color}40` : 'none',
                 color: inputMsg.trim() ? '#fff' : 'var(--color-text-muted)',
-                border: 'none', cursor: inputMsg.trim() ? 'pointer' : 'not-allowed',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                transition: 'all 0.2s', boxShadow: inputMsg.trim() ? `0 4px 12px ${activeChannel.color}40` : 'none'
+                border: `1px solid ${inputMsg.trim() ? activeChannel.color + '40' : 'var(--color-border)'}`,
               }}
             >
-              <Send size={20} style={{ marginLeft: -2, marginTop: 2 }} />
+              {sending
+                ? <Loader2 size={17} className="animate-spin" />
+                : <Send size={17} className={inputMsg.trim() ? 'translate-x-px -translate-y-px' : ''} />
+              }
             </button>
           </form>
+          <p className="text-[10px] font-medium text-[var(--color-text-muted)] mt-2 ml-1">Press Enter to send · Ctrl+Enter for newline</p>
         </div>
       </div>
     </div>
+  );
+}
+
+function SidebarBtn({ active, color, onClick, icon, label }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string; }) {
+  return (
+    <button onClick={onClick}
+      className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition-all mb-0.5 border ${active ? 'border shadow-sm font-bold' : 'border-transparent hover:bg-[var(--color-bg-primary)] font-medium'}`}
+      style={active ? { background: `${color}15`, borderColor: `${color}35`, color } : { color: 'var(--color-text-secondary)' }}
+    >
+      <span style={active ? { color } : { color: 'var(--color-text-muted)' }}>{icon}</span>
+      <span className="text-[13px] truncate">{label}</span>
+      {active && <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: color }} />}
+    </button>
   );
 }

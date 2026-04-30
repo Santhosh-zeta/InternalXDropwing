@@ -2,6 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { User } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
+import {
+  UserCircle, ShieldCheck, SlidersHorizontal,
+  Camera, Loader2, Check, Moon, Sun, BellOff, Mail
+} from 'lucide-react';
 
 interface SettingsViewProps {
   currentUser: User;
@@ -11,7 +15,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'preferences'>('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   // Profile state
   const [fullName, setFullName] = useState(currentUser.fullName || '');
   const [phone, setPhone] = useState(currentUser.phone || '');
@@ -29,7 +33,6 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   useEffect(() => {
-    // Initialize theme from local storage or document
     const localTheme = localStorage.getItem('internalx_theme') as 'dark' | 'light' | null;
     if (localTheme) {
       setTheme(localTheme);
@@ -37,7 +40,6 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
       setTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
     }
 
-    // Fetch full profile including preferences
     const fetchProfile = async () => {
       try {
         setLoading(true);
@@ -70,10 +72,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      return toast.error('Avatar must be under 5MB');
-    }
+    if (file.size > 5 * 1024 * 1024) return toast.error('Avatar must be under 5MB');
 
     const formData = new FormData();
     formData.append('avatar', file);
@@ -90,8 +89,6 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
       if (res.success) {
         setAvatarUrl(res.data.avatar_url);
         toast.success('Avatar updated successfully');
-        
-        // Update local storage to reflect changes across app (requires refresh for sidebar)
         const stored = JSON.parse(localStorage.getItem('internalx_user') || '{}');
         stored.avatarUrl = res.data.avatar_url;
         localStorage.setItem('internalx_user', JSON.stringify(stored));
@@ -116,8 +113,6 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
       });
       if (res.data.success) {
         toast.success('Profile updated successfully');
-        
-        // Update local storage
         const stored = JSON.parse(localStorage.getItem('internalx_user') || '{}');
         stored.fullName = fullName;
         stored.phone = phone;
@@ -134,12 +129,8 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
 
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      return toast.error('New passwords do not match');
-    }
-    if (newPassword.length < 8) {
-      return toast.error('Password must be at least 8 characters');
-    }
+    if (newPassword !== confirmPassword) return toast.error('New passwords do not match');
+    if (newPassword.length < 8) return toast.error('Password must be at least 8 characters');
 
     try {
       setSaving(true);
@@ -161,194 +152,240 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
 
   if (loading) {
     return (
-      <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-        <div className="animate-spin-slow" style={{ fontSize: 40, marginBottom: 16 }}>✦</div>
-        <p>Loading settings...</p>
+      <div className="flex flex-col items-center justify-center py-20 text-[var(--color-text-muted)]">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
+        <p className="font-medium">Loading settings...</p>
       </div>
     );
   }
 
-  const TabButton = ({ id, label, icon }: { id: typeof activeTab, label: string, icon: string }) => (
-    <button
-      onClick={() => setActiveTab(id)}
-      style={{
-        display: 'flex', alignItems: 'center', gap: 8,
-        padding: '12px 20px', borderRadius: 12, border: 'none',
-        background: activeTab === id ? 'var(--color-bg-tertiary)' : 'transparent',
-        color: activeTab === id ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
-        fontWeight: activeTab === id ? 700 : 500, cursor: 'pointer', transition: 'all 0.2s'
-      }}
-    >
-      <span>{icon}</span> {label}
-    </button>
-  );
+  const inputClass = "w-full px-4 py-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors";
+  const disabledInputClass = "w-full px-4 py-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-muted)] outline-none cursor-not-allowed opacity-60";
+  const labelClass = "block text-[12px] font-bold text-[var(--color-text-secondary)] mb-2 uppercase tracking-wider";
+
+  const TABS = [
+    { id: 'profile' as const, label: 'Personal Info', icon: <UserCircle size={16} /> },
+    { id: 'security' as const, label: 'Security', icon: <ShieldCheck size={16} /> },
+    { id: 'preferences' as const, label: 'Preferences', icon: <SlidersHorizontal size={16} /> },
+  ];
 
   return (
-    <div className="fade-in" style={{ maxWidth: 800, margin: '0 auto' }}>
-      <div style={{ marginBottom: 32 }}>
-        <h2 style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-text-primary)' }}>Account Settings</h2>
-        <p style={{ color: 'var(--color-text-muted)', fontSize: 14 }}>Manage your profile, security credentials, and system preferences.</p>
+    <div className="flex flex-col gap-6 pb-10 max-w-3xl">
+      <div>
+        <h2 className="text-2xl font-black text-[var(--color-text-primary)]">Account Settings</h2>
+        <p className="text-[var(--color-text-secondary)] text-sm font-medium mt-1">
+          Manage your profile, security credentials, and system preferences.
+        </p>
       </div>
 
-      <div style={{ display: 'flex', gap: 24, flexDirection: 'column' }}>
+      <div className="flex flex-col gap-6">
         {/* Navigation Tabs */}
-        <div className="glass" style={{ display: 'flex', padding: 8, borderRadius: 16, border: '1px solid var(--color-border)', overflowX: 'auto' }}>
-          <TabButton id="profile" label="Personal Info" icon="👤" />
-          <TabButton id="security" label="Security" icon="🔐" />
-          <TabButton id="preferences" label="Preferences" icon="⚙️" />
+        <div className="flex gap-2 bg-[var(--color-bg-secondary)] p-1.5 rounded-2xl border border-[var(--color-border)]">
+          {TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-bold transition-all border flex-1 justify-center ${
+                activeTab === tab.id
+                  ? 'bg-[var(--color-bg-card)] text-[var(--color-purple-glow)] border-[var(--color-border)] shadow-sm'
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border-transparent'
+              }`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Content Area */}
-        <div className="glass" style={{ padding: 32, borderRadius: 16, border: '1px solid var(--color-border)' }}>
-          
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 md:p-8 shadow-sm">
+
+          {/* Profile Tab */}
           {activeTab === 'profile' && (
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 16 }}>
-                <div 
-                  style={{ 
-                    width: 80, height: 80, borderRadius: '50%', background: 'var(--color-bg-tertiary)',
-                    border: '2px solid var(--color-border)', overflow: 'hidden', display: 'flex', 
-                    alignItems: 'center', justifyContent: 'center', fontSize: 32, flexShrink: 0,
+            <form onSubmit={handleSaveProfile} className="flex flex-col gap-6">
+              {/* Avatar */}
+              <div className="flex items-center gap-6 pb-6 border-b border-[var(--color-border)]">
+                <div
+                  className="w-20 h-20 rounded-2xl bg-[var(--color-bg-secondary)] border-2 border-[var(--color-border)] overflow-hidden flex items-center justify-center shrink-0 relative group cursor-pointer"
+                  onClick={() => fileInputRef.current?.click()}
+                  style={{
                     backgroundImage: avatarUrl ? `url(${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${avatarUrl})` : 'none',
-                    backgroundSize: 'cover', backgroundPosition: 'center'
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
                   }}
                 >
-                  {!avatarUrl && '👤'}
+                  {!avatarUrl && <UserCircle size={40} className="text-[var(--color-text-muted)]" />}
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <Camera size={20} className="text-white" />
+                  </div>
                 </div>
                 <div>
-                  <h4 style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 8 }}>Profile Avatar</h4>
-                  <div style={{ display: 'flex', gap: 12 }}>
-                    <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleAvatarUpload} accept="image/*" />
-                    <button type="button" onClick={() => fileInputRef.current?.click()} style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 600 }}>
-                      Change Avatar
-                    </button>
-                  </div>
-                  <p style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 8 }}>JPG, GIF or PNG. Max size 5MB.</p>
+                  <h4 className="text-base font-bold text-[var(--color-text-primary)] mb-2">Profile Avatar</h4>
+                  <input type="file" ref={fileInputRef} className="hidden" onChange={handleAvatarUpload} accept="image/*" />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-4 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] text-[13px] font-bold transition-colors flex items-center gap-2"
+                  >
+                    <Camera size={14} /> Change Avatar
+                  </button>
+                  <p className="text-[11px] font-medium text-[var(--color-text-muted)] mt-2">JPG, GIF or PNG. Max size 5MB.</p>
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Full Name</label>
-                  <input
-                    type="text" value={fullName} onChange={e => setFullName(e.target.value)} required
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
-                  />
+                  <label className={labelClass}>Full Name</label>
+                  <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required className={inputClass} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Email Address</label>
-                  <input
-                    type="email" value={currentUser.email} disabled
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }}
-                  />
-                  <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 4, display: 'block' }}>Email cannot be changed directly. Contact IT.</span>
+                  <label className={labelClass}>Email Address</label>
+                  <input type="email" value={currentUser.email} disabled className={disabledInputClass} />
+                  <span className="text-[11px] font-medium text-[var(--color-text-muted)] mt-1.5 block">Email cannot be changed. Contact IT admin.</span>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Phone Number</label>
-                  <input
-                    type="text" value={phone} onChange={e => setPhone(e.target.value)}
-                    placeholder="+1 (555) 000-0000"
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
-                  />
+                  <label className={labelClass}>Phone Number</label>
+                  <input type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 (555) 000-0000" className={inputClass} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Role / Designation</label>
-                  <input
-                    type="text" value={currentUser.designation || currentUser.levelName} disabled
-                    style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)', color: 'var(--color-text-muted)', cursor: 'not-allowed' }}
-                  />
+                  <label className={labelClass}>Role / Designation</label>
+                  <input type="text" value={currentUser.designation || currentUser.levelName} disabled className={disabledInputClass} />
                 </div>
               </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-                <button type="submit" disabled={saving} style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: 'linear-gradient(135deg, #3b82f6, #0ea5e9)', color: '#fff', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+
+              <div className="flex justify-end pt-4 border-t border-[var(--color-border)]">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} strokeWidth={2.5} />}
                   {saving ? 'Saving...' : 'Save Profile Changes'}
                 </button>
               </div>
             </form>
           )}
 
+          {/* Security Tab */}
           {activeTab === 'security' && (
-            <form onSubmit={handleSavePassword} style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 500 }}>
+            <form onSubmit={handleSavePassword} className="flex flex-col gap-5 max-w-md">
               <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Current Password</label>
-                <input
-                  type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
-                />
+                <label className={labelClass}>Current Password</label>
+                <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required className={inputClass} />
               </div>
-              <hr style={{ border: 'none', borderTop: '1px solid var(--color-border)', margin: '8px 0' }} />
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>New Password</label>
-                <input
-                  type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
-                />
+
+              <div className="border-t border-[var(--color-border)] pt-5">
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className={labelClass}>New Password</label>
+                    <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={8} className={inputClass} />
+                  </div>
+                  <div>
+                    <label className={labelClass}>Confirm New Password</label>
+                    <input
+                      type="password"
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      required
+                      minLength={8}
+                      className={`${inputClass} ${confirmPassword && newPassword !== confirmPassword ? '!border-rose-500' : ''}`}
+                    />
+                    {confirmPassword && newPassword !== confirmPassword && (
+                      <span className="text-[11px] font-bold text-rose-500 mt-1.5 block">Passwords do not match</span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 8, fontWeight: 600 }}>Confirm New Password</label>
-                <input
-                  type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} required minLength={8}
-                  style={{ width: '100%', padding: '12px 16px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
-                />
-              </div>
-              
-              <div style={{ marginTop: 8 }}>
-                <button type="submit" disabled={saving} style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: 'var(--color-text-primary)', color: 'var(--color-bg-primary)', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} strokeWidth={2.5} />}
                   {saving ? 'Updating...' : 'Update Password'}
                 </button>
               </div>
             </form>
           )}
 
+          {/* Preferences Tab */}
           {activeTab === 'preferences' && (
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--color-bg-tertiary)', borderRadius: 12, border: '1px solid var(--color-border)' }}>
-                <div>
-                  <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>Quiet Hours</h4>
-                  <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Mute team chat notifications after 5:00 PM local time.</p>
-                </div>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={muteChatAfter5} onChange={e => setMuteChatAfter5(e.target.checked)} style={{ width: 18, height: 18, accentColor: '#8b5cf6', cursor: 'pointer' }} />
-                </label>
-              </div>
+            <form onSubmit={handleSaveProfile} className="flex flex-col gap-4">
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--color-bg-tertiary)', borderRadius: 12, border: '1px solid var(--color-border)' }}>
-                <div>
-                  <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>Email Notifications</h4>
-                  <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Receive email digests for pending tasks and document approvals.</p>
+              {/* Preference Row component inline */}
+              {[
+                {
+                  icon: <BellOff size={20} className="text-amber-500" />,
+                  title: 'Quiet Hours',
+                  desc: 'Mute team chat notifications after 5:00 PM local time.',
+                  checked: muteChatAfter5,
+                  onChange: (v: boolean) => setMuteChatAfter5(v),
+                },
+                {
+                  icon: <Mail size={20} className="text-cyan-500" />,
+                  title: 'Email Notifications',
+                  desc: 'Receive email digests for pending tasks and document approvals.',
+                  checked: emailNotifications,
+                  onChange: (v: boolean) => setEmailNotifications(v),
+                },
+              ].map((pref, i) => (
+                <div key={i} className="flex items-center justify-between p-5 bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)]">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-[var(--color-bg-card)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+                      {pref.icon}
+                    </div>
+                    <div>
+                      <h4 className="text-[14px] font-bold text-[var(--color-text-primary)] mb-0.5">{pref.title}</h4>
+                      <p className="text-[12px] font-medium text-[var(--color-text-muted)]">{pref.desc}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => pref.onChange(!pref.checked)}
+                    className={`w-12 h-6 rounded-full relative transition-colors shrink-0 ${pref.checked ? 'bg-[var(--color-purple-glow)]' : 'bg-[var(--color-border)]'}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${pref.checked ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                  </button>
                 </div>
-                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={emailNotifications} onChange={e => setEmailNotifications(e.target.checked)} style={{ width: 18, height: 18, accentColor: '#8b5cf6', cursor: 'pointer' }} />
-                </label>
-              </div>
+              ))}
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'var(--color-bg-tertiary)', borderRadius: 12, border: '1px solid var(--color-border)' }}>
-                <div>
-                  <h4 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>App Theme</h4>
-                  <p style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>Choose between Dark and Light mode for the dashboard.</p>
+              {/* Theme Toggle */}
+              <div className="flex items-center justify-between p-5 bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)]">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--color-bg-card)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+                    {theme === 'dark' ? <Moon size={20} className="text-[var(--color-purple-glow)]" /> : <Sun size={20} className="text-amber-400" />}
+                  </div>
+                  <div>
+                    <h4 className="text-[14px] font-bold text-[var(--color-text-primary)] mb-0.5">App Theme</h4>
+                    <p className="text-[12px] font-medium text-[var(--color-text-muted)]">Choose between Dark and Light mode for the dashboard.</p>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 8, background: 'var(--color-bg-primary)', padding: 4, borderRadius: 8, border: '1px solid var(--color-border)' }}>
-                  <button 
+                <div className="flex gap-1.5 bg-[var(--color-bg-primary)] p-1 rounded-xl border border-[var(--color-border)]">
+                  <button
                     type="button"
                     onClick={() => handleThemeToggle('dark')}
-                    style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: theme === 'dark' ? 'var(--color-bg-card)' : 'transparent', color: theme === 'dark' ? 'var(--color-text-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, boxShadow: theme === 'dark' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+                    className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all flex items-center gap-1.5 ${theme === 'dark' ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm' : 'text-[var(--color-text-muted)]'}`}
                   >
-                    Dark
+                    <Moon size={13} /> Dark
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => handleThemeToggle('light')}
-                    style={{ padding: '6px 16px', borderRadius: 6, border: 'none', background: theme === 'light' ? 'var(--color-bg-card)' : 'transparent', color: theme === 'light' ? 'var(--color-text-primary)' : 'var(--color-text-muted)', cursor: 'pointer', fontSize: 13, fontWeight: 600, boxShadow: theme === 'light' ? '0 2px 8px rgba(0,0,0,0.1)' : 'none', transition: 'all 0.2s' }}
+                    className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all flex items-center gap-1.5 ${theme === 'light' ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm' : 'text-[var(--color-text-muted)]'}`}
                   >
-                    Light
+                    <Sun size={13} /> Light
                   </button>
                 </div>
               </div>
-              
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-                <button type="submit" disabled={saving} style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: 'var(--color-text-primary)', color: 'var(--color-bg-primary)', fontWeight: 600, cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-6 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {saving ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} strokeWidth={2.5} />}
                   {saving ? 'Saving...' : 'Save Preferences'}
                 </button>
               </div>

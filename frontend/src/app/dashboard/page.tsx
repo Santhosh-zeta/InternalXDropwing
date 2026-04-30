@@ -25,6 +25,14 @@ import DatabaseView from './DatabaseView';
 import LearningHubView from './LearningHubView';
 import StrategyView from './StrategyView';
 
+import { 
+  Hexagon, LayoutDashboard, FolderKanban, CheckSquare, Users, 
+  ShieldCheck, Activity, MessageSquare, BookOpen, Settings, 
+  FileText, Database, BarChart3, TrendingUp, DollarSign,
+  PieChart, Briefcase, FileSignature, LogOut, Search, Loader2, 
+  User as UserIcon, Building2, Crown, ChevronRight, Lock
+} from 'lucide-react';
+
 const LEVEL_COLORS: Record<number, string> = {
   1: '#8b5cf6', 2: '#a78bfa', 3: '#7c3aed',
   4: '#06b6d4', 5: '#f59e0b', 6: '#10b981',
@@ -41,6 +49,40 @@ const ACCESS_MENUS: Record<number, string[]> = {
   7: ['My Dashboard', 'My Projects', 'My Tasks', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
   8: ['My Dashboard', 'My Projects', 'My Tasks', 'Documents', 'Learning Hub', 'Team Chat', 'Settings'],
   9: ['Project Status', 'My Tasks', 'Documents', 'Deliverables', 'Invoices', 'Messages', 'Settings'],
+};
+
+const MENU_ICONS: Record<string, React.ElementType> = {
+  'System Overview': LayoutDashboard,
+  'Executive Dashboard': LayoutDashboard,
+  'Admin Panel': LayoutDashboard,
+  'C-Suite Overview': LayoutDashboard,
+  'Team Dashboard': LayoutDashboard,
+  'My Dashboard': LayoutDashboard,
+  'Projects': FolderKanban,
+  'My Projects': FolderKanban,
+  'Project Status': Activity,
+  'Tasks': CheckSquare,
+  'My Tasks': CheckSquare,
+  'Documents': FileText,
+  'Deliverables': FileSignature,
+  'User Management': Users,
+  'Team Members': Users,
+  'Team Management': Users,
+  'Access Control': ShieldCheck,
+  'Audit Logs': Activity,
+  'Team Chat': MessageSquare,
+  'Messages': MessageSquare,
+  'Learning Hub': BookOpen,
+  'Settings': Settings,
+  'Invoices': DollarSign,
+  'Database': Database,
+  'Reports': BarChart3,
+  'Strategy': TrendingUp,
+  'Financials': DollarSign,
+  'Budget': DollarSign,
+  'HR Overview': PieChart,
+  'Department KPIs': PieChart,
+  'Timesheets': Briefcase
 };
 
 export default function DashboardPage() {
@@ -80,10 +122,10 @@ export default function DashboardPage() {
 
   if (!user) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg-primary)' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="animate-spin-slow" style={{ fontSize: 48, marginBottom: 16 }}>✦</div>
-          <p style={{ color: 'var(--color-text-muted)' }}>Loading dashboard…</p>
+      <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)]">
+        <div className="flex flex-col items-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
+          <p className="text-[var(--color-text-muted)] text-sm font-medium tracking-wide">Loading workspace...</p>
         </div>
       </div>
     );
@@ -97,24 +139,22 @@ export default function DashboardPage() {
     const q = searchQuery.toLowerCase();
     if (!q) return [];
     
-    const results: { type: string, title: string, subtitle?: string, action: () => void, icon: string }[] = [];
+    const results: { type: string, title: string, subtitle?: string, action: () => void, icon: React.ElementType }[] = [];
     
-    // 1. Navigation / Menu matches
     menus.forEach((item, index) => {
       if (item.toLowerCase().includes(q)) {
-        results.push({ type: 'module', title: item, subtitle: 'Go to module', action: () => setActiveMenu(index), icon: '✦' });
+        results.push({ type: 'module', title: item, subtitle: 'Go to module', action: () => setActiveMenu(index), icon: MENU_ICONS[item] || LayoutDashboard });
       }
     });
 
-    // 2. Mock Global Items based on query keywords
     if ('marketing campaign'.includes(q)) {
-      results.push({ type: 'task', title: 'Q3 Marketing Campaign', subtitle: 'Task in Dropwing Design', action: () => { setActiveMenu(menus.indexOf('Tasks') !== -1 ? menus.indexOf('Tasks') : 0); }, icon: '✓' });
+      results.push({ type: 'task', title: 'Q3 Marketing Campaign', subtitle: 'Task in Dropwing Design', action: () => { setActiveMenu(menus.indexOf('Tasks') !== -1 ? menus.indexOf('Tasks') : 0); }, icon: CheckSquare });
     }
     if ('invoice'.includes(q) || 'payment'.includes(q)) {
-      results.push({ type: 'document', title: 'Invoice #INV-2026', subtitle: 'Document / Financials', action: () => { setActiveMenu(menus.indexOf('Invoices') !== -1 ? menus.indexOf('Invoices') : 0); }, icon: '📄' });
+      results.push({ type: 'document', title: 'Invoice #INV-2026', subtitle: 'Document / Financials', action: () => { setActiveMenu(menus.indexOf('Invoices') !== -1 ? menus.indexOf('Invoices') : 0); }, icon: FileText });
     }
     if ('john doe'.includes(q) || 'user'.includes(q)) {
-      results.push({ type: 'user', title: 'John Doe', subtitle: 'Level 5 Developer', action: () => { setActiveMenu(menus.indexOf('User Management') !== -1 ? menus.indexOf('User Management') : 0); }, icon: '👤' });
+      results.push({ type: 'user', title: 'John Doe', subtitle: 'Level 5 Developer', action: () => { setActiveMenu(menus.indexOf('User Management') !== -1 ? menus.indexOf('User Management') : 0); }, icon: UserIcon });
     }
 
     return results;
@@ -123,157 +163,117 @@ export default function DashboardPage() {
   const searchResults = getSearchResults();
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', background: 'var(--color-bg-primary)' }}>
+    <div className="min-h-screen flex bg-[var(--color-bg-primary)] font-sans text-[var(--color-text-primary)]">
+      
       {/* Sidebar */}
-      <aside
-        className="glass"
-        style={{
-          width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column',
-          borderRight: '1px solid var(--color-border)', borderRadius: 0,
-          position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
-        }}
-      >
+      <aside className="w-[260px] shrink-0 flex flex-col border-r border-[var(--color-border)] sticky top-0 h-screen bg-[var(--color-bg-secondary)] overflow-y-auto">
+        
         {/* Logo */}
-        <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-            <div
-              className="animate-pulse-glow"
-              style={{
-                width: 36, height: 36, borderRadius: 10,
-                background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
-              }}
-            >
-              ✦
+        <div className="p-5 border-b border-[var(--color-border)]">
+          <div className="flex items-center gap-3 mb-5">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-[var(--color-purple-glow)] text-white shadow-sm">
+              <Hexagon size={16} strokeWidth={2.5} />
             </div>
             <div>
-              <div className="gradient-text" style={{ fontWeight: 700, fontSize: 16 }}>InternalX</div>
-              <div style={{ fontSize: 9, color: 'var(--color-text-muted)', letterSpacing: 2 }}>DROPWING GROUPS</div>
+              <div className="font-bold text-[15px] tracking-tight leading-none text-[var(--color-text-primary)]">InternalX</div>
+              <div className="text-[9px] font-semibold tracking-widest uppercase mt-1 text-[var(--color-text-muted)]">Dropwing Groups</div>
             </div>
           </div>
 
           {/* User card */}
-          <div
-            style={{
-              background: `${color}15`,
-              border: `1px solid ${color}30`,
-              borderRadius: 12,
-              padding: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div
-                style={{
-                  width: 40, height: 40, borderRadius: 10,
-                  background: `${color}30`,
-                  border: `2px solid ${color}50`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 20, flexShrink: 0,
-                }}
-              >
-                {user.accessLevel === 1 ? '👑' : user.accessLevel === 2 ? '🏛️' : user.accessLevel === 9 ? '🤝' : '👤'}
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-md bg-[var(--color-bg-secondary)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
+                {user.accessLevel === 1 ? <Crown size={18} style={{ color }} /> : 
+                 user.accessLevel === 2 ? <Building2 size={18} style={{ color }} /> : 
+                 user.accessLevel === 9 ? <Briefcase size={18} style={{ color }} /> : 
+                 <UserIcon size={18} style={{ color }} />}
               </div>
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <div className="min-w-0">
+                <div className="font-semibold text-xs text-[var(--color-text-primary)] truncate">
                   {user.fullName}
                 </div>
-                <div style={{ fontSize: 10, color, fontWeight: 600 }}>{user.levelName}</div>
+                <div className="text-[10px] font-medium truncate" style={{ color }}>{user.levelName}</div>
                 {user.venture && (
-                  <div style={{ fontSize: 10, color: 'var(--color-text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div className="text-[10px] text-[var(--color-text-muted)] mt-0.5 truncate">
                     {user.venture.name}
                   </div>
                 )}
               </div>
             </div>
-            <div style={{ marginTop: 8, padding: '4px 8px', background: `${color}20`, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <span style={{ fontSize: 10, color, fontWeight: 700 }}>Level {user.accessLevel}</span>
-              <span style={{ fontSize: 10, color: 'var(--color-text-muted)', marginLeft: 6 }}>· {user.employeeId}</span>
-            </div>
           </div>
         </div>
 
         {/* Nav menu */}
-        <nav style={{ flex: 1, padding: '12px 12px' }}>
-          {menus.map((item, i) => (
-            <button
-              key={item}
-              onClick={() => setActiveMenu(i)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                width: '100%', textAlign: 'left', padding: '10px 14px',
-                borderRadius: 10, border: 'none', cursor: 'pointer',
-                marginBottom: 4, fontSize: 13, fontWeight: activeMenu === i ? 700 : 400,
-                color: activeMenu === i ? color : 'var(--color-text-secondary)',
-                background: activeMenu === i ? `${color}18` : 'transparent',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={e => { if (activeMenu !== i) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.04)'; }}
-              onMouseLeave={e => { if (activeMenu !== i) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
-            >
-              <span style={{
-                width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                background: activeMenu === i ? color : 'var(--color-text-muted)',
-              }} />
-              {item}
-            </button>
-          ))}
+        <nav className="flex-1 p-3 space-y-0.5">
+          {menus.map((item, i) => {
+            const Icon = MENU_ICONS[item] || LayoutDashboard;
+            const isActive = activeMenu === i;
+            return (
+              <button
+                key={item}
+                onClick={() => setActiveMenu(i)}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
+                  isActive 
+                    ? 'bg-[var(--color-purple-glow)] text-white shadow-sm' 
+                    : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-[var(--color-text-primary)]'
+                }`}
+              >
+                <Icon size={16} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-white' : 'text-[var(--color-text-muted)]'} />
+                {item}
+              </button>
+            );
+          })}
         </nav>
 
         {/* Ventures filter (Super Admin/MD only) */}
         {user.accessLevel <= 2 && (
-          <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)' }}>
-            <div style={{ fontSize: 10, color: 'var(--color-text-muted)', letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>Ventures</div>
+          <div className="p-4 border-t border-[var(--color-border)]">
+            <div className="text-[10px] font-semibold text-[var(--color-text-muted)] tracking-wider uppercase mb-3">Ventures</div>
             {VENTURES.map(v => (
-              <div key={v.slug} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: v.color, flexShrink: 0 }} />
-                <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{v.name}</span>
+              <div key={v.slug} className="flex items-center gap-2 mb-2">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ background: v.color }} />
+                <span className="text-xs font-medium text-[var(--color-text-secondary)]">{v.name}</span>
               </div>
             ))}
           </div>
         )}
 
         {/* Logout */}
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--color-border)' }}>
+        <div className="p-4 border-t border-[var(--color-border)]">
           <button
-            id="btn-logout"
             onClick={handleLogout}
-            style={{
-              width: '100%', padding: '10px', borderRadius: 10, border: '1px solid rgba(244,63,94,0.3)',
-              background: 'rgba(244,63,94,0.08)', color: '#f43f5e',
-              cursor: 'pointer', fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
-            }}
-            onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(244,63,94,0.15)'; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = 'rgba(244,63,94,0.08)'; }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-[13px] font-medium border border-rose-500/20 bg-rose-500/5 text-rose-500 hover:bg-rose-500/10 transition-colors"
           >
-            🚪 Sign Out
+            <LogOut size={16} />
+            Sign Out
           </button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main style={{ flex: 1, overflowY: 'auto', padding: '32px' }}>
+      <main className="flex-1 overflow-y-auto p-8 lg:p-10">
+        
         {/* Top bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 32 }}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8 border-b border-[var(--color-border)] pb-6">
           <div>
-            <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--color-text-primary)' }}>
+            <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-[var(--color-text-primary)]">
               {menus[activeMenu]}
             </h1>
-            <p style={{ color: 'var(--color-text-muted)', fontSize: 14, marginTop: 4 }}>
+            <p className="text-sm font-medium text-[var(--color-text-muted)] mt-1">
               {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
             </p>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          
+          <div className="flex items-center gap-4">
             {/* Global Search Bar */}
-            <div style={{ position: 'relative' }}>
+            <div className="relative z-50">
               <div 
-                style={{ 
-                  display: 'flex', alignItems: 'center', background: 'var(--color-bg-tertiary)', 
-                  border: `1px solid ${isSearchFocused ? color : 'var(--color-border)'}`, 
-                  borderRadius: 12, padding: '8px 16px', width: 280, transition: 'all 0.2s',
-                  boxShadow: isSearchFocused ? `0 0 0 2px ${color}33` : 'none'
-                }}
+                className={`flex items-center bg-[var(--color-bg-secondary)] border rounded-lg px-3 py-1.5 w-64 lg:w-72 transition-all ${
+                  isSearchFocused ? 'border-[var(--color-purple-glow)] ring-1 ring-[var(--color-purple-glow)]/20' : 'border-[var(--color-border)] hover:border-[var(--color-text-muted)]'
+                }`}
               >
-                <span style={{ marginRight: 8, opacity: 0.5, fontSize: 14 }}>🔍</span>
+                <Search size={14} className="text-[var(--color-text-muted)] mr-2 shrink-0" />
                 <input 
                   ref={searchInputRef}
                   type="text" 
@@ -282,24 +282,13 @@ export default function DashboardPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   onFocus={() => setIsSearchFocused(true)}
                   onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                  style={{ 
-                    border: 'none', background: 'transparent', outline: 'none', 
-                    color: 'var(--color-text-primary)', width: '100%', fontSize: 13 
-                  }}
+                  className="bg-transparent border-none outline-none text-[13px] text-[var(--color-text-primary)] w-full placeholder:text-[var(--color-text-muted)]"
                 />
               </div>
 
               {/* Search Results Dropdown */}
               {isSearchFocused && searchQuery.trim() && (
-                <div 
-                  className="glass"
-                  style={{ 
-                    position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 8, 
-                    borderRadius: 12, overflow: 'hidden', zIndex: 100,
-                    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', border: '1px solid var(--color-border)',
-                    maxHeight: 300, overflowY: 'auto'
-                  }}
-                >
+                <div className="absolute top-full left-0 right-0 mt-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-xl overflow-hidden max-h-80 overflow-y-auto">
                   {searchResults.length > 0 ? (
                     searchResults.map((res, i) => (
                       <div 
@@ -309,24 +298,19 @@ export default function DashboardPage() {
                           setSearchQuery('');
                           setIsSearchFocused(false);
                         }}
-                        style={{ 
-                          padding: '12px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
-                          borderBottom: i < searchResults.length - 1 ? '1px solid var(--color-border)' : 'none'
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-card-hover)')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        className="flex items-center gap-3 px-4 py-2.5 cursor-pointer hover:bg-[var(--color-bg-card-hover)] border-b border-[var(--color-border)] last:border-0 transition-colors"
                       >
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'var(--color-bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0, border: '1px solid var(--color-border)' }}>
-                          {res.icon}
+                        <div className="w-7 h-7 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex items-center justify-center shrink-0">
+                          <res.icon size={14} className="text-[var(--color-text-muted)]" />
                         </div>
-                        <div style={{ overflow: 'hidden' }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{res.title}</div>
-                          <div style={{ fontSize: 11, color: 'var(--color-text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{res.subtitle}</div>
+                        <div className="min-w-0">
+                          <div className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">{res.title}</div>
+                          <div className="text-[11px] text-[var(--color-text-muted)] truncate">{res.subtitle}</div>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13 }}>
+                    <div className="p-4 text-center text-[13px] text-[var(--color-text-muted)]">
                       No results found for "{searchQuery}"
                     </div>
                   )}
@@ -335,125 +319,128 @@ export default function DashboardPage() {
             </div>
 
             <NotificationBell color={color} />
-            <div
-              style={{
-                padding: '8px 16px', borderRadius: 20,
-                background: `${color}18`, border: `1px solid ${color}33`,
-                fontSize: 12, color, fontWeight: 600,
-              }}
-            >
-              ● Level {user.accessLevel} — {user.levelName}
+            
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="text-xs font-medium text-[var(--color-text-secondary)]">Level {user.accessLevel}</span>
             </div>
           </div>
         </div>
 
         {/* Welcome banner */}
-        <div
-          className="glass"
-          style={{
-            borderRadius: 20, padding: '28px 32px', marginBottom: 24,
-            background: `linear-gradient(135deg, ${color}18 0%, rgba(6,182,212,0.08) 100%)`,
-            border: `1px solid ${color}30`,
-            position: 'relative', overflow: 'hidden',
-          }}
-        >
-          <div style={{ position: 'absolute', right: -20, top: -20, fontSize: 120, opacity: 0.06 }}>
-            {user.accessLevel === 1 ? '👑' : user.accessLevel === 2 ? '🏛️' : user.accessLevel === 9 ? '🤝' : '✦'}
-          </div>
-          <div style={{ fontSize: 13, color, fontWeight: 600, marginBottom: 8, letterSpacing: 1 }}>
-            WELCOME BACK
-          </div>
-          <h2 style={{ fontSize: 26, fontWeight: 800, color: 'var(--color-text-primary)', marginBottom: 8 }}>
-            Hello, {user.fullName.split(' ')[0]}! 👋
-          </h2>
-          <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', maxWidth: 600 }}>
-            You are logged in as <strong style={{ color }}>{user.levelName}</strong>
-            {user.venture ? ` at ${user.venture.name}` : ' with global access'}.
-            {user.designation && ` Your role: ${user.designation}.`}
-          </p>
-          {user.accessLevel <= 3 && (
-            <div style={{ marginTop: 16, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-              {VENTURES.map(v => (
-                <span key={v.slug} style={{ fontSize: 12, padding: '4px 12px', borderRadius: 20, background: `${v.color}18`, color: v.color, border: `1px solid ${v.color}30` }}>
-                  {v.emoji} {v.name}
-                </span>
-              ))}
+        <div className="relative overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] mb-8 p-6 lg:p-8 shadow-sm">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-purple-glow)] opacity-[0.03] rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
+          
+          <div className="relative z-10 flex items-start justify-between gap-6">
+            <div>
+              <div className="text-[11px] font-bold tracking-widest uppercase mb-1" style={{ color }}>
+                Workspace Active
+              </div>
+              <h2 className="text-xl lg:text-2xl font-semibold text-[var(--color-text-primary)] mb-2">
+                Welcome back, {user.fullName.split(' ')[0]}.
+              </h2>
+              <p className="text-[13px] lg:text-sm text-[var(--color-text-secondary)] max-w-2xl leading-relaxed">
+                You are authenticated as <span className="font-medium text-[var(--color-text-primary)]">{user.levelName}</span>
+                {user.venture ? ` within ${user.venture.name}` : ' with global administrative privileges'}.
+                {user.designation && ` Active designation: ${user.designation}.`}
+              </p>
+              
+              {user.accessLevel <= 3 && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {VENTURES.map(v => (
+                    <div key={v.slug} className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)]">
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ background: v.color }} />
+                      {v.name}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
+            
+            <div className="hidden md:flex shrink-0 w-12 h-12 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] items-center justify-center">
+               <Hexagon size={24} style={{ color }} strokeWidth={2} />
+            </div>
+          </div>
         </div>
 
         {/* Stats grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: 'Access Level', value: `L${user.accessLevel}`, sub: user.levelName, c: color },
-            { label: 'Department', value: user.department || 'N/A', sub: user.designation || '', c: ventureColor },
-            { label: 'Employee ID', value: user.employeeId || 'N/A', sub: 'Internal ID', c: '#06b6d4' },
-            { label: 'Venture', value: user.venture?.name?.split(' ')[0] || 'All', sub: 'Active workspace', c: '#10b981' },
-          ].map(s => (
+            { label: 'Access Control', value: `Level ${user.accessLevel}`, sub: user.levelName, icon: ShieldCheck },
+            { label: 'Department', value: user.department || 'Executive', sub: user.designation || 'Oversight', icon: Briefcase },
+            { label: 'Employee ID', value: user.employeeId || 'Global Auth', sub: 'Verified Session', icon: Lock },
+            { label: 'Workspace', value: user.venture?.name || 'All Ventures', sub: 'Active Environment', icon: Building2 },
+          ].map((s, idx) => (
             <div
-              key={s.label}
-              className="glass"
-              style={{ borderRadius: 16, padding: '20px', border: `1px solid ${s.c}20` }}
+              key={idx}
+              className="bg-[var(--color-bg-card)] rounded-xl p-5 border border-[var(--color-border)] shadow-sm hover:border-[var(--color-text-muted)] transition-colors"
             >
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
-                {s.label}
+              <div className="flex items-center justify-between mb-3">
+                <div className="text-[11px] font-semibold text-[var(--color-text-muted)] uppercase tracking-wider">
+                  {s.label}
+                </div>
+                <s.icon size={14} className="text-[var(--color-text-muted)]" />
               </div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: s.c, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div className="text-lg font-semibold text-[var(--color-text-primary)] mb-0.5 truncate">
                 {s.value}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{s.sub}</div>
+              <div className="text-[12px] font-medium text-[var(--color-text-secondary)] truncate">{s.sub}</div>
             </div>
           ))}
         </div>
 
-        {/* Placeholder content area */}
-        {['System Overview', 'Executive Dashboard', 'Admin Panel', 'C-Suite Overview', 'Team Dashboard', 'My Dashboard'].includes(menus[activeMenu]) ? (
-          <OverviewView currentUser={user} />
-        ) : menus[activeMenu] === 'Tasks' || menus[activeMenu] === 'My Tasks' ? (
-          <TasksView currentUser={user} />
-        ) : menus[activeMenu] === 'User Management' || menus[activeMenu] === 'Team Members' ? (
-          <UserManagementView currentUser={user} />
-        ) : ['Projects', 'My Projects', 'Project Status', 'Deliverables'].includes(menus[activeMenu]) ? (
-          <ProjectsView currentUser={user} />
-        ) : ['Team Chat', 'Messages'].includes(menus[activeMenu]) ? (
-          <ChatView currentUser={user} />
-        ) : menus[activeMenu] === 'Audit Logs' ? (
-          <AuditLogsView />
-        ) : menus[activeMenu] === 'Documents' ? (
-          <DocumentsView currentUser={user} />
-        ) : menus[activeMenu] === 'Timesheets' ? (
-          <TimesheetsView currentUser={user} />
-        ) : menus[activeMenu] === 'Strategy' ? (
-          <StrategyView currentUser={user} />
-        ) : menus[activeMenu] === 'Financials' || menus[activeMenu] === 'Budget' ? (
-          <BudgetView currentUser={user} />
-        ) : menus[activeMenu] === 'Department KPIs' || menus[activeMenu] === 'HR Overview' || menus[activeMenu] === 'Team Management' ? (
-          <DepartmentKPIsView currentUser={user} />
-        ) : ['Project Status', 'Deliverables', 'Messages'].includes(menus[activeMenu]) && user.accessLevel === 9 ? (
-          <ClientPortalView currentUser={user} />
-        ) : menus[activeMenu] === 'Invoices' ? (
-          <InvoicesView currentUser={user} />
-        ) : menus[activeMenu] === 'Settings' ? (
-          <SettingsView currentUser={user} />
-        ) : menus[activeMenu] === 'Reports' ? (
-          <ReportsView currentUser={user} />
-        ) : menus[activeMenu] === 'Learning Hub' ? (
-          <LearningHubView currentUser={user} />
-        ) : menus[activeMenu] === 'Database' ? (
-          <DatabaseView />
-        ) : menus[activeMenu] === 'Access Control' ? (
-          <AccessControlView currentUser={user} />
-        ) : (
-          <div className="glass" style={{ borderRadius: 16, padding: '40px', textAlign: 'center', border: '1px dashed var(--color-border)' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>🚧</div>
-            <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>
-              {menus[activeMenu]} — Coming Soon
-            </h3>
-            <p style={{ fontSize: 14, color: 'var(--color-text-muted)' }}>
-              This section is being built. Your access level ({user.levelName}) grants you access to this feature when it's ready.
-            </p>
-          </div>
-        )}
+        {/* Content Area */}
+        <div className="min-h-[400px]">
+          {['System Overview', 'Executive Dashboard', 'Admin Panel', 'C-Suite Overview', 'Team Dashboard', 'My Dashboard'].includes(menus[activeMenu]) ? (
+            <OverviewView currentUser={user} />
+          ) : menus[activeMenu] === 'Tasks' || menus[activeMenu] === 'My Tasks' ? (
+            <TasksView currentUser={user} />
+          ) : menus[activeMenu] === 'User Management' || menus[activeMenu] === 'Team Members' ? (
+            <UserManagementView currentUser={user} />
+          ) : ['Projects', 'My Projects', 'Project Status', 'Deliverables'].includes(menus[activeMenu]) ? (
+            <ProjectsView currentUser={user} />
+          ) : ['Team Chat', 'Messages'].includes(menus[activeMenu]) ? (
+            <ChatView currentUser={user} />
+          ) : menus[activeMenu] === 'Audit Logs' ? (
+            <AuditLogsView />
+          ) : menus[activeMenu] === 'Documents' ? (
+            <DocumentsView currentUser={user} />
+          ) : menus[activeMenu] === 'Timesheets' ? (
+            <TimesheetsView currentUser={user} />
+          ) : menus[activeMenu] === 'Strategy' ? (
+            <StrategyView currentUser={user} />
+          ) : menus[activeMenu] === 'Financials' || menus[activeMenu] === 'Budget' ? (
+            <BudgetView currentUser={user} />
+          ) : menus[activeMenu] === 'Department KPIs' || menus[activeMenu] === 'HR Overview' || menus[activeMenu] === 'Team Management' ? (
+            <DepartmentKPIsView currentUser={user} />
+          ) : ['Project Status', 'Deliverables', 'Messages'].includes(menus[activeMenu]) && user.accessLevel === 9 ? (
+            <ClientPortalView currentUser={user} />
+          ) : menus[activeMenu] === 'Invoices' ? (
+            <InvoicesView currentUser={user} />
+          ) : menus[activeMenu] === 'Settings' ? (
+            <SettingsView currentUser={user} />
+          ) : menus[activeMenu] === 'Reports' ? (
+            <ReportsView currentUser={user} />
+          ) : menus[activeMenu] === 'Learning Hub' ? (
+            <LearningHubView currentUser={user} />
+          ) : menus[activeMenu] === 'Database' ? (
+            <DatabaseView />
+          ) : menus[activeMenu] === 'Access Control' ? (
+            <AccessControlView currentUser={user} />
+          ) : (
+            <div className="bg-[var(--color-bg-card)] rounded-2xl p-12 border border-[var(--color-border)] shadow-sm flex flex-col items-center justify-center text-center">
+              <div className="w-16 h-16 bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)] flex items-center justify-center mb-6">
+                <Lock size={24} className="text-[var(--color-text-muted)]" />
+              </div>
+              <h3 className="text-lg font-semibold text-[var(--color-text-primary)] mb-2">
+                {menus[activeMenu]} Module
+              </h3>
+              <p className="text-sm font-medium text-[var(--color-text-secondary)] max-w-md">
+                This section is currently under development. Your workspace environment will be updated automatically when it becomes available.
+              </p>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );

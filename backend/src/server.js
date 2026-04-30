@@ -46,6 +46,7 @@ app.use('/api/kpis', require('./routes/kpis.routes'));
 app.use('/api/client-portal', require('./routes/client_portal.routes'));
 app.use('/api/learning', require('./routes/learning.routes'));
 app.use('/api/database', require('./routes/database.routes'));
+app.use('/api/strategy', require('./routes/strategy.routes'));
 
 // Serve uploads directory
 const path = require('path');
@@ -89,9 +90,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send_message', (data) => {
-    // broadcast to everyone in the channel
-    const channel = data.ventureId ? (data.ventureId === 'global' ? 'global' : `venture_${data.ventureId}`) : `dm_${data.receiverId}`;
-    io.to(channel).emit('receive_message', data);
+    // If it's a venture message, send to the venture room
+    if (data.ventureId) {
+      const room = data.ventureId === 'global' ? 'global' : `venture_${data.ventureId}`;
+      io.to(room).emit('receive_message', data);
+    } 
+    // If it's a DM, send to both the sender and receiver's rooms
+    else if (data.receiverId) {
+      io.to(`dm_${data.receiverId}`).emit('receive_message', data);
+      io.to(`dm_${data.sender_id}`).emit('receive_message', data);
+    }
   });
 
   socket.on('disconnect', () => {});

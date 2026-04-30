@@ -5,13 +5,21 @@ import { User } from '@/lib/constants';
 import api from '@/lib/api';
 import {
   AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
+import { 
+  Package, Upload, Building, Zap, 
+  Wallet, FileText, TrendingUp, RefreshCw, AlertCircle
+} from 'lucide-react';
 
 const CHART_STYLE = {
   contentStyle: {
-    background: '#1a1b2e', border: '1px solid rgba(255,255,255,0.08)',
-    borderRadius: 12, color: '#e2e8f0', fontSize: 12,
+    background: 'var(--color-bg-card)', 
+    border: '1px solid var(--color-border)',
+    borderRadius: '12px', 
+    color: 'var(--color-text-primary)', 
+    fontSize: '12px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
   },
 };
 
@@ -42,7 +50,8 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
   const [loading, setLoading] = useState(true);
   const [filterVenture, setFilterVenture] = useState<string>('all');
 
-  const color = currentUser.accessLevel === 2 ? '#a78bfa' : '#06b6d4';
+  const color = currentUser.accessLevel === 2 ? '#8b5cf6' : '#06b6d4';
+  const colorVar = currentUser.accessLevel === 2 ? 'var(--color-purple-glow)' : '#06b6d4';
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -68,129 +77,143 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
     ? expenses
     : expenses.filter(e => e.venture?.toLowerCase().includes(filterVenture.toLowerCase()));
 
-  const StatCard = ({ label, value, sub, c, icon }: { label: string; value: string; sub?: string; c: string; icon: string }) => (
-    <div style={{ background: `${c}12`, border: `1px solid ${c}28`, borderRadius: 16, padding: '20px 24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 700, letterSpacing: 1.2, textTransform: 'uppercase' }}>{label}</div>
-        <div style={{ width: 34, height: 34, borderRadius: 10, background: `${c}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>{icon}</div>
+  const StatCard = ({ label, value, sub, c, icon }: { label: string; value: string; sub?: string; c: string; icon: React.ReactNode }) => (
+    <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm" style={{ borderTop: `4px solid ${c}` }}>
+      <div className="flex justify-between items-start mb-3">
+        <div className="text-[11px] text-[var(--color-text-muted)] font-bold tracking-wider uppercase">{label}</div>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${c}15`, color: c }}>{icon}</div>
       </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: c, lineHeight: 1.1 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginTop: 6 }}>{sub}</div>}
+      <div className="text-3xl font-extrabold leading-tight mb-1" style={{ color: c }}>{value}</div>
+      {sub && <div className="text-xs text-[var(--color-text-muted)] font-medium">{sub}</div>}
     </div>
   );
 
   const TABS = [
-    { id: 'overview' as const, label: 'Budget Overview', icon: '💰' },
-    { id: 'expenses' as const, label: 'Expense Ledger', icon: '🧾' },
-    { id: 'trend' as const, label: 'Spend Trend', icon: '📈' },
+    { id: 'overview' as const, label: 'Budget Overview', icon: <Wallet size={16} /> },
+    { id: 'expenses' as const, label: 'Expense Ledger', icon: <FileText size={16} /> },
+    { id: 'trend' as const, label: 'Spend Trend', icon: <TrendingUp size={16} /> },
   ];
 
   if (loading) {
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-        {[1,2,3,4].map(i => <div key={i} style={{ height: 110, borderRadius: 16, background: 'rgba(255,255,255,0.04)' }} />)}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[1,2,3,4].map(i => <div key={i} className="h-[120px] rounded-2xl bg-[var(--color-bg-card)] border border-[var(--color-border)] animate-pulse" />)}
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div className="flex flex-col gap-6">
       {/* Header Controls */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', gap: 6 }}>
+      <div className="flex justify-between items-center flex-wrap gap-3">
+        <div className="flex gap-2 bg-[var(--color-bg-secondary)] p-1 rounded-xl border border-[var(--color-border)]">
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
-              padding: '8px 16px', borderRadius: 10, border: tab === t.id ? `1px solid ${color}40` : '1px solid transparent',
-              cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
-              background: tab === t.id ? `${color}20` : 'rgba(255,255,255,0.04)',
-              color: tab === t.id ? color : 'var(--color-text-muted)',
-            }}>{t.icon} {t.label}</button>
+            <button 
+              key={t.id} 
+              onClick={() => setTab(t.id)} 
+              className={`px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all ${
+                tab === t.id 
+                  ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm border border-[var(--color-border)]' 
+                  : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border border-transparent'
+              }`}
+              style={tab === t.id ? { color: colorVar } : {}}
+            >
+              {t.icon} {t.label}
+            </button>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'var(--color-text-muted)', fontWeight: 600, letterSpacing: 1 }}>
+        <div className="flex gap-3 items-center">
+          <span className="text-xs text-[var(--color-text-muted)] font-bold tracking-wide uppercase bg-[var(--color-bg-secondary)] px-3 py-1.5 rounded-lg border border-[var(--color-border)]">
             L{currentUser.accessLevel} — {currentUser.levelName}
           </span>
-          <button onClick={fetchAll} style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${color}40`, background: `${color}18`, color, cursor: 'pointer', fontSize: 12, fontWeight: 700 }}>↻</button>
+          <button 
+            onClick={fetchAll} 
+            className="p-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-card)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+            title="Refresh Data"
+          >
+            <RefreshCw size={16} />
+          </button>
         </div>
       </div>
 
       {/* KPI Row */}
       {totals && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 }}>
-          <StatCard label="Total Budget" value={fmt(totals.total_budget)} sub={`${totals.projects} active projects`} c="#10b981" icon="📦" />
-          <StatCard label="Total Expenses" value={fmt(totals.total_expenses)} sub="Payroll + operational" c="#f59e0b" icon="📤" />
-          <StatCard label="Remaining" value={fmt(totals.remaining)} sub={`${100 - totals.utilization}% headroom`} c={totals.remaining < 0 ? '#f43f5e' : color} icon="🏦" />
-          <StatCard label="Utilization" value={`${totals.utilization}%`} sub={`${totals.ventures} ventures active`} c={totals.utilization > 80 ? '#f43f5e' : '#10b981'} icon="⚡" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <StatCard label="Total Budget" value={fmt(totals.total_budget)} sub={`${totals.projects} active projects`} c="#10b981" icon={<Package size={18} />} />
+          <StatCard label="Total Expenses" value={fmt(totals.total_expenses)} sub="Payroll + operational" c="#f59e0b" icon={<Upload size={18} />} />
+          <StatCard label="Remaining" value={fmt(totals.remaining)} sub={`${100 - totals.utilization}% headroom`} c={totals.remaining < 0 ? '#f43f5e' : color} icon={<Building size={18} />} />
+          <StatCard label="Utilization" value={`${totals.utilization}%`} sub={`${totals.ventures} ventures active`} c={totals.utilization > 80 ? '#f43f5e' : '#10b981'} icon={<Zap size={18} />} />
         </div>
       )}
 
       {/* Budget Overview Tab */}
       {tab === 'overview' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {ventures.length === 0 ? (
-            <div className="glass" style={{ borderRadius: 16, padding: 60, textAlign: 'center', border: '1px dashed var(--color-border)' }}>
-              <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>📊</div>
-              <p style={{ color: 'var(--color-text-muted)' }}>No budget data yet. Create projects with budgets to track financials.</p>
+            <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-16 text-center">
+              <AlertCircle size={48} className="mx-auto mb-4 text-[var(--color-text-muted)] opacity-50" />
+              <p className="text-[var(--color-text-secondary)] font-medium">No budget data yet. Create projects with budgets to track financials.</p>
             </div>
           ) : (
-            <div className="glass" style={{ borderRadius: 20, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-              <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
+              <div className="p-5 md:p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-secondary)]">
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-text-primary)' }}>Budget vs Expenses by Venture</div>
-                  <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>All values in INR • Expenses = payroll cost (₹50/hr)</div>
+                  <div className="font-bold text-base text-[var(--color-text-primary)]">Budget vs Expenses by Venture</div>
+                  <div className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">All values in INR • Expenses = payroll cost (₹50/hr)</div>
                 </div>
               </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--color-bg-secondary)' }}>
-                    {['Venture', 'Projects', 'Allocated Budget', 'Expenses', 'Remaining', 'Utilization', 'Health'].map(h => (
-                      <th key={h} style={{ padding: '14px 20px', fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, textAlign: h === 'Remaining' || h === 'Allocated Budget' || h === 'Expenses' ? 'right' : h === 'Utilization' || h === 'Health' ? 'center' : 'left' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ventures.map((v, idx) => (
-                    <tr key={v.id} style={{ borderTop: '1px solid var(--color-border)', transition: 'background 0.15s' }}>
-                      <td style={{ padding: '18px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: v.color, flexShrink: 0 }} />
-                          <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text-primary)' }}>{v.venture}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '18px 20px', fontSize: 13, color: 'var(--color-text-secondary)' }}>{v.project_count}</td>
-                      <td style={{ padding: '18px 20px', textAlign: 'right', fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)' }}>{fmt(v.allocated_budget)}</td>
-                      <td style={{ padding: '18px 20px', textAlign: 'right', fontSize: 14, fontWeight: 600, color: '#f59e0b' }}>{fmt(v.total_expenses)}</td>
-                      <td style={{ padding: '18px 20px', textAlign: 'right', fontSize: 14, fontWeight: 700, color: v.remaining < 0 ? '#f43f5e' : '#10b981' }}>{fmt(v.remaining)}</td>
-                      <td style={{ padding: '18px 20px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-                          <div style={{ flex: 1, height: 6, borderRadius: 4, background: 'rgba(255,255,255,0.08)', maxWidth: 80, overflow: 'hidden' }}>
-                            <div style={{ width: `${Math.min(100, v.utilization)}%`, height: '100%', borderRadius: 4, background: v.utilization > 85 ? '#f43f5e' : v.utilization > 60 ? '#f59e0b' : '#10b981', transition: 'width 0.6s ease' }} />
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
+                      {['Venture', 'Projects', 'Allocated Budget', 'Expenses', 'Remaining', 'Utilization', 'Health'].map(h => (
+                        <th key={h} className={`p-4 text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider ${h === 'Remaining' || h === 'Allocated Budget' || h === 'Expenses' ? 'text-right' : h === 'Utilization' || h === 'Health' ? 'text-center' : 'text-left'}`}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ventures.map((v, idx) => (
+                      <tr key={v.id} className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors">
+                        <td className="p-4 px-5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: v.color, boxShadow: `0 0 8px ${v.color}80` }} />
+                            <span className="font-bold text-sm text-[var(--color-text-primary)]">{v.venture}</span>
                           </div>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: v.utilization > 85 ? '#f43f5e' : v.utilization > 60 ? '#f59e0b' : '#10b981' }}>{v.utilization}%</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '18px 20px', textAlign: 'center' }}>
-                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: v.utilization > 85 ? 'rgba(244,63,94,0.15)' : v.utilization > 60 ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)', color: v.utilization > 85 ? '#f43f5e' : v.utilization > 60 ? '#f59e0b' : '#10b981' }}>
-                          {v.utilization > 85 ? '⚠ At Risk' : v.utilization > 60 ? '◔ Moderate' : '✓ Healthy'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-                {totals && (
-                  <tfoot>
-                    <tr style={{ borderTop: '2px solid var(--color-border)', background: `${color}08` }}>
-                      <td style={{ padding: '16px 20px', fontWeight: 800, fontSize: 14, color: 'var(--color-text-primary)' }}>TOTAL</td>
-                      <td style={{ padding: '16px 20px', fontWeight: 700, fontSize: 13, color: 'var(--color-text-secondary)' }}>{totals.projects}</td>
-                      <td style={{ padding: '16px 20px', textAlign: 'right', fontWeight: 800, fontSize: 15, color: color }}>{fmt(totals.total_budget)}</td>
-                      <td style={{ padding: '16px 20px', textAlign: 'right', fontWeight: 800, fontSize: 15, color: '#f59e0b' }}>{fmt(totals.total_expenses)}</td>
-                      <td style={{ padding: '16px 20px', textAlign: 'right', fontWeight: 800, fontSize: 15, color: totals.remaining < 0 ? '#f43f5e' : '#10b981' }}>{fmt(totals.remaining)}</td>
-                      <td colSpan={2} />
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
+                        </td>
+                        <td className="p-4 px-5 text-[13px] font-medium text-[var(--color-text-secondary)]">{v.project_count}</td>
+                        <td className="p-4 px-5 text-right text-[14px] font-bold text-[var(--color-text-primary)]">{fmt(v.allocated_budget)}</td>
+                        <td className="p-4 px-5 text-right text-[14px] font-semibold text-amber-500">{fmt(v.total_expenses)}</td>
+                        <td className="p-4 px-5 text-right text-[14px] font-bold" style={{ color: v.remaining < 0 ? '#f43f5e' : '#10b981' }}>{fmt(v.remaining)}</td>
+                        <td className="p-4 px-5 text-center">
+                          <div className="flex items-center gap-3 justify-center">
+                            <div className="flex-1 h-2 rounded-full bg-[var(--color-bg-primary)] border border-[var(--color-border)] max-w-[80px] overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, v.utilization)}%`, background: v.utilization > 85 ? '#f43f5e' : v.utilization > 60 ? '#f59e0b' : '#10b981' }} />
+                            </div>
+                            <span className="text-[12px] font-bold" style={{ color: v.utilization > 85 ? '#f43f5e' : v.utilization > 60 ? '#f59e0b' : '#10b981' }}>{v.utilization}%</span>
+                          </div>
+                        </td>
+                        <td className="p-4 px-5 text-center">
+                          <span className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border" style={{ background: v.utilization > 85 ? 'rgba(244,63,94,0.1)' : v.utilization > 60 ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)', color: v.utilization > 85 ? '#f43f5e' : v.utilization > 60 ? '#f59e0b' : '#10b981', borderColor: v.utilization > 85 ? 'rgba(244,63,94,0.2)' : v.utilization > 60 ? 'rgba(245,158,11,0.2)' : 'rgba(16,185,129,0.2)' }}>
+                            {v.utilization > 85 ? 'At Risk' : v.utilization > 60 ? 'Moderate' : 'Healthy'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {totals && (
+                    <tfoot>
+                      <tr className="bg-[var(--color-bg-secondary)] border-t-2 border-[var(--color-border)]">
+                        <td className="p-5 font-extrabold text-[13px] text-[var(--color-text-primary)] uppercase tracking-wider">Total</td>
+                        <td className="p-5 font-bold text-[13px] text-[var(--color-text-secondary)]">{totals.projects}</td>
+                        <td className="p-5 text-right font-extrabold text-[15px]" style={{ color: colorVar }}>{fmt(totals.total_budget)}</td>
+                        <td className="p-5 text-right font-extrabold text-[15px] text-amber-500">{fmt(totals.total_expenses)}</td>
+                        <td className="p-5 text-right font-extrabold text-[15px]" style={{ color: totals.remaining < 0 ? '#f43f5e' : '#10b981' }}>{fmt(totals.remaining)}</td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  )}
+                </table>
+              </div>
             </div>
           )}
         </div>
@@ -198,63 +221,71 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
 
       {/* Expenses Tab */}
       {tab === 'expenses' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="flex flex-col gap-4">
           {/* Filter */}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <div className="flex gap-2 flex-wrap bg-[var(--color-bg-card)] p-2 rounded-2xl border border-[var(--color-border)] shadow-sm">
             {['all', ...ventures.map(v => v.venture)].map(v => (
-              <button key={v} onClick={() => setFilterVenture(v)} style={{
-                padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.2s',
-                background: filterVenture === v ? `${color}25` : 'rgba(255,255,255,0.05)',
-                color: filterVenture === v ? color : 'var(--color-text-muted)',
-                outline: filterVenture === v ? `1px solid ${color}40` : 'none',
-              }}>{v === 'all' ? '🌐 All Ventures' : v}</button>
+              <button 
+                key={v} 
+                onClick={() => setFilterVenture(v)} 
+                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+                  filterVenture === v 
+                    ? 'shadow-sm' 
+                    : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)]'
+                }`}
+                style={filterVenture === v ? { color: colorVar, background: `${color}15`, borderColor: `${color}40` } : {}}
+              >
+                {v === 'all' ? 'All Ventures' : v}
+              </button>
             ))}
           </div>
-          <div className="glass" style={{ borderRadius: 20, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between' }}>
-              <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-text-primary)' }}>Expense Ledger</div>
-              <div style={{ fontSize: 12, color: 'var(--color-text-muted)' }}>{filteredExpenses.length} entries</div>
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-5 md:p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-secondary)]">
+              <div className="font-bold text-base text-[var(--color-text-primary)]">Expense Ledger</div>
+              <div className="text-xs font-semibold text-[var(--color-text-muted)] px-3 py-1 bg-[var(--color-bg-primary)] rounded-full border border-[var(--color-border)]">{filteredExpenses.length} entries</div>
             </div>
             {filteredExpenses.length === 0 ? (
-              <div style={{ padding: 60, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                <div style={{ fontSize: 36, marginBottom: 12, opacity: 0.4 }}>🧾</div>
-                <p>No expense records yet. Approve timesheets to generate expense data.</p>
+              <div className="p-16 text-center text-[var(--color-text-muted)]">
+                <FileText size={40} className="mx-auto mb-4 opacity-30" />
+                <p className="font-medium">No expense records yet. Approve timesheets to generate expense data.</p>
               </div>
             ) : (
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ background: 'var(--color-bg-secondary)' }}>
-                    {['Date', 'Employee', 'Venture', 'Project', 'Hours', 'Amount', 'Status'].map(h => (
-                      <th key={h} style={{ padding: '14px 18px', fontSize: 11, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 0.8, textAlign: h === 'Amount' || h === 'Hours' ? 'right' : 'left' }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredExpenses.slice(0, 50).map((exp, idx) => (
-                    <tr key={exp.id || idx} style={{ borderTop: '1px solid var(--color-border)' }}>
-                      <td style={{ padding: '14px 18px', fontSize: 12, color: 'var(--color-text-muted)' }}>{new Date(exp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
-                      <td style={{ padding: '14px 18px' }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{exp.employee}</div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{exp.designation} • {exp.department}</div>
-                      </td>
-                      <td style={{ padding: '14px 18px' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: '50%', background: exp.color, flexShrink: 0 }} />
-                          <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{exp.venture}</span>
-                        </span>
-                      </td>
-                      <td style={{ padding: '14px 18px', fontSize: 12, color: 'var(--color-text-secondary)', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{exp.project_title || '—'}</td>
-                      <td style={{ padding: '14px 18px', textAlign: 'right', fontSize: 13, fontWeight: 600, color: 'var(--color-text-primary)' }}>{exp.hours_worked}h</td>
-                      <td style={{ padding: '14px 18px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: '#f59e0b' }}>{fmt(exp.amount)}</td>
-                      <td style={{ padding: '14px 18px' }}>
-                        <span style={{ padding: '3px 8px', borderRadius: 12, fontSize: 10, fontWeight: 700, background: exp.status === 'approved' ? 'rgba(16,185,129,0.15)' : 'rgba(245,158,11,0.15)', color: exp.status === 'approved' ? '#10b981' : '#f59e0b' }}>
-                          {exp.status?.toUpperCase()}
-                        </span>
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
+                      {['Date', 'Employee', 'Venture', 'Project', 'Hours', 'Amount', 'Status'].map(h => (
+                        <th key={h} className={`p-4 px-5 text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider ${h === 'Amount' || h === 'Hours' ? 'text-right' : 'text-left'}`}>{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredExpenses.slice(0, 50).map((exp, idx) => (
+                      <tr key={exp.id || idx} className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors">
+                        <td className="p-4 px-5 text-[12px] font-medium text-[var(--color-text-secondary)]">{new Date(exp.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</td>
+                        <td className="p-4 px-5">
+                          <div className="text-[13px] font-bold text-[var(--color-text-primary)]">{exp.employee}</div>
+                          <div className="text-[11px] text-[var(--color-text-muted)] mt-0.5">{exp.designation} • {exp.department}</div>
+                        </td>
+                        <td className="p-4 px-5">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: exp.color, boxShadow: `0 0 6px ${exp.color}80` }} />
+                            <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{exp.venture}</span>
+                          </span>
+                        </td>
+                        <td className="p-4 px-5 text-[12px] font-medium text-[var(--color-text-secondary)] max-w-[180px] truncate">{exp.project_title || '—'}</td>
+                        <td className="p-4 px-5 text-right text-[13px] font-bold text-[var(--color-text-primary)]">{exp.hours_worked}h</td>
+                        <td className="p-4 px-5 text-right text-[13px] font-extrabold text-amber-500">{fmt(exp.amount)}</td>
+                        <td className="p-4 px-5">
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${exp.status === 'approved' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'}`}>
+                            {exp.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
@@ -262,45 +293,49 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
 
       {/* Spend Trend Tab */}
       {tab === 'trend' && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-          <div className="glass" style={{ borderRadius: 20, padding: 28, border: `1px solid ${color}20` }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-text-primary)', marginBottom: 4 }}>Monthly Spend Trend</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 24 }}>Payroll expenditure over the last 6 months</div>
-            <ResponsiveContainer width="100%" height={260}>
-              <AreaChart data={monthly}>
-                <defs>
-                  <linearGradient id="budgetGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={color} stopOpacity={0.35} />
-                    <stop offset="95%" stopColor={color} stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}K`} />
-                <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v: number) => [fmt(v), 'Expenses']} />
-                <Area type="monotone" dataKey="expenses" stroke={color} fill="url(#budgetGrad)" strokeWidth={2.5} name="Expenses" />
-              </AreaChart>
-            </ResponsiveContainer>
+        <div className="flex flex-col gap-6">
+          <div className="bg-[var(--color-bg-card)] rounded-2xl p-6 md:p-8 border shadow-sm" style={{ borderColor: `${color}40` }}>
+            <div className="font-bold text-lg text-[var(--color-text-primary)] mb-1">Monthly Spend Trend</div>
+            <div className="text-xs font-medium text-[var(--color-text-secondary)] mb-8">Payroll expenditure over the last 6 months</div>
+            <div className="w-full h-[260px] relative -ml-4 md:ml-0">
+              <ResponsiveContainer width="100%" height="100%" minHeight={260} minWidth={0}>
+                <AreaChart data={monthly} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="budgetGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={color} stopOpacity={0.35} />
+                      <stop offset="95%" stopColor={color} stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} dy={10} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}K`} dx={-10} />
+                  <Tooltip contentStyle={CHART_STYLE.contentStyle} itemStyle={{ fontWeight: 700, color: 'var(--color-text-primary)' }} formatter={(v: number) => [fmt(v), 'Expenses']} />
+                  <Area type="monotone" dataKey="expenses" stroke={color} fill="url(#budgetGrad)" strokeWidth={3} name="Expenses" activeDot={{ r: 6, fill: color, stroke: 'var(--color-bg-card)', strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
-          <div className="glass" style={{ borderRadius: 20, padding: 28, border: '1px solid rgba(255,255,255,0.08)' }}>
-            <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--color-text-primary)', marginBottom: 4 }}>Hours Logged Per Month</div>
-            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginBottom: 24 }}>Total billable hours across all team members</div>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={monthly} barSize={40}>
-                <defs>
-                  <linearGradient id="hoursGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
-                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.3} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v: number) => [`${v}h`, 'Hours']} />
-                <Bar dataKey="hours" fill="url(#hoursGrad)" radius={[8, 8, 0, 0]} name="Hours" />
-              </BarChart>
-            </ResponsiveContainer>
+          <div className="bg-[var(--color-bg-card)] rounded-2xl p-6 md:p-8 border border-[var(--color-border)] shadow-sm">
+            <div className="font-bold text-lg text-[var(--color-text-primary)] mb-1">Hours Logged Per Month</div>
+            <div className="text-xs font-medium text-[var(--color-text-secondary)] mb-8">Total billable hours across all team members</div>
+            <div className="w-full h-[220px] relative -ml-4 md:ml-0">
+              <ResponsiveContainer width="100%" height="100%" minHeight={220} minWidth={0}>
+                <BarChart data={monthly} barSize={32} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="hoursGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity={1} />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity={0.2} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} dy={10} />
+                  <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} dx={-10} />
+                  <Tooltip cursor={{ fill: 'var(--color-bg-secondary)' }} contentStyle={CHART_STYLE.contentStyle} itemStyle={{ fontWeight: 700, color: 'var(--color-text-primary)' }} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                  <Bar dataKey="hours" fill="url(#hoursGrad)" radius={[6, 6, 0, 0]} name="Hours" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       )}

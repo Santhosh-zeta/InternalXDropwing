@@ -8,7 +8,7 @@ import {
   Search, Filter, Edit2, Trash2, X, Check,
   Shield, Building2, Briefcase, Mail, UserCircle2,
   ChevronDown, UserPlus, AlertCircle, Phone, Clock,
-  Activity, Calendar
+  Activity, Calendar, Loader2, Info
 } from 'lucide-react';
 
 interface UserManagementViewProps {
@@ -169,181 +169,177 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
     return v ? v.color : '#8b5cf6';
   };
 
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addForm, setAddForm] = useState({
+    full_name: '', email: '', password: 'InternalXUser123!', 
+    access_level: 7, venture_id: 0, department: '', designation: ''
+  });
+
+  const handleAddUser = async () => {
+    try {
+      setSaving(true);
+      const res = await createUser(addForm);
+      if (res.success) {
+        toast.success('User created successfully');
+        setShowAddModal(false);
+        setAddForm({ full_name: '', email: '', password: 'InternalXUser123!', access_level: 7, venture_id: 0, department: '', designation: '' });
+        fetchUsers();
+      } else {
+        toast.error(res.message || 'Failed to create user');
+      }
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Error creating user');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, height: '100%', paddingBottom: 40, position: 'relative' }}>
+    <div className="flex flex-col gap-6 h-full pb-10 relative">
       {/* Header & Filters */}
-      <div className="glass" style={{ padding: 24, borderRadius: 20, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] p-6 rounded-2xl flex flex-col gap-5 shadow-sm">
+        <div className="flex justify-between items-start md:items-center flex-col md:flex-row gap-4">
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-text-primary)' }}>Team Members</h2>
-            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+            <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Team Members</h2>
+            <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
               Manage access levels, departments, and roles.
             </p>
           </div>
           <button
-            style={{
-              padding: '10px 20px', borderRadius: 12,
-              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-              color: '#fff', border: 'none', fontWeight: 600, fontSize: 13,
-              display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)'
-            }}
-            onClick={() => toast('Adding new users is currently done via the Seed script for testing.', { icon: 'ℹ️' })}
+            className="px-5 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm"
+            onClick={() => setShowAddModal(true)}
           >
-            <UserPlus size={16} /> Add Member
+            <UserPlus size={16} strokeWidth={2.5} /> Add Member
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-          <div style={{ flex: 1, minWidth: 250, position: 'relative' }}>
-            <Search size={16} style={{ position: 'absolute', left: 14, top: 12, color: 'var(--color-text-muted)' }} />
+        <div className="flex gap-4 flex-wrap">
+          <div className="flex-1 min-w-[250px] relative">
+            <Search size={16} className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
             <input 
               type="text" 
               placeholder="Search by name, email, or ID..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              style={{
-                width: '100%', padding: '10px 14px 10px 40px', borderRadius: 12,
-                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border)',
-                color: 'var(--color-text-primary)', fontSize: 13, outline: 'none'
-              }}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] outline-none focus:border-[var(--color-purple-glow)] transition-colors"
             />
           </div>
           
-          <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ position: 'relative' }}>
-              <Filter size={14} style={{ position: 'absolute', left: 12, top: 13, color: 'var(--color-text-muted)' }} />
+          <div className="flex gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:flex-none">
+              <Filter size={14} className="absolute left-3 top-3.5 text-[var(--color-text-muted)]" />
               <select
                 value={ventureFilter}
                 onChange={(e) => setVentureFilter(e.target.value)}
-                style={{
-                  padding: '10px 36px 10px 36px', borderRadius: 12, appearance: 'none',
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border)',
-                  color: 'var(--color-text-primary)', fontSize: 13, cursor: 'pointer', outline: 'none'
-                }}
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl appearance-none bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] cursor-pointer outline-none focus:border-[var(--color-purple-glow)] transition-colors"
               >
                 <option value="all">All Ventures</option>
                 {VENTURES.map(v => (
                   <option key={v.slug} value={v.slug}>{v.name}</option>
                 ))}
               </select>
-              <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 13, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+              <ChevronDown size={14} className="absolute right-3 top-3.5 text-[var(--color-text-muted)] pointer-events-none" />
             </div>
 
-            <div style={{ position: 'relative' }}>
-              <Shield size={14} style={{ position: 'absolute', left: 12, top: 13, color: 'var(--color-text-muted)' }} />
+            <div className="relative flex-1 md:flex-none">
+              <Shield size={14} className="absolute left-3 top-3.5 text-[var(--color-text-muted)]" />
               <select
                 value={levelFilter}
                 onChange={(e) => setLevelFilter(e.target.value)}
-                style={{
-                  padding: '10px 36px 10px 36px', borderRadius: 12, appearance: 'none',
-                  background: 'rgba(255,255,255,0.03)', border: '1px solid var(--color-border)',
-                  color: 'var(--color-text-primary)', fontSize: 13, cursor: 'pointer', outline: 'none'
-                }}
+                className="w-full pl-9 pr-9 py-2.5 rounded-xl appearance-none bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] cursor-pointer outline-none focus:border-[var(--color-purple-glow)] transition-colors"
               >
                 <option value="all">All Levels</option>
                 {[1,2,3,4,5,6,7,8,9].map(l => (
                   <option key={l} value={l.toString()}>Level {l}</option>
                 ))}
               </select>
-              <ChevronDown size={14} style={{ position: 'absolute', right: 12, top: 13, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+              <ChevronDown size={14} className="absolute right-3 top-3.5 text-[var(--color-text-muted)] pointer-events-none" />
             </div>
           </div>
         </div>
       </div>
 
       {/* Users Table */}
-      <div className="glass" style={{ borderRadius: 20, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden flex-1 flex flex-col shadow-sm">
         {loading ? (
-          <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-            <div className="animate-spin-slow" style={{ fontSize: 24, marginBottom: 16 }}>✦</div>
-            Loading members...
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
+            <p className="text-[var(--color-text-muted)] text-sm font-medium">Loading members...</p>
           </div>
         ) : filteredUsers.length === 0 ? (
-          <div style={{ padding: 60, textAlign: 'center' }}>
-            <UserCircle2 size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 16px', opacity: 0.5 }} />
-            <h3 style={{ fontSize: 16, color: 'var(--color-text-primary)', fontWeight: 600, marginBottom: 4 }}>No members found</h3>
-            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Try adjusting your filters or search query.</p>
+          <div className="p-16 text-center">
+            <UserCircle2 size={48} className="text-[var(--color-text-muted)] mx-auto mb-4 opacity-50" />
+            <h3 className="text-base text-[var(--color-text-primary)] font-semibold mb-1">No members found</h3>
+            <p className="text-[13px] text-[var(--color-text-secondary)]">Try adjusting your filters or search query.</p>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
               <thead>
-                <tr style={{ background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--color-border)' }}>
-                  <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', letterSpacing: 0.5 }}>MEMBER</th>
-                  <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', letterSpacing: 0.5 }}>ROLE & DEPT</th>
-                  <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', letterSpacing: 0.5 }}>ACCESS</th>
-                  <th style={{ padding: '16px 24px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', letterSpacing: 0.5, textAlign: 'right' }}>ACTIONS</th>
+                <tr className="bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
+                  <th className="p-4 px-6 text-xs font-semibold text-[var(--color-text-secondary)] tracking-wider">MEMBER</th>
+                  <th className="p-4 px-6 text-xs font-semibold text-[var(--color-text-secondary)] tracking-wider">ROLE & DEPT</th>
+                  <th className="p-4 px-6 text-xs font-semibold text-[var(--color-text-secondary)] tracking-wider">ACCESS</th>
+                  <th className="p-4 px-6 text-xs font-semibold text-[var(--color-text-secondary)] tracking-wider text-right">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredUsers.map((user) => {
                   const vColor = getVentureColor(user.venture_name);
-                  const isEditable = currentUser.accessLevel <= 2 || user.access_level > currentUser.accessLevel;
                   
                   return (
                     <tr 
                       key={user.id} 
                       onClick={() => openUserPanel(user)}
-                      style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.2s', cursor: 'pointer' }} 
-                      className="hover:bg-[rgba(255,255,255,0.04)]"
+                      className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors cursor-pointer group"
                     >
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <div style={{ 
-                            width: 36, height: 36, borderRadius: '50%', 
-                            background: `${vColor}20`, color: vColor,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontWeight: 700, fontSize: 14
-                          }}>
+                      <td className="p-4 px-6">
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border"
+                            style={{ background: `${vColor}15`, color: vColor, borderColor: `${vColor}30` }}
+                          >
                             {user.full_name.charAt(0)}
                           </div>
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                            <div className="text-sm font-semibold text-[var(--color-text-primary)] flex items-center gap-2">
                               {user.full_name}
-                              {!user.is_active && <span style={{ marginLeft: 8, fontSize: 10, padding: '2px 6px', background: 'rgba(244,63,94,0.1)', color: '#f43f5e', borderRadius: 4 }}>Inactive</span>}
+                              {!user.is_active && <span className="text-[10px] px-1.5 py-0.5 bg-rose-500/10 text-rose-500 rounded border border-rose-500/20 font-bold uppercase tracking-wider">Inactive</span>}
                             </div>
-                            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                              <Mail size={10} /> {user.email}
+                            <div className="text-xs text-[var(--color-text-muted)] flex items-center gap-1.5 mt-1">
+                              <Mail size={12} /> {user.email}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ fontSize: 13, color: 'var(--color-text-primary)', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Briefcase size={12} color="var(--color-text-muted)" /> {user.designation || 'No Role'}
+                      <td className="p-4 px-6">
+                        <div className="text-[13px] text-[var(--color-text-primary)] font-medium flex items-center gap-1.5">
+                          <Briefcase size={14} className="text-[var(--color-text-muted)]" /> {user.designation || 'No Role'}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Building2 size={12} /> {user.department || 'No Dept'}
+                        <div className="text-xs text-[var(--color-text-muted)] mt-1.5 flex items-center gap-1.5">
+                          <Building2 size={14} /> {user.department || 'No Dept'}
                         </div>
                       </td>
-                      <td style={{ padding: '16px 24px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-start' }}>
-                          <span style={{ 
-                            fontSize: 11, padding: '4px 10px', borderRadius: 20, 
-                            background: `${vColor}15`, color: vColor, fontWeight: 600,
-                            border: `1px solid ${vColor}30`
-                          }}>
+                      <td className="p-4 px-6">
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <span 
+                            className="text-[11px] px-2.5 py-1 rounded-full font-bold border"
+                            style={{ background: `${vColor}10`, color: vColor, borderColor: `${vColor}30` }}
+                          >
                             L{user.access_level} • {user.level_name}
                           </span>
                           {user.venture_name && (
-                            <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                            <span className="text-xs text-[var(--color-text-secondary)] font-medium">
                               {user.venture_name}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+                      <td className="p-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
                           <button 
                             onClick={(e) => { e.stopPropagation(); openUserPanel(user); }}
-                            style={{ 
-                              background: 'rgba(255,255,255,0.05)', border: 'none', 
-                              width: 32, height: 32, borderRadius: 8,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              color: 'var(--color-text-primary)',
-                              cursor: 'pointer'
-                            }}
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] border border-transparent hover:border-[var(--color-border)] transition-all"
                             title="View / Edit"
                           >
                             <Edit2 size={14} />
@@ -361,45 +357,31 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
 
       {/* Side Panel for User Details */}
       {editingUser && (
-        <div style={{ 
-          position: 'fixed', inset: 0, zIndex: 100, 
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-          display: 'flex', justifyContent: 'flex-end'
-        }}>
+        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex justify-end">
           <div 
-            className="glass" 
-            style={{ 
-              width: '100%', maxWidth: 600, height: '100%', 
-              background: 'var(--color-bg-primary)',
-              borderLeft: '1px solid var(--color-border)',
-              display: 'flex', flexDirection: 'column',
-              boxShadow: '-20px 0 40px rgba(0,0,0,0.5)',
-              animation: 'slideInRight 0.3s ease-out'
-            }}
+            className="w-full max-w-[600px] h-full bg-[var(--color-bg-primary)] border-l border-[var(--color-border)] flex flex-col shadow-[-20px_0_40px_rgba(0,0,0,0.2)]"
+            style={{ animation: 'slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1)' }}
           >
             {/* Panel Header */}
-            <div style={{ padding: '32px 32px 24px', borderBottom: '1px solid var(--color-border)', position: 'relative' }}>
+            <div className="p-8 pb-6 border-b border-[var(--color-border)] relative bg-[var(--color-bg-secondary)]">
               <button 
                 onClick={() => setEditingUser(null)}
-                style={{ position: 'absolute', right: 24, top: 24, background: 'rgba(255,255,255,0.05)', border: 'none', width: 32, height: 32, borderRadius: '50%', color: 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                className="absolute right-6 top-6 w-8 h-8 rounded-full bg-[var(--color-bg-card)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] flex items-center justify-center transition-colors"
               >
                 <X size={16} />
               </button>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-                <div style={{ 
-                  width: 64, height: 64, borderRadius: 16, 
-                  background: `${getVentureColor(editingUser.venture_name)}20`, 
-                  color: getVentureColor(editingUser.venture_name),
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontWeight: 800, fontSize: 24, border: `1px solid ${getVentureColor(editingUser.venture_name)}40`
-                }}>
+              <div className="flex items-center gap-5">
+                <div 
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-2xl border"
+                  style={{ background: `${getVentureColor(editingUser.venture_name)}15`, color: getVentureColor(editingUser.venture_name), borderColor: `${getVentureColor(editingUser.venture_name)}30` }}
+                >
                   {editingUser.full_name.charAt(0)}
                 </div>
                 <div>
-                  <h3 style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-text-primary)' }}>{editingUser.full_name}</h3>
-                  <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ color: getVentureColor(editingUser.venture_name), fontWeight: 600 }}>{editingUser.employee_id}</span>
+                  <h3 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">{editingUser.full_name}</h3>
+                  <div className="text-[13px] text-[var(--color-text-secondary)] mt-1 flex items-center gap-2">
+                    <span className="font-bold" style={{ color: getVentureColor(editingUser.venture_name) }}>{editingUser.employee_id}</span>
                     • {editingUser.designation || 'No Designation'} 
                     • {editingUser.department || 'No Dept'}
                   </div>
@@ -407,7 +389,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
               </div>
 
               {/* Tabs */}
-              <div style={{ display: 'flex', gap: 24, marginTop: 32, borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+              <div className="flex gap-6 mt-8 -mb-[25px]">
                 {[
                   { id: 'profile', label: 'Profile & Contact', icon: <UserCircle2 size={16} /> },
                   { id: 'access', label: 'Access & Roles', icon: <Shield size={16} /> },
@@ -416,13 +398,11 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id as any)}
-                    style={{
-                      background: 'none', border: 'none', padding: '0 0 12px 0',
-                      color: activeTab === tab.id ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                      fontWeight: activeTab === tab.id ? 600 : 500, fontSize: 13,
-                      borderBottom: activeTab === tab.id ? `2px solid ${getVentureColor(editingUser.venture_name)}` : '2px solid transparent',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.2s'
-                    }}
+                    className={`pb-3 flex items-center gap-2 text-[13px] font-semibold transition-all border-b-2 ${
+                      activeTab === tab.id 
+                        ? 'border-[var(--color-purple-glow)] text-[var(--color-text-primary)]' 
+                        : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'
+                    }`}
                   >
                     {tab.icon} {tab.label}
                   </button>
@@ -431,93 +411,97 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
             </div>
 
             {/* Panel Body */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: 32 }}>
+            <div className="flex-1 overflow-y-auto p-8 bg-[var(--color-bg-primary)]">
               
               {/* PROFILE TAB */}
               {activeTab === 'profile' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div className="flex flex-col gap-8">
+                  <div className="grid grid-cols-2 gap-5">
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Full Name</label>
+                      <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Full Name</label>
                       <input 
                         type="text" value={editForm.full_name}
                         onChange={e => setEditForm({...editForm, full_name: e.target.value})}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none' }}
+                        className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors"
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Status</label>
+                      <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Status</label>
                       <select 
                         value={editForm.is_active}
                         onChange={e => setEditForm({...editForm, is_active: parseInt(e.target.value)})}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none', appearance: 'none' }}
+                        className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors appearance-none"
                       >
-                        <option value={1} style={{ background: '#1a1a2e' }}>Active</option>
-                        <option value={0} style={{ background: '#1a1a2e' }}>Inactive (Suspended)</option>
+                        <option value={1}>Active</option>
+                        <option value={0}>Inactive (Suspended)</option>
                       </select>
                     </div>
                   </div>
 
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 8, borderBottom: '1px solid var(--color-border)', paddingBottom: 8 }}>Contact Information</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                    <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}><Mail size={12}/> Company Email</label>
-                      <input 
-                        type="text" value={editingUser.email} disabled
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.05)', color: 'var(--color-text-muted)', fontSize: 14, cursor: 'not-allowed' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}><Mail size={12}/> Personal Email</label>
-                      <input 
-                        type="email" value={editForm.personal_email} placeholder="Enter personal email"
-                        onChange={e => setEditForm({...editForm, personal_email: e.target.value})}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}><Phone size={12}/> Phone Number</label>
-                      <input 
-                        type="text" value={editForm.phone} placeholder="+1 234 567 8900"
-                        onChange={e => setEditForm({...editForm, phone: e.target.value})}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}><AlertCircle size={12}/> Emergency Contact</label>
-                      <input 
-                        type="text" value={editForm.emergency_contact} placeholder="Name & Number"
-                        onChange={e => setEditForm({...editForm, emergency_contact: e.target.value})}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none' }}
-                      />
+                  <div>
+                    <h4 className="text-[14px] font-bold text-[var(--color-text-primary)] mb-4 pb-2 border-b border-[var(--color-border)]">Contact Information</h4>
+                    <div className="grid grid-cols-2 gap-5">
+                      <div>
+                        <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider"><Mail size={12}/> Company Email</label>
+                        <input 
+                          type="text" value={editingUser.email} disabled
+                          className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-muted)] cursor-not-allowed opacity-70"
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider"><Mail size={12}/> Personal Email</label>
+                        <input 
+                          type="email" value={editForm.personal_email} placeholder="Enter personal email"
+                          onChange={e => setEditForm({...editForm, personal_email: e.target.value})}
+                          className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider"><Phone size={12}/> Phone Number</label>
+                        <input 
+                          type="text" value={editForm.phone} placeholder="+1 234 567 8900"
+                          onChange={e => setEditForm({...editForm, phone: e.target.value})}
+                          className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider"><AlertCircle size={12}/> Emergency Contact</label>
+                        <input 
+                          type="text" value={editForm.emergency_contact} placeholder="Name & Number"
+                          onChange={e => setEditForm({...editForm, emergency_contact: e.target.value})}
+                          className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)', marginTop: 8, borderBottom: '1px solid var(--color-border)', paddingBottom: 8 }}>Organization</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                    <div style={{ position: 'relative' }}>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Department</label>
-                      <select 
-                        value={editForm.department}
-                        onChange={e => setEditForm({...editForm, department: e.target.value})}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none', appearance: 'none' }}
-                      >
-                        <option value="" style={{ background: '#1a1a2e' }}>Select Department</option>
-                        {DEPARTMENTS.map(d => <option key={d} value={d} style={{ background: '#1a1a2e' }}>{d}</option>)}
-                      </select>
-                      <ChevronDown size={14} style={{ position: 'absolute', right: 14, top: 38, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
-                    </div>
-                    <div style={{ position: 'relative' }}>
-                      <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 6 }}>Designation</label>
-                      <select 
-                        value={editForm.designation}
-                        onChange={e => setEditForm({...editForm, designation: e.target.value})}
-                        style={{ width: '100%', padding: '12px 14px', borderRadius: 10, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none', appearance: 'none' }}
-                      >
-                        <option value="" style={{ background: '#1a1a2e' }}>Select Designation</option>
-                        {DESIGNATIONS.map(d => <option key={d} value={d} style={{ background: '#1a1a2e' }}>{d}</option>)}
-                      </select>
-                      <ChevronDown size={14} style={{ position: 'absolute', right: 14, top: 38, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                  <div>
+                    <h4 className="text-[14px] font-bold text-[var(--color-text-primary)] mb-4 pb-2 border-b border-[var(--color-border)]">Organization</h4>
+                    <div className="grid grid-cols-2 gap-5">
+                      <div className="relative">
+                        <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Department</label>
+                        <select 
+                          value={editForm.department}
+                          onChange={e => setEditForm({...editForm, department: e.target.value})}
+                          className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors appearance-none"
+                        >
+                          <option value="">Select Department</option>
+                          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-9 text-[var(--color-text-muted)] pointer-events-none" />
+                      </div>
+                      <div className="relative">
+                        <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Designation</label>
+                        <select 
+                          value={editForm.designation}
+                          onChange={e => setEditForm({...editForm, designation: e.target.value})}
+                          className="w-full pl-4 pr-10 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors appearance-none"
+                        >
+                          <option value="">Select Designation</option>
+                          {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-4 top-9 text-[var(--color-text-muted)] pointer-events-none" />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -525,81 +509,64 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
 
               {/* ACCESS TAB */}
               {activeTab === 'access' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                  <div style={{ padding: '16px 20px', background: 'rgba(6, 182, 212, 0.05)', borderRadius: 12, border: '1px solid rgba(6, 182, 212, 0.2)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <Shield size={20} color="#06b6d4" style={{ marginTop: 2, flexShrink: 0 }} />
+                <div className="flex flex-col gap-8">
+                  <div className="p-5 bg-cyan-500/10 rounded-xl border border-cyan-500/20 flex items-start gap-4">
+                    <Shield size={24} className="text-cyan-500 shrink-0" />
                     <div>
-                      <h5 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 4 }}>Access Management</h5>
-                      <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                      <h5 className="text-[14px] font-bold text-[var(--color-text-primary)] mb-1">Access Management</h5>
+                      <p className="text-[13px] text-[var(--color-text-secondary)] leading-relaxed">
                         Changes to Access Level or Venture Assignment take effect immediately and will dictate what data this user can view across the InternalX platform.
                       </p>
                     </div>
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 12 }}>Venture Assignment</label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <label className="block text-[13px] font-bold text-[var(--color-text-secondary)] mb-3 uppercase tracking-wider">Venture Assignment</label>
+                    <div className="grid grid-cols-2 gap-3">
                       <div 
                         onClick={() => setEditForm({...editForm, venture_id: 0})}
-                        style={{ 
-                          padding: 16, borderRadius: 12, cursor: 'pointer', border: editForm.venture_id === 0 ? '2px solid #8b5cf6' : '1px solid var(--color-border)',
-                          background: editForm.venture_id === 0 ? 'rgba(139, 92, 246, 0.1)' : 'rgba(255,255,255,0.02)'
-                        }}
+                        className={`p-4 rounded-xl cursor-pointer border-2 transition-all ${editForm.venture_id === 0 ? 'border-[var(--color-purple-glow)] bg-[var(--color-purple-glow)]/10' : 'border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)]'}`}
                       >
-                        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>All Ventures (Global)</div>
-                        <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>Access to Dropwing, SerphoSoft, PerSyniX, and Grovia.</div>
+                        <div className="text-[14px] font-bold text-[var(--color-text-primary)]">All Ventures (Global)</div>
+                        <div className="text-[12px] text-[var(--color-text-muted)] mt-1">Access to all portfolio companies.</div>
                       </div>
-                      {VENTURES.map(v => (
-                        <div 
-                          key={v.slug}
-                          onClick={() => {
-                            const vData = users.find(u => u.venture_name === v.name);
-                            // We need to pass the venture ID, so let's find it.
-                            // Assuming we can derive venture_id from venture name, or just use constants if we had them.
-                            // In this case, we have to look it up from the users array or a backend call.
-                            // Since we have editingUser.venture_id we know some, but let's just assume we can't map perfectly without a venture list from backend.
-                            // For now, we will just use a generic mapping or keep the select dropdown.
-                            // Actually, I'll switch back to a standard select to avoid mapping issues.
-                          }}
-                          style={{ display: 'none' }}
-                        ></div>
-                      ))}
+                      
+                      {/* Note: Keeping the select dropdown as primary input since dynamic IDs require reliable mapping */}
                     </div>
-                    <div style={{ position: 'relative', marginTop: 8 }}>
+                    <div className="relative mt-4">
                       <select 
                         value={editForm.venture_id}
                         onChange={e => setEditForm({...editForm, venture_id: parseInt(e.target.value)})}
-                        style={{ width: '100%', padding: '14px 16px', borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', color: '#fff', fontSize: 14, outline: 'none', appearance: 'none' }}
+                        className="w-full pl-4 pr-10 py-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-colors appearance-none"
                       >
-                        <option value={0} style={{ background: '#1a1a2e' }}>Global Access (All Ventures)</option>
-                        {VENTURES.map((v, i) => <option key={v.slug} value={i + 1} style={{ background: '#1a1a2e' }}>{v.emoji} {v.name}</option>)}
+                        <option value={0}>Global Access (All Ventures)</option>
+                        {VENTURES.map((v, i) => <option key={v.slug} value={i + 1}>{v.name}</option>)}
                       </select>
-                      <ChevronDown size={16} style={{ position: 'absolute', right: 16, top: 16, color: 'var(--color-text-muted)', pointerEvents: 'none' }} />
+                      <ChevronDown size={16} className="absolute right-4 top-3.5 text-[var(--color-text-muted)] pointer-events-none" />
                     </div>
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 12 }}>Access Level (L1 - L9)</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <label className="block text-[13px] font-bold text-[var(--color-text-secondary)] mb-3 uppercase tracking-wider">Access Level (L1 - L9)</label>
+                    <div className="flex flex-col gap-2">
                       {LEVELS.map(level => (
                         <div 
                           key={level.level}
                           onClick={() => setEditForm({...editForm, access_level: level.level})}
-                          style={{ 
-                            padding: '12px 16px', borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 16,
-                            border: editForm.access_level === level.level ? '2px solid #06b6d4' : '1px solid var(--color-border)',
-                            background: editForm.access_level === level.level ? 'rgba(6, 182, 212, 0.1)' : 'rgba(255,255,255,0.01)',
-                            transition: 'all 0.2s'
-                          }}
+                          className={`p-3 px-4 rounded-xl cursor-pointer flex items-center gap-4 border-2 transition-all ${
+                            editForm.access_level === level.level 
+                              ? 'border-cyan-500 bg-cyan-500/10' 
+                              : 'border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)]'
+                          }`}
                         >
-                          <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13, color: 'var(--color-text-primary)' }}>
+                          <div className="w-10 h-10 rounded-lg bg-[var(--color-bg-card)] border border-[var(--color-border)] flex items-center justify-center font-bold text-[14px] text-[var(--color-text-primary)] shrink-0 shadow-sm">
                             L{level.level}
                           </div>
                           <div>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{level.name}</div>
-                            <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 2 }}>{level.desc}</div>
+                            <div className="text-[14px] font-bold text-[var(--color-text-primary)]">{level.name}</div>
+                            <div className="text-[12px] text-[var(--color-text-muted)] mt-0.5">{level.desc}</div>
                           </div>
-                          {editForm.access_level === level.level && <Check size={20} color="#06b6d4" style={{ marginLeft: 'auto' }} />}
+                          {editForm.access_level === level.level && <Check size={20} className="text-cyan-500 ml-auto shrink-0" strokeWidth={3} />}
                         </div>
                       ))}
                     </div>
@@ -610,35 +577,35 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
 
               {/* ACTIVITY TAB */}
               {activeTab === 'activity' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>Recent Task Activity</h4>
+                <div className="flex flex-col gap-4">
+                  <h4 className="text-[14px] font-bold text-[var(--color-text-primary)] mb-2 uppercase tracking-wider">Recent Task Activity</h4>
                   {loadingActivity ? (
-                    <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>
-                      <div className="animate-spin-slow" style={{ fontSize: 24, marginBottom: 16 }}>✦</div>
-                      Loading activity log...
+                    <div className="flex flex-col items-center justify-center py-12">
+                      <Loader2 className="w-6 h-6 animate-spin text-[var(--color-purple-glow)] mb-3" />
+                      <p className="text-[13px] text-[var(--color-text-muted)] font-medium">Loading activity log...</p>
                     </div>
                   ) : userActivity.length === 0 ? (
-                    <div style={{ padding: 40, textAlign: 'center', background: 'rgba(255,255,255,0.01)', borderRadius: 16, border: '1px dashed var(--color-border)' }}>
-                      <Activity size={32} style={{ margin: '0 auto 16px', color: 'var(--color-text-muted)', opacity: 0.5 }} />
-                      <p style={{ fontSize: 14, color: 'var(--color-text-secondary)' }}>No recent activity found for this user.</p>
+                    <div className="p-10 text-center bg-[var(--color-bg-secondary)] rounded-2xl border border-dashed border-[var(--color-border)]">
+                      <Activity size={32} className="mx-auto mb-3 text-[var(--color-text-muted)] opacity-50" />
+                      <p className="text-[13px] text-[var(--color-text-secondary)] font-medium">No recent activity found for this user.</p>
                     </div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div className="flex flex-col gap-3">
                       {userActivity.map(act => (
-                        <div key={act.id} style={{ padding: 16, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--color-border)', borderRadius: 12 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)' }}>{act.title}</div>
-                            <span style={{ 
-                              fontSize: 10, padding: '2px 8px', borderRadius: 12, fontWeight: 600, textTransform: 'uppercase',
-                              background: act.status === 'completed' ? 'rgba(16, 185, 129, 0.1)' : act.status === 'in-progress' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(255,255,255,0.1)',
-                              color: act.status === 'completed' ? '#10b981' : act.status === 'in-progress' ? '#f59e0b' : 'var(--color-text-secondary)'
-                            }}>
+                        <div key={act.id} className="p-4 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl hover:border-[var(--color-text-muted)] transition-colors">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{act.title}</div>
+                            <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase tracking-wider border ${
+                              act.status === 'completed' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 
+                              act.status === 'in-progress' ? 'bg-amber-500/10 text-amber-500 border-amber-500/20' : 
+                              'bg-[var(--color-bg-card)] text-[var(--color-text-secondary)] border-[var(--color-border)]'
+                            }`}>
                               {act.status}
                             </span>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--color-text-muted)' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Calendar size={12} /> {new Date(act.updated_at).toLocaleDateString()}</span>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><AlertCircle size={12} /> Priority: {act.priority}</span>
+                          <div className="flex items-center gap-4 text-[12px] text-[var(--color-text-muted)] font-medium mt-3">
+                            <span className="flex items-center gap-1.5"><Calendar size={14} /> {new Date(act.updated_at).toLocaleDateString()}</span>
+                            <span className="flex items-center gap-1.5"><AlertCircle size={14} /> Priority: <span className="uppercase">{act.priority}</span></span>
                           </div>
                         </div>
                       ))}
@@ -650,11 +617,11 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
             </div>
 
             {/* Panel Footer */}
-            <div style={{ padding: 24, borderTop: '1px solid var(--color-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)' }}>
+            <div className="p-6 border-t border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-secondary)]">
               {currentUser.accessLevel <= 2 && currentUser.id !== editingUser.id ? (
                  <button 
                   onClick={() => handleDelete(editingUser)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px', borderRadius: 10, background: 'rgba(244,63,94,0.1)', color: '#f43f5e', border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 font-bold text-[13px] transition-colors"
                 >
                   <Trash2 size={16} /> Delete User
                 </button>
@@ -662,29 +629,86 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
                 <div />
               )}
               
-              <div style={{ display: 'flex', gap: 12 }}>
+              <div className="flex gap-3">
                 <button 
                   onClick={() => setEditingUser(null)}
-                  style={{ padding: '10px 20px', borderRadius: 10, background: 'rgba(255,255,255,0.05)', color: 'var(--color-text-primary)', border: 'none', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+                  className="px-5 py-2.5 rounded-xl bg-[var(--color-bg-card)] hover:bg-[var(--color-border)] border border-[var(--color-border)] text-[var(--color-text-primary)] font-bold text-[13px] transition-colors"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={handleSaveEdit}
                   disabled={saving}
-                  style={{ 
-                    padding: '10px 24px', borderRadius: 10, 
-                    background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', color: '#fff', 
-                    border: 'none', fontWeight: 600, fontSize: 13, cursor: saving ? 'wait' : 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
-                  }}
+                  className="px-6 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {saving ? <span className="animate-spin-slow">✦</span> : <Check size={16} />} 
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={2.5} />} 
                   {saving ? 'Saving...' : 'Save Profile'}
                 </button>
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+      {/* Add User Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[var(--color-bg-primary)] border border-[var(--color-border)] rounded-2xl w-full max-w-[500px] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-secondary)]">
+              <h3 className="text-lg font-bold text-[var(--color-text-primary)]">Onboard New Member</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"><X size={20}/></button>
+            </div>
+            <div className="p-6 flex flex-col gap-5 max-h-[70vh] overflow-y-auto">
+              <div>
+                <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Full Name</label>
+                <input type="text" value={addForm.full_name} onChange={e => setAddForm({...addForm, full_name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] outline-none focus:border-[var(--color-purple-glow)]" placeholder="E.g. John Doe" />
+              </div>
+              <div>
+                <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Company Email</label>
+                <input type="email" value={addForm.email} onChange={e => setAddForm({...addForm, email: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] outline-none focus:border-[var(--color-purple-glow)]" placeholder="name@dropwing.com" />
+              </div>
+              <div>
+                <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Temporary Password</label>
+                <input type="text" value={addForm.password} onChange={e => setAddForm({...addForm, password: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] outline-none focus:border-[var(--color-purple-glow)]" />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Access Level</label>
+                  <select value={addForm.access_level} onChange={e => setAddForm({...addForm, access_level: parseInt(e.target.value)})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] outline-none">
+                    {LEVELS.map(l => <option key={l.level} value={l.level}>L{l.level} - {l.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Venture</label>
+                  <select value={addForm.venture_id} onChange={e => setAddForm({...addForm, venture_id: parseInt(e.target.value)})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] outline-none">
+                    <option value={0}>Global Access</option>
+                    {VENTURES.map((v, i) => <option key={v.slug} value={i + 1}>{v.name}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Department</label>
+                  <select value={addForm.department} onChange={e => setAddForm({...addForm, department: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] outline-none">
+                    <option value="">Select Dept</option>
+                    {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[12px] font-bold text-[var(--color-text-secondary)] mb-1.5 uppercase tracking-wider">Designation</label>
+                  <select value={addForm.designation} onChange={e => setAddForm({...addForm, designation: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] outline-none">
+                    <option value="">Select Role</option>
+                    {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="p-6 border-t border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex justify-end gap-3">
+              <button onClick={() => setShowAddModal(false)} className="px-5 py-2 rounded-xl border border-[var(--color-border)] text-[13px] font-bold hover:bg-[var(--color-bg-card)] transition-colors">Cancel</button>
+              <button onClick={handleAddUser} disabled={saving || !addForm.full_name || !addForm.email} className="px-6 py-2 rounded-xl bg-[var(--color-purple-glow)] text-white text-[13px] font-bold hover:bg-[#7c3aed] transition-colors disabled:opacity-50">
+                {saving ? 'Creating...' : 'Create User'}
+              </button>
+            </div>
           </div>
         </div>
       )}

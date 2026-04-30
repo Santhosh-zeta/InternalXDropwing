@@ -4,6 +4,11 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getTasks, createTask, updateTask, deleteTask, getUsers, getProjects } from '@/lib/api';
 import { User } from '@/lib/constants';
+import { 
+  Plus, LayoutGrid, Calendar as CalendarIcon, ChevronLeft, ChevronRight, 
+  ListTodo, Clock, CheckCircle2, Trash2, Folder, CornerDownRight, 
+  Clock4, Loader2, GripVertical, AlertCircle
+} from 'lucide-react';
 
 interface Task {
   id: number;
@@ -44,7 +49,6 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', assigned_to: '', due_date: '', project_id: '', parent_task_id: '' });
   const [filterProjectId, setFilterProjectId] = useState<string>('all');
   
-  // New features state
   const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -115,15 +119,13 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     }
   };
 
-  // --- Drag and Drop Handlers ---
   const handleDragStart = (e: React.DragEvent, taskId: number) => {
     e.dataTransfer.setData('taskId', taskId.toString());
     e.dataTransfer.effectAllowed = 'move';
-    // Small styling to show it's being dragged (opacity handled by CSS/HTML5 default usually)
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // Necessary to allow dropping
+    e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
@@ -136,7 +138,6 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     const task = tasks.find(t => t.id === taskId);
     
     if (task && task.status !== newStatus) {
-      // Optimistic update for snappy UX
       const previousTasks = [...tasks];
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as any } : t));
       
@@ -145,33 +146,33 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
         if (res.success) {
           toast.success(`Task moved to ${newStatus}`);
         } else {
-          setTasks(previousTasks); // revert
+          setTasks(previousTasks);
           toast.error('Failed to move task');
         }
       } catch {
-        setTasks(previousTasks); // revert
+        setTasks(previousTasks);
         toast.error('Failed to move task');
       }
     }
   };
 
   const columns = [
-    { id: 'pending', title: 'Pending', emoji: '📝', color: '#8b5cf6' },
-    { id: 'in-progress', title: 'In Progress', emoji: '⏳', color: '#0ea5e9' },
-    { id: 'completed', title: 'Completed', emoji: '✅', color: '#10b981' },
+    { id: 'pending', title: 'Pending', icon: ListTodo, color: '#8b5cf6' },
+    { id: 'in-progress', title: 'In Progress', icon: Clock, color: '#0ea5e9' },
+    { id: 'completed', title: 'Completed', icon: CheckCircle2, color: '#10b981' },
   ];
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
-        <div className="animate-spin-slow" style={{ fontSize: 32 }}>✦</div>
+      <div className="flex flex-col items-center justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
+        <p className="text-[var(--color-text-muted)] text-sm font-medium">Loading tasks...</p>
       </div>
     );
   }
 
   const filteredTasks = tasks.filter(t => filterProjectId === 'all' || t.project_id === Number(filterProjectId));
 
-  // --- Calendar View Helpers ---
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
@@ -182,12 +183,10 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     const firstDay = getFirstDayOfMonth(year, month);
     
     const days = [];
-    // Empty prefix days
     for (let i = 0; i < firstDay; i++) {
-      days.push(<div key={`empty-${i}`} style={{ minHeight: 120, borderRight: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', padding: 8, background: 'rgba(0,0,0,0.02)' }} />);
+      days.push(<div key={`empty-${i}`} className="min-h-[120px] border-r border-b border-[var(--color-border)] p-2 bg-[var(--color-bg-secondary)]/30" />);
     }
     
-    // Actual days
     for (let i = 1; i <= daysInMonth; i++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
       const dayTasks = filteredTasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
@@ -195,29 +194,22 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
       const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
       days.push(
-        <div key={`day-${i}`} style={{ 
-          minHeight: 120, borderRight: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)', 
-          padding: 8, background: isToday ? 'rgba(139, 92, 246, 0.05)' : 'var(--color-bg-primary)',
-          transition: 'background 0.2s'
-        }}>
-          <div style={{ 
-            fontWeight: 700, fontSize: 13, marginBottom: 8,
-            width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRadius: '50%', background: isToday ? '#8b5cf6' : 'transparent', color: isToday ? '#fff' : 'var(--color-text-secondary)'
-          }}>
+        <div key={`day-${i}`} className={`min-h-[120px] border-r border-b border-[var(--color-border)] p-2 transition-colors ${isToday ? 'bg-[var(--color-purple-glow)]/5' : 'bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-secondary)]/50'}`}>
+          <div className={`w-7 h-7 flex items-center justify-center rounded-full text-xs font-bold mb-2 ${isToday ? 'bg-[var(--color-purple-glow)] text-white' : 'text-[var(--color-text-secondary)]'}`}>
             {i}
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="flex flex-col gap-1">
             {dayTasks.map(t => (
-              <div key={t.id} style={{ 
-                fontSize: 11, padding: '4px 6px', borderRadius: 6, fontWeight: 600,
-                background: t.status === 'completed' ? 'rgba(16,185,129,0.1)' : `${PRIORITY_COLORS[t.priority]}15`,
-                color: t.status === 'completed' ? '#10b981' : PRIORITY_COLORS[t.priority],
-                border: `1px solid ${t.status === 'completed' ? 'rgba(16,185,129,0.2)' : PRIORITY_COLORS[t.priority]}30`,
-                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                textDecoration: t.status === 'completed' ? 'line-through' : 'none',
-                cursor: 'pointer'
-              }} title={`${t.title} (${t.status})`}>
+              <div 
+                key={t.id} 
+                className={`text-[10px] px-1.5 py-1 rounded font-semibold truncate cursor-pointer border ${t.status === 'completed' ? 'opacity-60 line-through' : ''}`}
+                style={{
+                  background: t.status === 'completed' ? 'var(--color-bg-secondary)' : `${PRIORITY_COLORS[t.priority]}15`,
+                  color: t.status === 'completed' ? 'var(--color-text-muted)' : PRIORITY_COLORS[t.priority],
+                  borderColor: t.status === 'completed' ? 'var(--color-border)' : `${PRIORITY_COLORS[t.priority]}30`,
+                }}
+                title={`${t.title} (${t.status})`}
+              >
                 {t.title}
               </div>
             ))}
@@ -227,18 +219,28 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     }
     
     return (
-      <div className="fade-in" style={{ background: 'var(--color-bg-secondary)', borderRadius: 16, border: '1px solid var(--color-border)', overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--color-border)', alignItems: 'center', background: 'var(--color-bg-tertiary)' }}>
-          <button onClick={() => setCurrentMonth(new Date(year, month - 1))} style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: 'var(--color-text-primary)', fontWeight: 600 }}>← Prev</button>
-          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--color-text-primary)' }}>{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-          <button onClick={() => setCurrentMonth(new Date(year, month + 1))} style={{ background: 'var(--color-bg-primary)', border: '1px solid var(--color-border)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', color: 'var(--color-text-primary)', fontWeight: 600 }}>Next →</button>
+      <div className="bg-[var(--color-bg-card)] rounded-xl border border-[var(--color-border)] overflow-hidden shadow-sm">
+        <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+          <button 
+            onClick={() => setCurrentMonth(new Date(year, month - 1))} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-card-hover)] text-[13px] font-medium text-[var(--color-text-primary)] transition-colors"
+          >
+            <ChevronLeft size={16} /> Prev
+          </button>
+          <h3 className="text-base font-bold text-[var(--color-text-primary)]">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
+          <button 
+            onClick={() => setCurrentMonth(new Date(year, month + 1))} 
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-card-hover)] text-[13px] font-medium text-[var(--color-text-primary)] transition-colors"
+          >
+            Next <ChevronRight size={16} />
+          </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-tertiary)' }}>
+        <div className="grid grid-cols-7 text-center border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-            <div key={d} style={{ padding: '12px 0', fontSize: 12, fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{d}</div>
+            <div key={d} className="py-2.5 text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">{d}</div>
           ))}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)' }}>
+        <div className="grid grid-cols-7">
           {days}
         </div>
       </div>
@@ -246,93 +248,67 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+    <div className="flex flex-col h-full">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-text-primary)' }}>Tasks Management</h2>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 14 }}>Organize and track tasks visually.</p>
+          <h2 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">Task Management</h2>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1">Organize and track your deliverables.</p>
         </div>
         
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* View Toggle */}
-          <div style={{ display: 'flex', background: 'var(--color-bg-secondary)', borderRadius: 12, border: '1px solid var(--color-border)', padding: 4 }}>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center p-1 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
             <button 
               onClick={() => setViewMode('kanban')}
-              style={{ 
-                padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                background: viewMode === 'kanban' ? 'var(--color-bg-primary)' : 'transparent',
-                color: viewMode === 'kanban' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                boxShadow: viewMode === 'kanban' ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
-              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition-all ${viewMode === 'kanban' ? 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm border border-[var(--color-border)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border border-transparent'}`}
             >
-              📋 Kanban
+              <LayoutGrid size={14} /> Kanban
             </button>
             <button 
               onClick={() => setViewMode('calendar')}
-              style={{ 
-                padding: '6px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                background: viewMode === 'calendar' ? 'var(--color-bg-primary)' : 'transparent',
-                color: viewMode === 'calendar' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                boxShadow: viewMode === 'calendar' ? '0 2px 8px rgba(0,0,0,0.05)' : 'none'
-              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition-all ${viewMode === 'calendar' ? 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm border border-[var(--color-border)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border border-transparent'}`}
             >
-              📅 Calendar
+              <CalendarIcon size={14} /> Calendar
             </button>
           </div>
 
           <select 
             value={filterProjectId} 
             onChange={(e) => setFilterProjectId(e.target.value)}
-            style={{ padding: '8px 16px', borderRadius: 12, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', outline: 'none' }}
+            className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
           >
             <option value="all">All Projects</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
+          
           <button
             onClick={() => setShowModal(true)}
-            style={{
-              padding: '10px 20px', borderRadius: 12, border: 'none',
-              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
-              color: 'white', fontWeight: 700, cursor: 'pointer',
-              display: 'flex', alignItems: 'center', gap: 8, boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)'
-            }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white text-[13px] font-bold transition-colors shadow-sm"
           >
-            <span>➕</span> New Task
+            <Plus size={16} strokeWidth={2.5} /> New Task
           </button>
         </div>
       </div>
 
       {viewMode === 'kanban' ? (
-        /* Kanban Board */
-        <div className="fade-in" style={{ display: 'flex', gap: 24, overflowX: 'auto', paddingBottom: 16, minHeight: 500 }}>
+        <div className="flex gap-6 overflow-x-auto pb-4 min-h-[500px]">
           {columns.map(col => (
             <div 
               key={col.id} 
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id)}
-              style={{ 
-                flex: '1 1 0', minWidth: 320, display: 'flex', flexDirection: 'column', gap: 16,
-                background: 'var(--color-bg-secondary)', padding: 16, borderRadius: 16, border: '1px dashed transparent',
-                transition: 'border 0.2s'
-              }}
-              // Minimal CSS trick: can highlight column on drag over by adding a class via state, but native is fine.
+              className="flex-1 min-w-[320px] flex flex-col gap-4 p-4 rounded-2xl bg-[var(--color-bg-secondary)] border border-transparent transition-colors hover:border-[var(--color-border)]"
             >
-              {/* Column Header */}
-              <div style={{ 
-                display: 'flex', alignItems: 'center', gap: 8, padding: '12px 16px',
-                background: `${col.color}15`, border: `1px solid ${col.color}30`, borderRadius: 12 
-              }}>
-                <span style={{ fontSize: 18 }}>{col.emoji}</span>
-                <span style={{ fontWeight: 800, color: col.color, letterSpacing: 0.5 }}>{col.title}</span>
-                <span style={{ marginLeft: 'auto', background: `${col.color}30`, padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 800, color: col.color }}>
+              <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border bg-[var(--color-bg-card)]" style={{ borderColor: `${col.color}20` }}>
+                <col.icon size={18} style={{ color: col.color }} strokeWidth={2.5} />
+                <span className="font-bold text-[14px] tracking-wide" style={{ color: col.color }}>{col.title}</span>
+                <span className="ml-auto text-[11px] font-bold px-2.5 py-0.5 rounded-full border" style={{ background: `${col.color}10`, color: col.color, borderColor: `${col.color}30` }}>
                   {filteredTasks.filter(t => t.status === col.id).length}
                 </span>
               </div>
 
-              {/* Tasks List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, minHeight: 100 }}>
+              <div className="flex flex-col gap-3 min-h-[100px]">
                 {filteredTasks.filter(t => t.status === col.id).map(task => {
                   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
                   return (
@@ -340,67 +316,71 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                     key={task.id} 
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
-                    className="glass task-card" 
-                    style={{
-                      padding: 16, borderRadius: 12, border: `1px solid ${isOverdue ? '#f43f5e' : 'var(--color-border)'}`,
-                      background: isOverdue ? 'rgba(244, 63, 94, 0.05)' : 'var(--color-bg-primary)',
-                      position: 'relative', cursor: 'grab', boxShadow: '0 4px 12px rgba(0,0,0,0.03)',
-                      transition: 'transform 0.1s, box-shadow 0.1s'
-                    }}
+                    className="group bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 shadow-sm cursor-grab hover:border-[var(--color-text-muted)] transition-all hover:shadow-md relative overflow-hidden"
+                    style={{ borderColor: isOverdue ? '#f43f5e50' : undefined }}
                     onDrag={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.5'; }}
                     onDragEnd={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                      <span style={{ 
-                        fontSize: 10, padding: '3px 8px', borderRadius: 8, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-                        background: `${PRIORITY_COLORS[task.priority]}15`, color: PRIORITY_COLORS[task.priority],
-                        border: `1px solid ${PRIORITY_COLORS[task.priority]}30`
-                      }}>
+                    {isOverdue && <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />}
+                    
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded border" style={{ background: `${PRIORITY_COLORS[task.priority]}10`, color: PRIORITY_COLORS[task.priority], borderColor: `${PRIORITY_COLORS[task.priority]}30` }}>
                         {task.priority}
                       </span>
-                      {(currentUser.id === task.assigned_by || currentUser.accessLevel <= 3) && (
-                        <button onClick={() => handleDelete(task.id)} style={{ background: 'none', border: 'none', color: '#f43f5e', cursor: 'pointer', fontSize: 14, opacity: 0.6 }} className="hover-opacity-1">🗑️</button>
-                      )}
+                      
+                      <div className="flex items-center gap-1">
+                        <GripVertical size={14} className="text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" />
+                        {(currentUser.id === task.assigned_by || currentUser.accessLevel <= 3) && (
+                          <button onClick={() => handleDelete(task.id)} className="text-[var(--color-text-muted)] hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <h4 style={{ fontWeight: 700, fontSize: 15, color: 'var(--color-text-primary)', marginBottom: 6, lineHeight: 1.4 }}>
+                    
+                    <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-2 leading-snug">
                       {task.title}
                     </h4>
+                    
                     {task.project_name && (
-                      <div style={{ fontSize: 11, color: '#8b5cf6', fontWeight: 700, marginBottom: 4, letterSpacing: 0.5 }}>
-                        📂 {task.project_name.toUpperCase()}
-                      </div>
-                    )}
-                    {task.parent_task_title && (
-                      <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 8 }}>
-                        ↳ Subtask of: {task.parent_task_title}
-                      </div>
-                    )}
-                    {task.due_date && (
-                      <div style={{ fontSize: 11, fontWeight: 600, color: isOverdue ? '#f43f5e' : 'var(--color-text-muted)', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <span>⏰</span> {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} {isOverdue && <span style={{color: '#f43f5e'}}>(Overdue)</span>}
+                      <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--color-purple-glow)] mb-1">
+                        <Folder size={12} /> {task.project_name.toUpperCase()}
                       </div>
                     )}
                     
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, borderTop: '1px solid var(--color-border)', paddingTop: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg, #e5e7eb, #d1d5db)', border: '2px solid var(--color-bg-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#4b5563' }}>
+                    {task.parent_task_title && (
+                      <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-secondary)] mb-2">
+                        <CornerDownRight size={12} /> Subtask: {task.parent_task_title}
+                      </div>
+                    )}
+                    
+                    {task.due_date && (
+                      <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-3 ${isOverdue ? 'text-rose-500' : 'text-[var(--color-text-muted)]'}`}>
+                        {isOverdue ? <AlertCircle size={12} /> : <Clock4 size={12} />}
+                        {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} 
+                        {isOverdue && <span>(Overdue)</span>}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] flex items-center justify-center text-[10px] font-bold text-[var(--color-text-primary)] shrink-0">
                           {task.assigned_to_name.charAt(0)}
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-secondary)' }}>{task.assigned_to_name.split(' ')[0]}</span>
+                        <span className="text-[11px] font-medium text-[var(--color-text-secondary)] truncate max-w-[100px]">{task.assigned_to_name.split(' ')[0]}</span>
                       </div>
                       
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        {/* Fallback buttons for accessibility / non-drag interactions */}
+                      <div className="flex gap-1 md:hidden group-hover:flex">
                         {col.id !== 'pending' && (
-                          <button onClick={() => handleStatusChange(task.id, 'pending')} style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '4px 8px', fontSize: 10, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>←</button>
+                          <button onClick={() => handleStatusChange(task.id, 'pending')} className="p-1 rounded bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors"><ChevronLeft size={14} /></button>
                         )}
                         {col.id !== 'in-progress' && (
-                          <button onClick={() => handleStatusChange(task.id, 'in-progress')} style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '4px 8px', fontSize: 10, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>
-                            {col.id === 'pending' ? '→' : '←'}
+                          <button onClick={() => handleStatusChange(task.id, 'in-progress')} className="p-1 rounded bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors">
+                            {col.id === 'pending' ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
                           </button>
                         )}
                         {col.id !== 'completed' && (
-                          <button onClick={() => handleStatusChange(task.id, 'completed')} style={{ background: 'var(--color-bg-secondary)', border: '1px solid var(--color-border)', borderRadius: 6, padding: '4px 8px', fontSize: 10, cursor: 'pointer', color: 'var(--color-text-secondary)' }}>→</button>
+                          <button onClick={() => handleStatusChange(task.id, 'completed')} className="p-1 rounded bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors"><ChevronRight size={14} /></button>
                         )}
                       </div>
                     </div>
@@ -408,7 +388,7 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                 )})}
                 
                 {filteredTasks.filter(t => t.status === col.id).length === 0 && (
-                  <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 13, background: 'rgba(0,0,0,0.02)', borderRadius: 12, border: '2px dashed var(--color-border)' }}>
+                  <div className="p-8 text-center text-[12px] font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-secondary)] rounded-xl border border-dashed border-[var(--color-border)]">
                     Drop tasks here
                   </div>
                 )}
@@ -417,44 +397,39 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
           ))}
         </div>
       ) : (
-        /* Calendar View */
         renderCalendar()
       )}
 
       {/* Modal */}
       {showModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100
-        }}>
-          <div className="glass" style={{ width: 480, borderRadius: 20, padding: 24, border: '1px solid var(--color-border)' }}>
-            <h3 style={{ fontSize: 20, fontWeight: 800, marginBottom: 16 }}>Create New Task</h3>
-            <form onSubmit={handleCreateTask} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] w-full max-w-[500px] rounded-2xl p-6 shadow-xl">
+            <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-5">Create New Task</h3>
+            <form onSubmit={handleCreateTask} className="flex flex-col gap-4">
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Task Title</label>
+                <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Task Title</label>
                 <input 
                   type="text" required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
                   placeholder="E.g., Update landing page design"
                 />
               </div>
               
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Description</label>
+                <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Description</label>
                 <textarea 
                   value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)', minHeight: 80, resize: 'vertical' }}
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] min-h-[80px] resize-y"
                   placeholder="Task details..."
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Assign To</label>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Assign To</label>
                   <select 
                     required value={newTask.assigned_to} onChange={e => setNewTask({...newTask, assigned_to: e.target.value})}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
                   >
                     <option value="">Select a user...</option>
                     {users.map(u => (
@@ -463,11 +438,11 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                   </select>
                 </div>
                 
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Priority</label>
+                <div className="flex-1">
+                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Priority</label>
                   <select 
                     value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value as any})}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -477,12 +452,12 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Link to Project</label>
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Link to Project</label>
                   <select 
                     value={newTask.project_id} onChange={e => setNewTask({...newTask, project_id: e.target.value})}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
                   >
                     <option value="">No Project</option>
                     {projects.map(p => (
@@ -491,13 +466,13 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                   </select>
                 </div>
                 
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Parent Task (Subtask of)</label>
+                <div className="flex-1">
+                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Parent Task (Subtask of)</label>
                   <select 
                     value={newTask.parent_task_id} onChange={e => setNewTask({...newTask, parent_task_id: e.target.value})}
-                    style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
                   >
-                    <option value="">None (Top-level task)</option>
+                    <option value="">None (Top-level)</option>
                     {tasks.filter(t => t.project_id === Number(newTask.project_id) || !newTask.project_id).map(t => (
                       <option key={t.id} value={t.id}>{t.title}</option>
                     ))}
@@ -506,18 +481,18 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, marginBottom: 6, color: 'var(--color-text-secondary)' }}>Due Date</label>
+                <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Due Date</label>
                 <input 
                   type="date" value={newTask.due_date} onChange={e => setNewTask({...newTask, due_date: e.target.value})}
-                  style={{ width: '100%', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'var(--color-bg-primary)', color: 'var(--color-text-primary)' }}
+                  className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
-                <button type="button" onClick={() => setShowModal(false)} style={{ padding: '10px 20px', borderRadius: 10, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer', fontWeight: 600 }}>
+              <div className="flex justify-end gap-3 mt-4">
+                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-[13px] font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors">
                   Cancel
                 </button>
-                <button type="submit" style={{ padding: '10px 20px', borderRadius: 10, border: 'none', background: '#8b5cf6', color: 'white', cursor: 'pointer', fontWeight: 600 }}>
+                <button type="submit" className="px-4 py-2 rounded-lg bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-[13px] font-bold text-white transition-colors">
                   Create Task
                 </button>
               </div>

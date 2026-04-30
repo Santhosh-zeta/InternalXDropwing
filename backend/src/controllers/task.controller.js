@@ -64,6 +64,16 @@ const createTask = async (req, res) => {
 
     await logAudit(req.user.id, 'CREATE_TASK', 'task', result.insertId, { title, assigned_to, project_id, parent_task_id });
 
+    // CREATE NOTIFICATION
+    const { createNotification } = require('../services/notification.service');
+    createNotification(
+      assigned_to, 
+      'task_assigned', 
+      'New Task Assigned', 
+      `You have been assigned a new task: ${title}`,
+      `/dashboard/tasks`
+    ).catch(console.error);
+
     // FETCH USER DETAILS FOR EMAIL
     try {
       const [usersData] = await pool.query('SELECT id, email, full_name FROM users WHERE id IN (?, ?)', [assigned_to, assigned_by]);
@@ -127,6 +137,23 @@ const updateTask = async (req, res) => {
     }
 
     await logAudit(req.user.id, 'UPDATE_TASK', 'task', id, { targetId: id, changedFields: updates });
+
+    // IF STATUS CHANGED, NOTIFY ASSIGNEE
+    if (status) {
+      try {
+        const [[taskData]] = await pool.query('SELECT title, assigned_to FROM tasks WHERE id = ?', [id]);
+        if (taskData) {
+          const { createNotification } = require('../services/notification.service');
+          createNotification(
+            taskData.assigned_to,
+            'task_updated',
+            'Task Status Updated',
+            `Task "${taskData.title}" is now ${status}`,
+            `/dashboard/tasks`
+          ).catch(console.error);
+        }
+      } catch (e) { console.error('Notify fail:', e); }
+    }
 
     return res.json({ success: true, message: 'Task updated' });
   } catch (error) {

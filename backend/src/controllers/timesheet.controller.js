@@ -10,7 +10,7 @@ exports.logHours = async (req, res, next) => {
     }
 
     const query = `
-      INSERT INTO timesheets (user_id, task_id, project_id, venture_id, hours, activity_date, notes)
+      INSERT INTO timesheets (user_id, task_id, project_id, venture_id, hours_worked, date, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?)
     `;
     const values = [req.user.id, taskId || null, projectId || null, ventureId || req.user.ventureId || null, hours, activityDate, notes || ''];
@@ -56,7 +56,7 @@ exports.getTimesheets = async (req, res, next) => {
     }
     // Levels 1-3 see everything
 
-    query += ` ORDER BY t.activity_date DESC, t.created_at DESC`;
+    query += ` ORDER BY t.date DESC, t.created_at DESC`;
 
     const [timesheets] = await pool.query(query, values);
 
@@ -66,7 +66,7 @@ exports.getTimesheets = async (req, res, next) => {
       return {
         ...t,
         hourly_rate: rate,
-        total_cost: parseFloat(t.hours) * rate
+        total_cost: parseFloat(t.hours_worked) * rate
       };
     });
 
@@ -106,7 +106,7 @@ exports.getFinancials = async (req, res, next) => {
     // Get aggregated data: total hours and simulated cost per venture
     const [stats] = await pool.query(`
       SELECT t.venture_id, v.name as venture_name, 
-             SUM(t.hours) as total_hours,
+             SUM(t.hours_worked) as total_hours,
              u.access_level
       FROM timesheets t
       JOIN users u ON t.user_id = u.id

@@ -26,7 +26,7 @@ router.get('/summary', authenticate, async (req, res) => {
       budgetQuery += ` WHERE v.id = ?`;
       budgetParams.push(ventureId);
     }
-    budgetQuery += ` GROUP BY v.id ORDER BY allocated_budget DESC`;
+    budgetQuery += ` GROUP BY v.id, v.name, v.primary_color, v.slug ORDER BY allocated_budget DESC`;
     const [budgetRows] = await pool.query(budgetQuery, budgetParams);
 
     // --- Expense simulation from timesheets ---
@@ -42,7 +42,7 @@ router.get('/summary', authenticate, async (req, res) => {
       expenseQuery += ` WHERE u.venture_id = ?`;
       expenseParams.push(ventureId);
     }
-    expenseQuery += ` GROUP BY v.id`;
+    expenseQuery += ` GROUP BY v.id, v.name, v.primary_color`;
     const [expenseRows] = await pool.query(expenseQuery, expenseParams);
 
     // Merge expenses into budget rows
@@ -88,14 +88,14 @@ router.get('/expenses', authenticate, async (req, res) => {
       SELECT
         t.id, t.date, t.hours_worked,
         t.hours_worked * 50 AS amount,
-        t.description,
+        t.notes AS description,
         t.status,
         u.full_name AS employee,
         u.designation,
         u.department,
         v.name AS venture,
         v.primary_color AS color,
-        p.title AS project_title
+        p.name AS project_title
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
       JOIN ventures v ON u.venture_id = v.id
@@ -104,16 +104,22 @@ router.get('/expenses', authenticate, async (req, res) => {
     const params = [];
     const conditions = [];
 
-    if (!isGlobal) conditions.push(`u.venture_id = ${pool.escape(ventureId)}`);
-    if (venture_id && isGlobal) conditions.push(`u.venture_id = ${pool.escape(venture_id)}`);
+    if (!isGlobal) {
+      conditions.push(`u.venture_id = ?`);
+      params.push(ventureId);
+    } else if (venture_id) {
+      conditions.push(`u.venture_id = ?`);
+      params.push(venture_id);
+    }
 
     if (conditions.length) query += ` WHERE ` + conditions.join(' AND ');
-    query += ` ORDER BY t.date DESC LIMIT ${parseInt(limit)}`;
+    query += ` ORDER BY t.date DESC LIMIT ?`;
+    params.push(parseInt(limit) || 50);
 
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
   } catch (err) {
-    console.error(err);
+    console.error('Budget Expenses Error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
@@ -140,23 +146,27 @@ router.get('/monthly', authenticate, async (req, res) => {
       query += ` AND u.venture_id = ?`;
       params.push(ventureId);
     }
-    query += ` GROUP BY month_key ORDER BY month_key ASC`;
+    query += ` GROUP BY month_key, month ORDER BY month_key ASC`;
 
     const [rows] = await pool.query(query, params);
 
     // Ensure we always have 6 months of data (fill gaps with 0)
     const months = [];
+    const now = new Date();
     for (let i = 5; i >= 0; i--) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - i);
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       const found = rows.find(r => r.month_key === key);
-      months.push({ month: label, expenses: found ? parseFloat(found.expenses) : 0, hours: found ? parseFloat(found.hours) : 0 });
+      months.push({ 
+        month: label, 
+        expenses: found ? parseFloat(found.expenses) : 0, 
+        hours: found ? parseFloat(found.hours) : 0 
+      });
     }
     res.json({ success: true, data: months });
   } catch (err) {
-    console.error(err);
+    console.error('Budget Monthly Error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

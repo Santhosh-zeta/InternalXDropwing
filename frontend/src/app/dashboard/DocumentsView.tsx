@@ -1,13 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { User, VENTURES } from '@/lib/constants';
+import { User } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
+import {
+  Upload, LayoutGrid, List, FolderOpen, FileText,
+  FileImage, FileSpreadsheet, Package, Video, File,
+  Download, Trash2, Loader2, User as UserIcon, X
+} from 'lucide-react';
 
 interface DocumentsViewProps {
   currentUser: User;
 }
 
-interface Document {
+interface DocItem {
   id: number;
   file_name: string;
   original_name: string;
@@ -24,7 +29,7 @@ interface Document {
 }
 
 export default function DocumentsView({ currentUser }: DocumentsViewProps) {
-  const [documents, setDocuments] = useState<Document[]>([]);
+  const [documents, setDocuments] = useState<DocItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -44,15 +49,12 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
     }
   };
 
-  useEffect(() => {
-    fetchDocuments();
-  }, []);
+  useEffect(() => { fetchDocuments(); }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Optional: Check file size (e.g., max 50MB)
     if (file.size > 50 * 1024 * 1024) {
       toast.error('File size exceeds 50MB limit');
       return;
@@ -60,8 +62,8 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
 
     const formData = new FormData();
     formData.append('file', file);
-    if (currentUser.ventureId) {
-      formData.append('ventureId', currentUser.ventureId.toString());
+    if (currentUser.venture?.id) {
+      formData.append('ventureId', currentUser.venture.id.toString());
     }
 
     try {
@@ -69,9 +71,7 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
       const token = localStorage.getItem('internalx_token');
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/documents/upload`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
 
@@ -86,9 +86,7 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
       toast.error('Error uploading document');
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -115,188 +113,142 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (mimeType: string) => {
-    if (mimeType.startsWith('image/')) return '🖼️';
-    if (mimeType.includes('pdf')) return '📕';
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType.includes('csv')) return '📊';
-    if (mimeType.includes('word') || mimeType.includes('document')) return '📘';
-    if (mimeType.includes('zip') || mimeType.includes('tar')) return '📦';
-    if (mimeType.includes('video/')) return '🎬';
-    return '📄';
+  const getFileIcon = (mimeType: string, size: number = 20) => {
+    if (mimeType.startsWith('image/')) return <FileImage size={size} />;
+    if (mimeType.includes('pdf')) return <FileText size={size} />;
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType.includes('csv')) return <FileSpreadsheet size={size} />;
+    if (mimeType.includes('word') || mimeType.includes('document')) return <FileText size={size} />;
+    if (mimeType.includes('zip') || mimeType.includes('tar')) return <Package size={size} />;
+    if (mimeType.startsWith('video/')) return <Video size={size} />;
+    return <File size={size} />;
   };
 
   const getFileColor = (mimeType: string) => {
-    if (mimeType.startsWith('image/')) return '#10b981'; // Green
-    if (mimeType.includes('pdf')) return '#ef4444'; // Red
-    if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType.includes('csv')) return '#10b981'; // Green
-    if (mimeType.includes('word') || mimeType.includes('document')) return '#3b82f6'; // Blue
-    if (mimeType.includes('zip') || mimeType.includes('tar')) return '#f59e0b'; // Yellow
-    if (mimeType.includes('video/')) return '#8b5cf6'; // Purple
-    return '#6b7280'; // Gray
+    if (mimeType.startsWith('image/')) return '#10b981';
+    if (mimeType.includes('pdf')) return '#ef4444';
+    if (mimeType.includes('spreadsheet') || mimeType.includes('excel') || mimeType.includes('csv')) return '#10b981';
+    if (mimeType.includes('word') || mimeType.includes('document')) return '#3b82f6';
+    if (mimeType.includes('zip') || mimeType.includes('tar')) return '#f59e0b';
+    if (mimeType.startsWith('video/')) return '#8b5cf6';
+    return '#6b7280';
   };
 
-  const handleDownload = (doc: Document) => {
+  const handleDownload = (doc: DocItem) => {
     const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/uploads/${doc.path}`;
     window.open(url, '_blank');
   };
 
   return (
-    <div className="fade-in">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+    <div className="flex flex-col gap-6 pb-10">
+      {/* Header */}
+      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] p-6 rounded-2xl flex justify-between items-center flex-wrap gap-4 shadow-sm">
         <div>
-          <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-text-primary)' }}>Document Vault</h2>
-          <p style={{ color: 'var(--color-text-muted)', fontSize: 14 }}>
+          <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Document Vault</h2>
+          <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
             Secure file storage for projects, assets, and enterprise knowledge.
           </p>
         </div>
-        
-        <div style={{ display: 'flex', gap: 12 }}>
-          <div className="glass" style={{ display: 'flex', padding: 4, borderRadius: 12 }}>
+
+        <div className="flex gap-3 items-center">
+          {/* View toggle */}
+          <div className="flex p-1 gap-1 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl">
             <button
               onClick={() => setViewMode('grid')}
-              style={{
-                padding: '6px 12px', borderRadius: 8, border: 'none',
-                background: viewMode === 'grid' ? 'var(--color-bg-tertiary)' : 'transparent',
-                color: viewMode === 'grid' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                cursor: 'pointer', transition: 'all 0.2s'
-              }}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
+              title="Grid View"
             >
-              Grid
+              <LayoutGrid size={16} />
             </button>
             <button
               onClick={() => setViewMode('list')}
-              style={{
-                padding: '6px 12px', borderRadius: 8, border: 'none',
-                background: viewMode === 'list' ? 'var(--color-bg-tertiary)' : 'transparent',
-                color: viewMode === 'list' ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
-                cursor: 'pointer', transition: 'all 0.2s'
-              }}
+              className={`p-2 rounded-lg transition-all ${viewMode === 'list' ? 'bg-[var(--color-bg-card)] text-[var(--color-text-primary)] shadow-sm' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'}`}
+              title="List View"
             >
-              List
+              <List size={16} />
             </button>
           </div>
-          
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: 'none' }}
-            onChange={handleFileUpload}
-          />
+
+          <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            style={{
-              padding: '10px 20px', borderRadius: 12, border: 'none',
-              background: 'linear-gradient(135deg, #3b82f6, #0ea5e9)', color: '#fff',
-              fontWeight: 600, cursor: uploading ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: 8, opacity: uploading ? 0.7 : 1,
-              boxShadow: '0 4px 12px rgba(14, 165, 233, 0.3)',
-              transition: 'all 0.2s'
-            }}
+            className="px-5 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {uploading ? '⏳ Uploading...' : '☁️ Upload File'}
+            {uploading
+              ? <><Loader2 size={15} className="animate-spin" /> Uploading...</>
+              : <><Upload size={15} strokeWidth={2.5} /> Upload File</>
+            }
           </button>
         </div>
       </div>
 
+      {/* Content */}
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px', color: 'var(--color-text-muted)' }}>
-          <div className="animate-spin-slow" style={{ fontSize: 40, marginBottom: 16 }}>✦</div>
-          <p>Loading vault...</p>
+        <div className="flex flex-col items-center justify-center py-20 text-[var(--color-text-muted)]">
+          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
+          <p className="font-medium text-sm">Loading vault...</p>
         </div>
       ) : documents.length === 0 ? (
-        <div className="glass" style={{ textAlign: 'center', padding: '80px', borderRadius: 20, border: '1px dashed var(--color-border)' }}>
-          <div style={{ fontSize: 64, marginBottom: 16, opacity: 0.5 }}>📂</div>
-          <h3 style={{ fontSize: 20, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 8 }}>Vault is Empty</h3>
-          <p style={{ color: 'var(--color-text-muted)', marginBottom: 24, maxWidth: 400, margin: '0 auto 24px' }}>
+        <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-20 text-center">
+          <FolderOpen size={64} className="mx-auto mb-4 text-[var(--color-text-muted)] opacity-40" />
+          <h3 className="text-xl font-bold text-[var(--color-text-primary)] mb-2">Vault is Empty</h3>
+          <p className="text-[var(--color-text-secondary)] text-sm mb-8 max-w-sm mx-auto font-medium leading-relaxed">
             No documents have been uploaded yet. Start by uploading files relevant to your venture or projects.
           </p>
           <button
             onClick={() => fileInputRef.current?.click()}
-            style={{
-              padding: '10px 24px', borderRadius: 12, border: '1px solid var(--color-border)',
-              background: 'var(--color-bg-secondary)', color: 'var(--color-text-primary)',
-              fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s'
-            }}
+            className="px-6 py-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-card)] text-[var(--color-text-primary)] font-bold text-[13px] transition-colors flex items-center gap-2 mx-auto"
           >
-            Upload First File
+            <Upload size={15} /> Upload First File
           </button>
         </div>
       ) : viewMode === 'grid' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {documents.map(doc => {
             const fileColor = getFileColor(doc.mime_type);
+            const canDelete = currentUser.accessLevel <= 3 || currentUser.id === doc.uploaded_by;
+
             return (
               <div
                 key={doc.id}
-                className="glass"
-                style={{
-                  borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)',
-                  display: 'flex', flexDirection: 'column', position: 'relative',
-                  transition: 'all 0.2s', cursor: 'pointer'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = fileColor; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--color-border)'; }}
+                className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden flex flex-col relative group hover:border-[var(--color-text-muted)] hover:-translate-y-1 transition-all duration-200 shadow-sm cursor-pointer"
               >
-                {/* Delete Button overlay */}
-                {(currentUser.accessLevel <= 3 || currentUser.id === doc.uploaded_by) && (
+                {/* Delete overlay */}
+                {canDelete && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
-                    style={{
-                      position: 'absolute', top: 8, right: 8, width: 28, height: 28,
-                      borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,0.5)',
-                      color: '#fff', fontSize: 12, cursor: 'pointer', display: 'flex',
-                      alignItems: 'center', justifyContent: 'center', zIndex: 10, opacity: 0.6,
-                      transition: 'opacity 0.2s'
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = '1'}
-                    onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 hover:bg-rose-500/80 transition-all"
                   >
-                    ✖
+                    <X size={13} />
                   </button>
                 )}
 
-                <div 
+                <div
                   onClick={() => handleDownload(doc)}
-                  style={{
-                    height: 140, background: `${fileColor}15`, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', fontSize: 64,
-                    borderBottom: '1px solid var(--color-border)', position: 'relative'
-                  }}
+                  className="h-[130px] flex items-center justify-center border-b border-[var(--color-border)] relative"
+                  style={{ background: `${fileColor}12`, color: fileColor }}
                 >
-                  {getFileIcon(doc.mime_type)}
-                  
-                  {/* Extension badge */}
-                  <div style={{
-                    position: 'absolute', bottom: 12, left: 12, padding: '4px 8px',
-                    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-                    borderRadius: 6, fontSize: 10, fontWeight: 700, color: '#fff',
-                    textTransform: 'uppercase', letterSpacing: 1
-                  }}>
+                  {getFileIcon(doc.mime_type, 48)}
+                  <div className="absolute bottom-2.5 left-2.5 px-2 py-0.5 bg-black/60 backdrop-blur-sm rounded text-[9px] font-bold text-white uppercase tracking-widest">
                     {doc.original_name.split('.').pop()}
                   </div>
                 </div>
-                
-                <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column' }} onClick={() => handleDownload(doc)}>
-                  <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--color-text-primary)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={doc.original_name}>
+
+                <div className="p-3 flex-1 flex flex-col" onClick={() => handleDownload(doc)}>
+                  <div className="font-bold text-[13px] text-[var(--color-text-primary)] mb-1 truncate" title={doc.original_name}>
                     {doc.original_name}
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--color-text-muted)', marginBottom: 12 }}>
+                  <div className="text-[11px] font-medium text-[var(--color-text-muted)] mb-3">
                     {formatSize(doc.size)} • {new Date(doc.created_at).toLocaleDateString()}
                   </div>
-                  
-                  <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'var(--color-bg-tertiary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>
-                        👤
-                      </div>
-                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', maxWidth: 80, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {doc.uploaded_by_name}
-                      </span>
+                  <div className="mt-auto flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <UserIcon size={11} className="text-[var(--color-text-muted)] shrink-0" />
+                      <span className="text-[11px] font-medium text-[var(--color-text-secondary)] truncate">{doc.uploaded_by_name}</span>
                     </div>
                     {doc.venture_name && (
-                      <span style={{ fontSize: 10, padding: '2px 6px', background: 'var(--color-bg-tertiary)', borderRadius: 4, color: 'var(--color-text-muted)' }}>
-                        {doc.venture_name}
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded text-[var(--color-text-muted)] shrink-0 uppercase tracking-wider">
+                        {doc.venture_name.substring(0, 4)}
                       </span>
                     )}
                   </div>
@@ -306,70 +258,75 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
           })}
         </div>
       ) : (
-        <div className="glass" style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-            <thead>
-              <tr style={{ background: 'var(--color-bg-secondary)', borderBottom: '1px solid var(--color-border)' }}>
-                <th style={{ padding: '16px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Name</th>
-                <th style={{ padding: '16px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Size</th>
-                <th style={{ padding: '16px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Uploaded By</th>
-                <th style={{ padding: '16px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Date</th>
-                <th style={{ padding: '16px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>Venture</th>
-                <th style={{ padding: '16px', fontSize: 12, fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase', textAlign: 'right' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.map(doc => (
-                <tr key={doc.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }} className="hover-bg-tertiary">
-                  <td style={{ padding: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }} onClick={() => handleDownload(doc)}>
-                      <div style={{ fontSize: 24 }}>{getFileIcon(doc.mime_type)}</div>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{doc.original_name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>{doc.mime_type}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px', fontSize: 13, color: 'var(--color-text-secondary)' }}>{formatSize(doc.size)}</td>
-                  <td style={{ padding: '16px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      👤 {doc.uploaded_by_name}
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px', fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                    {new Date(doc.created_at).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: '16px' }}>
-                    {doc.venture_name ? (
-                      <span style={{ fontSize: 11, padding: '4px 8px', background: 'var(--color-bg-tertiary)', borderRadius: 6, color: 'var(--color-text-muted)' }}>
-                        {doc.venture_name}
-                      </span>
-                    ) : (
-                      <span style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Global</span>
-                    )}
-                  </td>
-                  <td style={{ padding: '16px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
-                      <button
-                        onClick={() => handleDownload(doc)}
-                        style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid var(--color-border)', background: 'transparent', color: 'var(--color-text-primary)', cursor: 'pointer', fontSize: 12 }}
-                      >
-                        Download
-                      </button>
-                      {(currentUser.accessLevel <= 3 || currentUser.id === doc.uploaded_by) && (
-                        <button
-                          onClick={() => handleDelete(doc.id)}
-                          style={{ padding: '6px 12px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.3)', background: 'rgba(239,68,68,0.1)', color: '#ef4444', cursor: 'pointer', fontSize: 12 }}
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </td>
+        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
+                  {['Name', 'Size', 'Uploaded By', 'Date', 'Venture', 'Actions'].map(h => (
+                    <th key={h} className={`p-4 px-5 text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider ${h === 'Actions' ? 'text-right' : 'text-left'}`}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {documents.map(doc => {
+                  const fileColor = getFileColor(doc.mime_type);
+                  const canDelete = currentUser.accessLevel <= 3 || currentUser.id === doc.uploaded_by;
+                  return (
+                    <tr key={doc.id} className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors">
+                      <td className="p-4 px-5">
+                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => handleDownload(doc)}>
+                          <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border" style={{ background: `${fileColor}15`, color: fileColor, borderColor: `${fileColor}30` }}>
+                            {getFileIcon(doc.mime_type, 17)}
+                          </div>
+                          <div>
+                            <div className="font-bold text-[13px] text-[var(--color-text-primary)] group-hover:text-[var(--color-purple-glow)] transition-colors">{doc.original_name}</div>
+                            <div className="text-[11px] font-medium text-[var(--color-text-muted)] mt-0.5">{doc.mime_type}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 px-5 text-[13px] font-semibold text-[var(--color-text-secondary)]">{formatSize(doc.size)}</td>
+                      <td className="p-4 px-5">
+                        <div className="flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text-secondary)]">
+                          <UserIcon size={13} className="text-[var(--color-text-muted)]" /> {doc.uploaded_by_name}
+                        </div>
+                      </td>
+                      <td className="p-4 px-5 text-[13px] font-medium text-[var(--color-text-secondary)]">
+                        {new Date(doc.created_at).toLocaleDateString()}
+                      </td>
+                      <td className="p-4 px-5">
+                        {doc.venture_name ? (
+                          <span className="text-[11px] font-bold px-2.5 py-1 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-lg text-[var(--color-text-muted)]">
+                            {doc.venture_name}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-medium text-[var(--color-text-muted)]">Global</span>
+                        )}
+                      </td>
+                      <td className="p-4 px-5">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleDownload(doc)}
+                            className="px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-card)] text-[var(--color-text-primary)] text-[12px] font-bold transition-colors flex items-center gap-1.5"
+                          >
+                            <Download size={13} /> Download
+                          </button>
+                          {canDelete && (
+                            <button
+                              onClick={() => handleDelete(doc.id)}
+                              className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 text-[12px] font-bold transition-colors flex items-center gap-1.5"
+                            >
+                              <Trash2 size={13} /> Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
