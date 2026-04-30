@@ -20,6 +20,7 @@
 - [Overview](#-overview)
 - [Ventures](#-ventures)
 - [Access Level System](#-access-level-system)
+- [Design Aesthetics](#-design-aesthetics)
 - [Feature Status](#-feature-status)
 - [Architecture](#-architecture)
 - [Project Structure](#-project-structure)
@@ -89,6 +90,19 @@ InternalX uses a **9-tier access level hierarchy**:
 | **L7** | Staff | Single Venture | Personal dashboard, assigned tasks, documents, timesheets |
 | **L8** | Intern | Single Venture | My tasks, learning hub, team chat |
 | **L9** | Client | Single Venture | Project status, deliverables, invoices, messages (read-only) |
+| **L0** | Superuser | System Root | Maintenance only (Reserved) |
+
+---
+
+## ✨ Design Aesthetics
+
+InternalX follows a **Premium Dark Design System** inspired by modern high-end enterprise platforms:
+
+- **Violet Accent System**: Unified brand identity using `#8B5CF6` (Violet) as the primary interaction color.
+- **Glassmorphism**: Sophisticated backdrop blurs and semi-transparent layers for a deep, layered interface.
+- **Micro-Animations**: Smooth transitions, hover scaling, and pulse effects using Framer Motion.
+- **Responsive Charts**: Recharts-powered analytics with automated dimension handling and zero-latency rendering.
+- **Venture Theming**: UI components subtly shift accents (Cyan, Amber, Emerald) based on the user's active venture context.
 
 ---
 
@@ -506,7 +520,7 @@ Open **http://localhost:3000** in your browser.
 
 All accounts use password: **`Test@1234`**
 
-> Use the **Quick Select** dropdown on the login page to auto-fill credentials by venture and role.
+> Use the **Quick Access Grid** on the login page to instant-load credentials. You can filter by venture using the colored dots above the grid.
 
 ### Global Accounts (All Ventures)
 
@@ -626,7 +640,7 @@ When a task is assigned, InternalX automatically emails the assignee via Hosting
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| Mobile Responsive Sidebar | Not started | 🟡 Medium |
+| Mobile Responsive Sidebar | In Progress | 🟡 Medium |
 | 2FA / Security Settings | Not started | 🟠 Low |
 | Avatar Upload | Not started | 🟠 Low |
 | PWA / Offline Mode | Not started | 🟢 Low |
