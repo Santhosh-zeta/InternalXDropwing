@@ -114,6 +114,8 @@ InternalX uses a **9-tier access level hierarchy**:
 | Strategy | `StrategyView.tsx` | ✅ Live | L1, L2 |
 | Department KPIs | `DepartmentKPIsView.tsx` | ✅ Live | L4 (also HR Overview, Team Mgmt) |
 | Client Portal | `ClientPortalView.tsx` | ✅ Live | L9 |
+| Database | `DatabaseView.tsx` | ✅ Live | L1 |
+| Learning Hub | `LearningHubView.tsx` | ✅ Live | L1–L8 |
 | Notification Bell | `NotificationBell.tsx` | ✅ Live | L1–L9 |
 
 ### Menu Items Status
@@ -139,10 +141,8 @@ InternalX uses a **9-tier access level hierarchy**:
 | Client Portal (Deliverables) | L9 | ✅ Live |
 | Notification Bell | All | ✅ Live |
 | **Strategy** | L2 | ✅ Live |
-| **Database** | L1 | 🚧 Coming Soon |
-| **Learning Hub** | L8 | 🚧 Coming Soon (backend ready, view missing) |
-
-> **Note:** `Learning Hub` has a **complete backend** (`/api/learning/*` — checklist, progress, resources, feedback) and full `api.ts` client methods, but the `LearningHubView.tsx` frontend component has **not yet been created**. The menu item currently falls through to the 🚧 Coming Soon placeholder.
+| **Database** | L1 | ✅ Live |
+| **Learning Hub** | L8 | ✅ Live |
 
 ---
 
@@ -626,8 +626,6 @@ When a task is assigned, InternalX automatically emails the assignee via Hosting
 
 | Feature | Status | Priority |
 |---------|--------|----------|
-| Learning Hub Frontend (`LearningHubView.tsx`) | Backend ready, view pending | 🔴 High |
-| Database Admin View (L1) | Not started | 🟡 Medium |
 | Mobile Responsive Sidebar | Not started | 🟡 Medium |
 | 2FA / Security Settings | Not started | 🟠 Low |
 | Avatar Upload | Not started | 🟠 Low |
