@@ -40,7 +40,7 @@
 
 | Area | What It Does |
 |------|-------------|
-| **Multi-Tenant Auth** | JWT-based login with per-venture role isolation |
+| **Multi-Tenant Auth** | JWT-based login, OTP-based 2FA, Registration, and Password Recovery |
 | **Real-Time Chat** | WebSocket (Socket.IO) team messaging with channels + DMs |
 | **Task & Project Management** | Full CRUD with status tracking, priorities, deadlines |
 | **Document Vault** | Secure file storage with role-gated access |
@@ -338,7 +338,11 @@ All protected routes require: `Authorization: Bearer <JWT_TOKEN>`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/auth/login` | Login with email + password → returns JWT + user object |
+| `POST` | `/auth/register` | Create a new user account |
+| `POST` | `/auth/login` | Login with email + password (sends OTP or returns JWT if verified) |
+| `POST` | `/auth/verify-otp` | Verify 6-digit OTP and return JWT + user object |
+| `POST` | `/auth/forgot-password` | Send password reset email with secure token |
+| `POST` | `/auth/reset-password` | Reset password using the emailed token |
 | `POST` | `/auth/logout` | Invalidate session |
 | `GET` | `/auth/me` | Get current authenticated user |
 
@@ -617,6 +621,7 @@ InternalX uses a custom glassmorphism design system with:
 
 ## 🔒 Security
 
+- **Two-Factor Authentication (2FA)** using email-based OTPs for new devices/unverified logins
 - Passwords hashed with **bcrypt** (cost factor 12)
 - JWT tokens with 8-hour expiry
 - **Helmet.js** sets secure HTTP headers
@@ -641,7 +646,7 @@ When a task is assigned, InternalX automatically emails the assignee via Hosting
 | Feature | Status | Priority |
 |---------|--------|----------|
 | Mobile Responsive Sidebar | In Progress | 🟡 Medium |
-| 2FA / Security Settings | Not started | 🟠 Low |
+| 2FA / Security Settings | ✅ Completed | 🟢 High |
 | Avatar Upload | Not started | 🟠 Low |
 | PWA / Offline Mode | Not started | 🟢 Low |
 
