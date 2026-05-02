@@ -278,6 +278,13 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
+
+              <div className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                Don't have an account?{' '}
+                <Link href="/register" className="font-medium hover:underline inline-flex items-center gap-1" style={{ color: 'var(--color-purple-glow)' }}>
+                  Sign up <ArrowRight size={14} />
+                </Link>
+              </div>
             </motion.div>
           ) : (
             <motion.div 
