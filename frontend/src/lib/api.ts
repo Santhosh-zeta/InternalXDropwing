@@ -23,6 +23,26 @@ export const loginUser = async (email: string, password: string) => {
   return res.data;
 };
 
+export const verifyOtp = async (email: string, otp: string) => {
+  const res = await api.post('/auth/verify-otp', { email, otp });
+  return res.data;
+};
+
+export const register = async (fullName: string, email: string, password: string) => {
+  const res = await api.post('/auth/register', { fullName, email, password });
+  return res.data;
+};
+
+export const forgotPassword = async (email: string) => {
+  const res = await api.post('/auth/forgot-password', { email });
+  return res.data;
+};
+
+export const resetPassword = async (token: string, newPassword: string) => {
+  const res = await api.post('/auth/reset-password', { token, newPassword });
+  return res.data;
+};
+
 export const logoutUser = async () => {
   const res = await api.post('/auth/logout');
   return res.data;
