@@ -1,9 +1,13 @@
 const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
+const { generateOTP, generateResetToken } = require('../utils/otp');
+const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.service');
 
 /**
  * POST /api/auth/login
+ * Step 1 of 2FA: Verify credentials and send OTP.
  */
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -33,8 +37,69 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Update last login
-    await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    // Generate OTP
+    const otp = generateOTP();
+    // 5 minutes expiry
+    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+
+    await pool.query(
+      'UPDATE users SET otp = ?, otp_expires_at = ? WHERE id = ?',
+      [otp, otpExpiresAt, user.id]
+    );
+
+    // Send OTP via email
+    await sendOTPEmail(user.email, user.full_name, otp);
+
+    return res.json({
+      success: true,
+      message: 'OTP sent to your email address',
+      data: {
+        email: user.email // Return email so frontend knows which email to verify
+      }
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during login' });
+  }
+};
+
+/**
+ * POST /api/auth/verify-otp
+ * Step 2 of 2FA: Verify OTP and issue JWT.
+ */
+const verifyOtp = async (req, res) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return res.status(400).json({ success: false, message: 'Email and OTP are required' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      `SELECT u.*, al.level_name, v.name AS venture_name, v.slug AS venture_slug, v.primary_color
+       FROM users u
+       JOIN access_levels al ON u.access_level = al.level_number
+       LEFT JOIN ventures v ON u.venture_id = v.id
+       WHERE u.email = ? AND u.is_active = 1`,
+      [email.toLowerCase().trim()]
+    );
+
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'Invalid request' });
+    }
+
+    const user = rows[0];
+
+    // Check if OTP matches and is not expired
+    if (!user.otp || user.otp !== otp || new Date() > new Date(user.otp_expires_at)) {
+      return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
+    }
+
+    // Clear OTP and update last login
+    await pool.query(
+      'UPDATE users SET otp = NULL, otp_expires_at = NULL, last_login = NOW() WHERE id = ?',
+      [user.id]
+    );
 
     // Generate JWT
     const token = jwt.sign(
@@ -83,8 +148,87 @@ const login = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error('Login error:', err);
-    return res.status(500).json({ success: false, message: 'Server error during login' });
+    console.error('Verify OTP error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during OTP verification' });
+  }
+};
+
+/**
+ * POST /api/auth/forgot-password
+ */
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ success: false, message: 'Email is required' });
+  }
+
+  try {
+    const [rows] = await pool.query(
+      'SELECT id, full_name, email FROM users WHERE email = ? AND is_active = 1',
+      [email.toLowerCase().trim()]
+    );
+
+    if (rows.length === 0) {
+      // Return success even if not found for security (prevent email enumeration)
+      return res.json({ success: true, message: 'If that email address is in our database, we will send you an email to reset your password.' });
+    }
+
+    const user = rows[0];
+    const resetToken = generateResetToken();
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
+
+    await pool.query(
+      'UPDATE users SET reset_password_token = ?, reset_password_expires_at = ? WHERE id = ?',
+      [hashedToken, expiresAt, user.id]
+    );
+
+    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    
+    await sendPasswordResetEmail(user.email, user.full_name, resetUrl);
+
+    return res.json({ success: true, message: 'If that email address is in our database, we will send you an email to reset your password.' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during password reset request' });
+  }
+};
+
+/**
+ * POST /api/auth/reset-password
+ */
+const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ success: false, message: 'Token and new password are required' });
+  }
+
+  try {
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+    const [rows] = await pool.query(
+      'SELECT id FROM users WHERE reset_password_token = ? AND reset_password_expires_at > NOW() AND is_active = 1',
+      [hashedToken]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+    }
+
+    const user = rows[0];
+    const newPasswordHash = await bcrypt.hash(newPassword, 12);
+
+    await pool.query(
+      'UPDATE users SET password_hash = ?, reset_password_token = NULL, reset_password_expires_at = NULL WHERE id = ?',
+      [newPasswordHash, user.id]
+    );
+
+    return res.json({ success: true, message: 'Password successfully reset' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during password reset' });
   }
 };
 
@@ -147,4 +291,4 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { login, logout, getMe };
+module.exports = { login, verifyOtp, forgotPassword, resetPassword, logout, getMe };
