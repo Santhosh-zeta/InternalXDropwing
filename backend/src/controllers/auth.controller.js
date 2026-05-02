@@ -291,4 +291,42 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { login, verifyOtp, forgotPassword, resetPassword, logout, getMe };
+/**
+ * POST /api/auth/register
+ */
+const register = async (req, res) => {
+  const { fullName, email, password } = req.body;
+
+  if (!fullName || !email || !password) {
+    return res.status(400).json({ success: false, message: 'All fields are required' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
+  }
+
+  try {
+    // Check if user exists
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()]);
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already registered' });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    // Generate a default employee_id since it's unique
+    const employeeId = 'EMP-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+
+    await pool.query(
+      `INSERT INTO users (employee_id, full_name, email, password_hash, access_level) 
+       VALUES (?, ?, ?, ?, 8)`,
+      [employeeId, fullName, email.toLowerCase().trim(), passwordHash]
+    );
+
+    return res.status(201).json({ success: true, message: 'Registration successful! You can now log in.' });
+  } catch (err) {
+    console.error('Registration error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during registration' });
+  }
+};
+
+module.exports = { register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe };

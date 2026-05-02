@@ -28,6 +28,11 @@ export const verifyOtp = async (email: string, otp: string) => {
   return res.data;
 };
 
+export const register = async (fullName: string, email: string, password: string) => {
+  const res = await api.post('/auth/register', { fullName, email, password });
+  return res.data;
+};
+
 export const forgotPassword = async (email: string) => {
   const res = await api.post('/auth/forgot-password', { email });
   return res.data;
