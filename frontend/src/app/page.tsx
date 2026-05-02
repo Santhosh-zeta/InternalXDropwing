@@ -41,8 +41,15 @@ export default function LoginPage() {
     try {
       const data = await loginUser(email, password);
       if (data.success) {
-        toast.success(data.message || 'OTP sent to your email.');
-        setStep(2);
+        if (data.data?.token) {
+          localStorage.setItem('internalx_token', data.data.token);
+          localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
+          toast.success(`Welcome back, ${data.data.user.fullName}`);
+          router.push('/dashboard');
+        } else {
+          toast.success(data.message || 'OTP sent to your email.');
+          setStep(2);
+        }
       }
     } catch (err: unknown) {
       const msg =
