@@ -5,9 +5,56 @@ const crypto = require('crypto');
 const { generateOTP, generateResetToken } = require('../utils/otp');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.service');
 
+const generateAuthResponse = (user, res, message) => {
+  const token = jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      accessLevel: user.access_level,
+      levelName: user.level_name,
+      ventureId: user.venture_id,
+      ventureSlug: user.venture_slug,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+  );
+
+  res.cookie('internalx_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 8 * 60 * 60 * 1000, // 8 hours
+  });
+
+  return res.json({
+    success: true,
+    message,
+    data: {
+      token,
+      user: {
+        id: user.id,
+        employeeId: user.employee_id,
+        fullName: user.full_name,
+        email: user.email,
+        accessLevel: user.access_level,
+        levelName: user.level_name,
+        department: user.department,
+        designation: user.designation,
+        avatarUrl: user.avatar_url,
+        venture: user.venture_id ? {
+          id: user.venture_id,
+          name: user.venture_name,
+          slug: user.venture_slug,
+          primaryColor: user.primary_color,
+        } : null,
+      },
+    },
+  });
+};
+
 /**
  * POST /api/auth/login
- * Step 1 of 2FA: Verify credentials and send OTP.
+ * Step 1 of 2FA: Verify credentials and send OTP (if not verified yet).
  */
 const login = async (req, res) => {
   const { email, password } = req.body;
@@ -37,7 +84,13 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // Generate OTP
+    // If user is already verified, log them in directly
+    if (user.is_verified) {
+      await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+      return generateAuthResponse(user, res, 'Login successful');
+    }
+
+    // Otherwise, generate OTP
     const otp = generateOTP();
     // 5 minutes expiry
     const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
@@ -95,58 +148,13 @@ const verifyOtp = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
-    // Clear OTP and update last login
+    // Mark as verified, clear OTP and update last login
     await pool.query(
-      'UPDATE users SET otp = NULL, otp_expires_at = NULL, last_login = NOW() WHERE id = ?',
+      'UPDATE users SET is_verified = 1, otp = NULL, otp_expires_at = NULL, last_login = NOW() WHERE id = ?',
       [user.id]
     );
 
-    // Generate JWT
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        accessLevel: user.access_level,
-        levelName: user.level_name,
-        ventureId: user.venture_id,
-        ventureSlug: user.venture_slug,
-      },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
-    );
-
-    // Set HTTP-only cookie
-    res.cookie('internalx_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 8 * 60 * 60 * 1000, // 8 hours
-    });
-
-    return res.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        token,
-        user: {
-          id: user.id,
-          employeeId: user.employee_id,
-          fullName: user.full_name,
-          email: user.email,
-          accessLevel: user.access_level,
-          levelName: user.level_name,
-          department: user.department,
-          designation: user.designation,
-          avatarUrl: user.avatar_url,
-          venture: user.venture_id ? {
-            id: user.venture_id,
-            name: user.venture_name,
-            slug: user.venture_slug,
-            primaryColor: user.primary_color,
-          } : null,
-        },
-      },
-    });
+    return generateAuthResponse(user, res, 'Account verified and login successful');
   } catch (err) {
     console.error('Verify OTP error:', err);
     return res.status(500).json({ success: false, message: 'Server error during OTP verification' });
