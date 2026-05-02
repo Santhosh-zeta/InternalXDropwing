@@ -7,10 +7,10 @@ async function migrate() {
 
     const queries = [
       `ALTER TABLE users 
-       ADD COLUMN IF NOT EXISTS otp VARCHAR(10) NULL AFTER password_hash,
-       ADD COLUMN IF NOT EXISTS otp_expires_at TIMESTAMP NULL AFTER otp,
-       ADD COLUMN IF NOT EXISTS reset_password_token VARCHAR(255) NULL AFTER otp_expires_at,
-       ADD COLUMN IF NOT EXISTS reset_password_expires_at TIMESTAMP NULL AFTER reset_password_token;`
+       ADD COLUMN otp VARCHAR(10) NULL AFTER password_hash,
+       ADD COLUMN otp_expires_at TIMESTAMP NULL AFTER otp,
+       ADD COLUMN reset_password_token VARCHAR(255) NULL AFTER otp_expires_at,
+       ADD COLUMN reset_password_expires_at TIMESTAMP NULL AFTER reset_password_token;`
     ];
 
     for (const query of queries) {
