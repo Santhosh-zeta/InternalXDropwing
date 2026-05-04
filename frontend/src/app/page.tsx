@@ -4,7 +4,8 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { loginUser, verifyOtp } from '@/lib/api';
+import { loginUser, verifyOtp, googleLogin } from '@/lib/api';
+import { GoogleLogin } from '@react-oauth/google';
 import { TEST_ACCOUNTS, VENTURES } from '@/lib/constants';
 import { 
   Mail, 
@@ -80,6 +81,26 @@ export default function LoginPage() {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Invalid or expired OTP.';
+      toast.error(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (response: any) => {
+    setLoading(true);
+    try {
+      const data = await googleLogin(response.credential);
+      if (data.success) {
+        localStorage.setItem('internalx_token', data.data.token);
+        localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
+        toast.success(`Welcome back, ${data.data.user.fullName}`);
+        router.push('/dashboard');
+      }
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        'Google authentication failed.';
       toast.error(msg);
     } finally {
       setLoading(false);
@@ -285,6 +306,26 @@ export default function LoginPage() {
                   )}
                 </button>
               </form>
+
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[var(--color-border)]"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-[var(--color-bg-secondary)] px-2 text-[var(--color-text-muted)]">Or continue with</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center w-full">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => toast.error('Google login failed')}
+                  useOneTap
+                  theme="filled_black"
+                  shape="pill"
+                  width="100%"
+                />
+              </div>
 
               <div className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                 Don't have an account?{' '}
