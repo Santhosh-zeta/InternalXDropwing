@@ -1,4 +1,6 @@
 const { pool } = require('../config/database');
+const { OAuth2Client } = require('google-auth-library');
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -337,4 +339,72 @@ const register = async (req, res) => {
   }
 };
 
-module.exports = { register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe };
+/**
+ * POST /api/auth/google-login
+ */
+const googleLogin = async (req, res) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    return res.status(400).json({ success: false, message: 'Google credential is required' });
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({
+      idToken: credential,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    const { email, name, picture } = payload;
+
+    // Check if user exists
+    const [rows] = await pool.query(
+      `SELECT u.*, al.level_name, v.name AS venture_name, v.slug AS venture_slug, v.primary_color
+       FROM users u
+       JOIN access_levels al ON u.access_level = al.level_number
+       LEFT JOIN ventures v ON u.venture_id = v.id
+       WHERE u.email = ? AND u.is_active = 1`,
+      [email.toLowerCase().trim()]
+    );
+
+    let user;
+    if (rows.length > 0) {
+      user = rows[0];
+      // Mark as verified if not already (Google users are auto-verified)
+      if (!user.is_verified) {
+        await pool.query('UPDATE users SET is_verified = 1 WHERE id = ?', [user.id]);
+        user.is_verified = 1;
+      }
+    } else {
+      // Create new user (Intern level 8 by default)
+      const employeeId = 'EMP-G-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+      const randomPassword = crypto.randomBytes(16).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, 12);
+
+      const [result] = await pool.query(
+        `INSERT INTO users (employee_id, full_name, email, password_hash, access_level, is_verified, avatar_url) 
+         VALUES (?, ?, ?, ?, 8, 1, ?)`,
+        [employeeId, name, email.toLowerCase().trim(), passwordHash, picture]
+      );
+
+      const [newUser] = await pool.query(
+        `SELECT u.*, al.level_name, v.name AS venture_name, v.slug AS venture_slug, v.primary_color
+         FROM users u
+         JOIN access_levels al ON u.access_level = al.level_number
+         LEFT JOIN ventures v ON u.venture_id = v.id
+         WHERE u.id = ?`,
+        [result.insertId]
+      );
+      user = newUser[0];
+    }
+
+    await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    return generateAuthResponse(user, res, 'Google login successful');
+  } catch (err) {
+    console.error('Google login error:', err);
+    return res.status(500).json({ success: false, message: 'Server error during Google login' });
+  }
+};
+
+module.exports = { register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe, googleLogin };

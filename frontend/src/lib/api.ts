@@ -23,6 +23,11 @@ export const loginUser = async (email: string, password: string) => {
   return res.data;
 };
 
+export const googleLogin = async (credential: string) => {
+  const res = await api.post('/auth/google-login', { credential });
+  return res.data;
+};
+
 export const verifyOtp = async (email: string, otp: string) => {
   const res = await api.post('/auth/verify-otp', { email, otp });
   return res.data;
