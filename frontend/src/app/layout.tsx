@@ -16,6 +16,8 @@ export const metadata: Metadata = {
   robots: "noindex, nofollow",
 };
 
+import GoogleAuthProvider from "@/components/GoogleAuthProvider";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -63,7 +65,9 @@ export default function RootLayout({
             },
           }}
         />
-        {children}
+        <GoogleAuthProvider>
+          {children}
+        </GoogleAuthProvider>
       </body>
     </html>
   );
