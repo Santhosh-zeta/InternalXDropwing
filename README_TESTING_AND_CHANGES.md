@@ -6,12 +6,12 @@ Scope: Local frontend/backend run verification, build checks, dependency audit, 
 
 ## Executive Summary
 
-The frontend and backend dev servers are running locally:
+The frontend and backend dev servers were verified locally:
 
 - Frontend: `http://localhost:3000`
 - Backend health: `http://localhost:5000/api/health`
 
-The frontend production build passes successfully after fixes. Backend health is reachable, but database-backed features such as login, seeding, user data, projects, tasks, and dashboard API data are blocked because the local MySQL server rejected the configured root password.
+The frontend production build passes successfully after the fixes. Backend health is reachable, but database-backed features such as login, seeding, user data, projects, tasks, and dashboard API data are blocked because the local MySQL server rejected the configured root password.
 
 ## Current Blocker
 
@@ -50,7 +50,7 @@ Docker was also checked. Docker is installed, but the Docker Desktop Linux engin
 | Login API | `POST /api/auth/login` with test account | Blocked | Returned HTTP `500` because DB is unavailable with current credentials. |
 | Frontend lint | `npm run lint` in `frontend` | Fail | 164 problems remain: 105 errors and 59 warnings. |
 | Backend dependency audit | `npm audit --audit-level=moderate` | Pass | 0 vulnerabilities after dependency update. |
-| Frontend dependency audit | `npm audit --audit-level=moderate` | Partial | High Next.js advisory fixed; 2 moderate PostCSS advisories remain inside Next's nested dependency. |
+| Frontend dependency audit | `npm audit --audit-level=moderate` | Partial | High Next.js advisory fixed; 2 moderate PostCSS advisories remain inside Next.js nested dependency. |
 
 ## Security Tests Performed
 
@@ -111,7 +111,7 @@ Docker was also checked. Docker is installed, but the Docker Desktop Linux engin
 
 7. Frontend dependency audit still has moderate advisories.
 
-   Next.js was upgraded from `16.2.4` to `16.2.6`, which removed the high advisory. npm still reports moderate PostCSS advisories from Next's nested dependency. npm suggests `npm audit fix --force`, but that recommendation is unsafe because it tries to install a breaking Next version path.
+   Next.js was upgraded from `16.2.4` to `16.2.6`, which removed the high advisory. npm still reports moderate PostCSS advisories from Next.js nested dependency. npm suggests `npm audit fix --force`, but that recommendation is unsafe because it tries to install a breaking Next.js version path.
 
 8. Full login and dashboard testing is blocked until MySQL is fixed.
 
@@ -234,13 +234,12 @@ Then open:
 http://localhost:3000
 ```
 
-## What Must Be Fixed Before Final Internship Submission
+## Recommended Next Steps
 
 1. Fix local MySQL credentials or start Docker Desktop and use the included MySQL container.
-2. Run `npm run seed` successfully.
-3. Re-test login with the seeded test accounts.
-4. Re-test role-specific dashboards after login.
-5. Clean or document the frontend lint errors.
-6. Decide how to handle the remaining moderate PostCSS audit warning from Next's nested dependency.
-7. Add MIME/type validation to uploads if documents can contain sensitive files.
-8. Avoid storing JWT in `localStorage` if possible; prefer the existing HTTP-only cookie session.
+2. Run `npm run seed` successfully after the database is available.
+3. Re-test login and role-specific dashboard flows with seeded test accounts.
+4. Clean up the existing frontend lint errors in a separate follow-up task.
+5. Monitor the remaining moderate PostCSS audit warning from Next.js nested dependency.
+6. Consider adding MIME/type validation to uploads if documents can contain sensitive files.
+7. Consider replacing frontend `localStorage` token usage with the existing HTTP-only cookie session.
