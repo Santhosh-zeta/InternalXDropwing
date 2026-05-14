@@ -309,7 +309,7 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} dy={10} />
                   <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v/1000).toFixed(0)}K`} dx={-10} />
-                  <Tooltip contentStyle={CHART_STYLE.contentStyle} itemStyle={{ fontWeight: 700, color: 'var(--color-text-primary)' }} formatter={(v: number) => [fmt(v), 'Expenses']} />
+                  <Tooltip contentStyle={CHART_STYLE.contentStyle} itemStyle={{ fontWeight: 700, color: 'var(--color-text-primary)' }} formatter={(v) => [fmt(Number(v ?? 0)), 'Expenses']} />
                   <Area type="monotone" dataKey="expenses" stroke={color} fill="url(#budgetGrad)" strokeWidth={3} name="Expenses" activeDot={{ r: 6, fill: color, stroke: 'var(--color-bg-card)', strokeWidth: 2 }} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -331,7 +331,7 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} dy={10} />
                   <YAxis tick={{ fontSize: 11, fill: 'var(--color-text-muted)', fontWeight: 600 }} axisLine={false} tickLine={false} dx={-10} />
-                  <Tooltip cursor={{ fill: 'var(--color-bg-secondary)' }} contentStyle={CHART_STYLE.contentStyle} itemStyle={{ fontWeight: 700, color: 'var(--color-text-primary)' }} formatter={(v: number) => [`${v}h`, 'Hours']} />
+                  <Tooltip cursor={{ fill: 'var(--color-bg-secondary)' }} contentStyle={CHART_STYLE.contentStyle} itemStyle={{ fontWeight: 700, color: 'var(--color-text-primary)' }} formatter={(v) => [`${Number(v ?? 0)}h`, 'Hours']} />
                   <Bar dataKey="hours" fill="url(#hoursGrad)" radius={[6, 6, 0, 0]} name="Hours" />
                 </BarChart>
               </ResponsiveContainer>
