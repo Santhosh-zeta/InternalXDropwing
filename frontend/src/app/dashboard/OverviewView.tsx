@@ -97,7 +97,7 @@ function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any
                 <RechartsTooltip 
                   cursor={{ fill: 'var(--color-bg-secondary)' }} 
                   contentStyle={{ backgroundColor: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: '8px', color: 'var(--color-text-primary)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} 
-                  formatter={(value: number) => [`$${value.toLocaleString()}`, 'Budget']} 
+                  formatter={(value) => [`$${Number(value ?? 0).toLocaleString()}`, 'Budget']}
                 />
                 <Bar dataKey="total_budget" radius={[4, 4, 0, 0]} maxBarSize={40}>
                   {(analytics?.budgetDistribution || []).map((entry: any, index: number) => (

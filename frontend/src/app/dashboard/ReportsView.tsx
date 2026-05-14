@@ -11,6 +11,7 @@ import {
 
 interface AnalyticsData {
   budgetDistribution: { venture: string; color: string; total_budget: number }[];
+  monthlyPerformance?: { name: string; tasks: number; projects: number }[];
   taskVelocity: { name: string; completed: number }[];
   userDistribution: { name: string; value: number; color: string }[];
 }
@@ -211,7 +212,7 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
                       <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v / 1000).toFixed(0)}K`} />
                       <YAxis type="category" dataKey="venture" tick={{ fontSize: 12, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={130} />
-                      <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v: number) => [`₹${v.toLocaleString()}`, 'Budget']} />
+                      <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v) => [`₹${Number(v ?? 0).toLocaleString()}`, 'Budget']} />
                       <Bar dataKey="total_budget" radius={[0, 8, 8, 0]}>
                         {budgets.map((e, i) => <Cell key={i} fill={e.color || color} />)}
                       </Bar>
