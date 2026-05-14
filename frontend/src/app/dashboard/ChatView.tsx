@@ -222,11 +222,11 @@ export default function ChatView({ currentUser }: ChatViewProps) {
         {/* Self info */}
         <div className="px-3 py-3 border-t border-[var(--color-border)] flex items-center gap-2.5 bg-[var(--color-bg-primary)]/50">
           <div className="relative shrink-0">
-            <Avatar name={currentUser.fullName || currentUser.name} size={28} />
+            <Avatar name={currentUser.fullName} size={28} />
             <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg-secondary)] bg-emerald-500" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-[12px] font-bold text-[var(--color-text-primary)] truncate">{currentUser.fullName || currentUser.name}</div>
+            <div className="text-[12px] font-bold text-[var(--color-text-primary)] truncate">{currentUser.fullName}</div>
             <div className="text-[10px] font-medium text-emerald-500">● Online</div>
           </div>
         </div>

@@ -3,6 +3,7 @@ export interface User {
   employeeId: string;
   fullName: string;
   email: string;
+  phone?: string;
   accessLevel: number;
   levelName: string;
   department: string;

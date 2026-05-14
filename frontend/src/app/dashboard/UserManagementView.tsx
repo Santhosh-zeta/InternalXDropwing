@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { User, VENTURES } from '@/lib/constants';
-import { getUsers, updateUser, deleteUser, getUserDetails } from '@/lib/api';
+import { createUser, getUsers, updateUser, deleteUser, getUserDetails } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { 
   Search, Filter, Edit2, Trash2, X, Check,
