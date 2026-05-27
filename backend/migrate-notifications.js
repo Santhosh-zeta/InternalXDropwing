@@ -28,7 +28,7 @@ const mysql = require('mysql2/promise');
     `INSERT IGNORE INTO notifications (id, user_id, type, title, message, is_read) VALUES
       (1, 1, 'system', 'Welcome to InternalX v2!', 'Reports, Access Control, and Notifications are now live.', 0),
       (2, 1, 'task_assigned', 'New Task Assigned', 'You have been assigned: Review Q2 design assets', 0),
-      (3, 1, 'deadline', 'Deadline Approaching', 'Project SerphoSoft Website Redesign is due in 2 days', 0),
+      (3, 1, 'deadline', 'Deadline Approaching', 'Project Fenixa Solutions Website Redesign is due in 2 days', 0),
       (4, 1, 'project_update', 'Project Status Updated', 'PerSyniX AI Dashboard moved to In Progress', 1),
       (5, 1, 'mention', 'Mentioned in Chat', 'Super Admin was mentioned in #dropwing-general', 1)
     `,

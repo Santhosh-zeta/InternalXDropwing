@@ -61,7 +61,7 @@ async function migrate() {
       
       for (const v of ventures) {
         let obj = '';
-        if (v.slug === 'serphosoft') obj = 'Accelerate Enterprise AI Adoption';
+        if (v.slug === 'fenixa') obj = 'Accelerate Enterprise AI Adoption';
         else if (v.slug === 'dropwing') obj = 'Establish Global Brand Presence';
         else if (v.slug === 'persynix') obj = 'Optimize Supply Chain Analytics';
         else obj = `Expand ${v.name} Market Reach`;

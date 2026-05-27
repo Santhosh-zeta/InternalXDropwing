@@ -86,8 +86,24 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // If user is already verified, log them in directly
-    if (user.is_verified) {
+    // Read 2FA config
+    let enable2FA = true;
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const configPath = path.join(__dirname, '../../config.json');
+      if (fs.existsSync(configPath)) {
+        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+        if (configData.enable2FA === false) {
+          enable2FA = false;
+        }
+      }
+    } catch (e) {
+      console.error('Error reading config.json for 2FA', e);
+    }
+
+    // If user is already verified, or 2FA is globally disabled, log them in directly
+    if (user.is_verified || !enable2FA) {
       await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
       return generateAuthResponse(user, res, 'Login successful');
     }

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
-import Script from "next/script";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -12,7 +11,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "InternalX — Dropwing Groups Portal",
-  description: "Internal management portal for Dropwing Groups and its ventures: Dropwing Design Studio, SerphoSoft, PerSyniX, and Grovia.",
+  description: "Internal management portal for Dropwing Groups and its ventures: Dropwing Design Studio, Fenixa Solutions, PerSyniX, and Grovia.",
   robots: "noindex, nofollow",
 };
 
@@ -25,10 +24,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <head>
-        <Script
+      <body className="antialiased" suppressHydrationWarning>
+        <script
           id="theme-init"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -44,8 +42,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body className="antialiased">
         <Toaster
           position="top-right"
           toastOptions={{

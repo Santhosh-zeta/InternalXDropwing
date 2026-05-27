@@ -43,7 +43,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/users/me');
+        const res = await api.get('/team-members/me');
         if (res.data.success) {
           const user = res.data.data;
           setFullName(user.full_name);
@@ -80,7 +80,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
     try {
       setSaving(true);
       const token = localStorage.getItem('internalx_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/users/me/avatar`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/team-members/me/avatar`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
@@ -106,7 +106,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
     e.preventDefault();
     try {
       setSaving(true);
-      const res = await api.put('/users/me/profile', {
+      const res = await api.put('/team-members/me/profile', {
         full_name: fullName,
         phone,
         notification_preferences: { muteChatAfter5, emailNotifications }
@@ -134,7 +134,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
 
     try {
       setSaving(true);
-      const res = await api.put('/users/me/password', { currentPassword, newPassword });
+      const res = await api.put('/team-members/me/password', { currentPassword, newPassword });
       if (res.data.success) {
         toast.success('Password changed successfully');
         setCurrentPassword('');

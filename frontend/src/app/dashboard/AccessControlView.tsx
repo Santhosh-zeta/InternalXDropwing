@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
-import { getAccessLevels, updateLevelPermissions } from '@/lib/api';
+import { getAccessLevels, updateLevelPermissions, get2FAConfig, update2FAConfig } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { ShieldCheck, Save, RotateCcw, Crown, Loader2, AlertCircle, Lock } from 'lucide-react';
 
@@ -60,10 +60,17 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [enable2FA, setEnable2FA] = useState(true);
+  const [toggling2FA, setToggling2FA] = useState(false);
 
   const fetchLevels = useCallback(async () => {
     setLoading(true);
     try {
+      const configRes = await get2FAConfig();
+      if (configRes.success) {
+        setEnable2FA(configRes.enable2FA);
+      }
+      
       const res = await getAccessLevels();
       if (res.success) {
         const enriched = res.data.map((l: AccessLevel) => {
@@ -106,6 +113,21 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
     if (selectedLevel === 1) return;
     setPerms(p => ({ ...p, [key]: !p[key] }));
     setDirty(true);
+  };
+
+  const handleToggle2FA = async () => {
+    setToggling2FA(true);
+    try {
+      const res = await update2FAConfig(!enable2FA);
+      if (res.success) {
+        setEnable2FA(res.enable2FA);
+        toast.success(`Two-Factor Authentication is now ${res.enable2FA ? 'enabled' : 'disabled'}`);
+      }
+    } catch {
+      toast.error('Failed to update 2FA configuration');
+    } finally {
+      setToggling2FA(false);
+    }
   };
 
   const handleSave = async () => {
@@ -166,6 +188,25 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
             </button>
           </div>
         )}
+      </div>
+
+      {/* Global 2FA Config */}
+      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 flex items-center justify-between shadow-sm">
+        <div>
+          <div className="text-[15px] font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+            <ShieldCheck size={18} className="text-[var(--color-purple-glow)]" /> Global Two-Factor Authentication
+          </div>
+          <div className="text-[13px] font-medium text-[var(--color-text-muted)] mt-1">
+            Enforce OTP verification during login for all users system-wide.
+          </div>
+        </div>
+        <button 
+          onClick={handleToggle2FA}
+          disabled={toggling2FA}
+          className={`relative w-12 h-6 rounded-full transition-colors disabled:opacity-50 ${enable2FA ? 'bg-[var(--color-purple-glow)]' : 'bg-[var(--color-border)]'}`}
+        >
+          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${enable2FA ? 'left-[26px]' : 'left-1'}`} />
+        </button>
       </div>
 
       <div className="grid grid-cols-[220px_1fr] gap-5 items-start">

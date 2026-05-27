@@ -30,12 +30,12 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/team-members', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/projects', require('./routes/project.routes'));
 app.use('/api/chat', require('./routes/chat.routes'));
-app.use('/api/analytics', require('./routes/analytics.routes'));
-app.use('/api/audit', require('./routes/audit.routes'));
+app.use('/api/platform-metrics', require('./routes/analytics.routes'));
+app.use('/api/action-logs', require('./routes/audit.routes'));
 app.use('/api/documents', require('./routes/document.routes'));
 app.use('/api/timesheets', require('./routes/timesheet.routes'));
 app.use('/api/invoices', require('./routes/invoice.routes'));
@@ -47,6 +47,7 @@ app.use('/api/client-portal', require('./routes/client_portal.routes'));
 app.use('/api/learning', require('./routes/learning.routes'));
 app.use('/api/database', require('./routes/database.routes'));
 app.use('/api/strategy', require('./routes/strategy.routes'));
+app.use('/api/role-management', require('./routes/role_management.routes'));
 
 // Serve uploads directory
 const path = require('path');
@@ -107,6 +108,7 @@ io.on('connection', (socket) => {
 
 const startServer = async () => {
   await testConnection();
+  
   server.listen(PORT, () => {
     console.log(`\n🚀 InternalX Backend running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV}`);

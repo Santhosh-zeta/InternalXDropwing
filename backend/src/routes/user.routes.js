@@ -42,15 +42,8 @@ router.get('/', authenticate, async (req, res) => {
     const params = [];
 
     if (req.user.accessLevel > 3) {
-      if (req.user.accessLevel <= 6) {
-         // managers can see users in same venture
-         query += ` AND u.venture_id = ?`;
-         params.push(req.user.ventureId);
-      } else {
-         // normal staff can only see themselves maybe, or people in their venture
-         query += ` AND u.venture_id = ?`;
-         params.push(req.user.ventureId);
-      }
+      query += ` AND u.venture_id = ?`;
+      params.push(req.user.ventureId);
     }
 
     query += ` ORDER BY u.access_level ASC, u.full_name ASC`;
@@ -280,8 +273,8 @@ router.delete('/:id', authenticate, requireLevel(3), async (req, res) => {
   }
 });
 
-// POST /api/users — Create a new user (Admin only)
-router.post('/', authenticate, requireLevel(2), async (req, res) => {
+// POST /api/users — Create a new user (Admin and above)
+router.post('/', authenticate, requireLevel(3), async (req, res) => {
   try {
     const { full_name, email, password, access_level, venture_id, department, designation } = req.body;
     

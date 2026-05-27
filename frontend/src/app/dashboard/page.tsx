@@ -24,6 +24,7 @@ import NotificationBell from './NotificationBell';
 import DatabaseView from './DatabaseView';
 import LearningHubView from './LearningHubView';
 import StrategyView from './StrategyView';
+import RoleManagementView from './RoleManagementView';
 
 import { 
   Hexagon, LayoutDashboard, FolderKanban, CheckSquare, Users, 
@@ -40,10 +41,10 @@ const LEVEL_COLORS: Record<number, string> = {
 };
 
 const ACCESS_MENUS: Record<number, string[]> = {
-  1: ['System Overview', 'Projects', 'Tasks', 'Documents', 'User Management', 'Access Control', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Database', 'Reports'],
-  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Documents', 'Strategy', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
+  1: ['System Overview', 'Projects', 'Tasks', 'Documents', 'User Management', 'Role Management', 'Access Control', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Database', 'Reports'],
+  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Documents', 'Strategy', 'Role Management', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
   3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Documents', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
-  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Documents', 'Team Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
+  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Documents', 'Team Management', 'Role Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
   5: ['Team Dashboard', 'Projects', 'Tasks', 'Documents', 'Team Members', 'Team Chat', 'Learning Hub', 'Settings', 'Reports'],
   6: ['My Projects', 'Tasks', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
   7: ['My Dashboard', 'My Projects', 'My Tasks', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
@@ -68,6 +69,7 @@ const MENU_ICONS: Record<string, React.ElementType> = {
   'User Management': Users,
   'Team Members': Users,
   'Team Management': Users,
+  'Role Management': Users,
   'Access Control': ShieldCheck,
   'Audit Logs': Activity,
   'Team Chat': MessageSquare,
@@ -425,6 +427,8 @@ export default function DashboardPage() {
             <LearningHubView currentUser={user} />
           ) : menus[activeMenu] === 'Database' ? (
             <DatabaseView />
+          ) : menus[activeMenu] === 'Role Management' ? (
+            <RoleManagementView currentUser={user} />
           ) : menus[activeMenu] === 'Access Control' ? (
             <AccessControlView currentUser={user} />
           ) : (

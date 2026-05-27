@@ -184,7 +184,7 @@ async function runSeed() {
     console.log('\n🏢 Seeding ventures...');
     const ventures = [
       ['Dropwing Design Studio', 'dropwing',   '#8B5CF6', 'Creative design studio specializing in brand identity and UI/UX'],
-      ['SerphoSoft',             'serphosoft',  '#06B6D4', 'Software development and SaaS solutions'],
+      ['Fenixa Solutions',       'fenixa',      '#06B6D4', 'Software development and SaaS solutions'],
       ['PerSyniX',               'persynix',    '#F59E0B', 'AI & ML solutions platform'],
       ['Grovia',                 'grovia',      '#10B981', 'Marketing and growth solutions'],
     ];
@@ -224,7 +224,7 @@ async function runSeed() {
 
     // ── Seed Users ──────────────────────────────────────────────────
     // Format: [employee_id, full_name, email, hash, access_level, venture_id (1-4 or null), department, designation]
-    // venture_id: 1=Dropwing, 2=SerphoSoft, 3=PerSyniX, 4=Grovia, null=Global
+    // venture_id: 1=Dropwing, 2=Fenixa Solutions, 3=PerSyniX, 4=Grovia, null=Global
     console.log('\n👥 Seeding users...');
 
     const users = [
@@ -232,57 +232,47 @@ async function runSeed() {
       ['DG-SA-001', 'Super Admin',      'sa@dropwinggroups.com', hash, 1, null, 'Executive', 'Super Administrator'],
       ['DG-MD-001', 'Managing Director','md@dropwinggroups.com', hash, 2, null, 'Executive', 'Managing Director'],
 
-      // ── L1 Super Admin (per venture) ────────────────────────────
-      ['DW-SA-001', 'Super Admin Dropwing',   'sa@dropwing.in',   hash, 1, 1, 'Executive', 'Super Administrator'],
-      ['SS-SA-002', 'Super Admin SerphoSoft',  'sa@serphosoft.com', hash, 1, 2, 'Executive', 'Super Administrator'],
-      ['PX-SA-003', 'Super Admin PerSyniX',    'sa@persynix.com',  hash, 1, 3, 'Executive', 'Super Administrator'],
-      ['GV-SA-004', 'Super Admin Grovia',      'sa@grovia.in',     hash, 1, 4, 'Executive', 'Super Administrator'],
 
-      // ── L2 Managing Director (per venture) ──────────────────────
-      ['DW-MD-005', 'Managing Director Dropwing',  'md@dropwing.in',   hash, 2, 1, 'Executive', 'Managing Director'],
-      ['SS-MD-006', 'Managing Director SerphoSoft', 'md@serphosoft.com', hash, 2, 2, 'Executive', 'Managing Director'],
-      ['PX-MD-007', 'Managing Director PerSyniX',   'md@persynix.com',  hash, 2, 3, 'Executive', 'Managing Director'],
-      ['GV-MD-008', 'Managing Director Grovia',     'md@grovia.in',     hash, 2, 4, 'Executive', 'Managing Director'],
 
       // ── L3 Admin (per venture) ───────────────────────────────────
       ['DW-AD-009', 'Admin Dropwing',   'ad@dropwing.in',   hash, 3, 1, 'Operations', 'Administrator'],
-      ['SS-AD-010', 'Admin SerphoSoft',  'ad@serphosoft.com', hash, 3, 2, 'Operations', 'Administrator'],
+      ['FS-AD-010', 'Admin Fenixa Solutions',  'ad@fenixa.com', hash, 3, 2, 'Operations', 'Administrator'],
       ['PX-AD-011', 'Admin PerSyniX',    'ad@persynix.com',  hash, 3, 3, 'Operations', 'Administrator'],
       ['GV-AD-012', 'Admin Grovia',      'ad@grovia.in',     hash, 3, 4, 'Operations', 'Administrator'],
 
       // ── L4 CXO (per venture) ─────────────────────────────────────
       ['DW-CX-013', 'CXO Dropwing',   'cx@dropwing.in',   hash, 4, 1, 'Executive', 'Chief Technology Officer'],
-      ['SS-CX-014', 'CXO SerphoSoft',  'cx@serphosoft.com', hash, 4, 2, 'Executive', 'Chief Technology Officer'],
+      ['FS-CX-014', 'CXO Fenixa Solutions',  'cx@fenixa.com', hash, 4, 2, 'Executive', 'Chief Technology Officer'],
       ['PX-CX-015', 'CXO PerSyniX',    'cx@persynix.com',  hash, 4, 3, 'Executive', 'Chief Technology Officer'],
       ['GV-CX-016', 'CXO Grovia',      'cx@grovia.in',     hash, 4, 4, 'Executive', 'Chief Technology Officer'],
 
       // ── L5 Manager (per venture) ─────────────────────────────────
       ['DW-MG-017', 'Manager Dropwing',   'mg@dropwing.in',   hash, 5, 1, 'Product', 'Product Manager'],
-      ['SS-MG-018', 'Manager SerphoSoft',  'mg@serphosoft.com', hash, 5, 2, 'Product', 'Product Manager'],
+      ['FS-MG-018', 'Manager Fenixa Solutions',  'mg@fenixa.com', hash, 5, 2, 'Product', 'Product Manager'],
       ['PX-MG-019', 'Manager PerSyniX',    'mg@persynix.com',  hash, 5, 3, 'Product', 'Product Manager'],
       ['GV-MG-020', 'Manager Grovia',      'mg@grovia.in',     hash, 5, 4, 'Product', 'Product Manager'],
 
       // ── L6 Executive Staff (per venture) ─────────────────────────
       ['DW-ES-021', 'Executive Staff Dropwing',   'es@dropwing.in',   hash, 6, 1, 'Operations', 'Executive Officer'],
-      ['SS-ES-022', 'Executive Staff SerphoSoft',  'es@serphosoft.com', hash, 6, 2, 'Operations', 'Executive Officer'],
+      ['FS-ES-022', 'Executive Staff Fenixa Solutions',  'es@fenixa.com', hash, 6, 2, 'Operations', 'Executive Officer'],
       ['PX-ES-023', 'Executive Staff PerSyniX',    'es@persynix.com',  hash, 6, 3, 'Operations', 'Executive Officer'],
       ['GV-ES-024', 'Executive Staff Grovia',      'es@grovia.in',     hash, 6, 4, 'Operations', 'Executive Officer'],
 
       // ── L7 Staff (per venture) ───────────────────────────────────
       ['DW-ST-025', 'Staff Dropwing',   'st@dropwing.in',   hash, 7, 1, 'Design', 'Senior Designer'],
-      ['SS-ST-026', 'Staff SerphoSoft',  'st@serphosoft.com', hash, 7, 2, 'Design', 'Senior Designer'],
+      ['FS-ST-026', 'Staff Fenixa Solutions',  'st@fenixa.com', hash, 7, 2, 'Design', 'Senior Designer'],
       ['PX-ST-027', 'Staff PerSyniX',    'st@persynix.com',  hash, 7, 3, 'Design', 'Senior Designer'],
       ['GV-ST-028', 'Staff Grovia',      'st@grovia.in',     hash, 7, 4, 'Design', 'Senior Designer'],
 
       // ── L8 Intern (per venture) ──────────────────────────────────
       ['DW-IN-029', 'Intern Dropwing',   'in@dropwing.in',   hash, 8, 1, 'Engineering', 'Software Intern'],
-      ['SS-IN-030', 'Intern SerphoSoft',  'in@serphosoft.com', hash, 8, 2, 'Engineering', 'Software Intern'],
+      ['FS-IN-030', 'Intern Fenixa Solutions',  'in@fenixa.com', hash, 8, 2, 'Engineering', 'Software Intern'],
       ['PX-IN-031', 'Intern PerSyniX',    'in@persynix.com',  hash, 8, 3, 'Engineering', 'Software Intern'],
       ['GV-IN-032', 'Intern Grovia',      'in@grovia.in',     hash, 8, 4, 'Engineering', 'Software Intern'],
 
       // ── L9 Client (per venture) ──────────────────────────────────
       ['DW-CL-033', 'Client Dropwing',   'cl@dropwing.in',   hash, 9, 1, 'External', 'Client'],
-      ['SS-CL-034', 'Client SerphoSoft',  'cl@serphosoft.com', hash, 9, 2, 'External', 'Client'],
+      ['FS-CL-034', 'Client Fenixa Solutions',  'cl@fenixa.com', hash, 9, 2, 'External', 'Client'],
       ['PX-CL-035', 'Client PerSyniX',    'cl@persynix.com',  hash, 9, 3, 'External', 'Client'],
       ['GV-CL-036', 'Client Grovia',      'cl@grovia.in',     hash, 9, 4, 'External', 'Client'],
     ];
@@ -337,11 +327,11 @@ async function runSeed() {
     console.log('');
     console.log('  Per-venture pattern:  <role>@<venture>.<tld>');
     console.log('    sa / md / ad / cx / mg / es / st / in / cl');
-    console.log('    @dropwing.in  @serphosoft.com  @persynix.com  @grovia.in');
+    console.log('    @dropwing.in  @fenixa.com  @persynix.com  @grovia.in');
     console.log('');
     console.log('  Examples:');
     console.log('    cx@dropwing.in   → CXO Dropwing (L4)');
-    console.log('    in@serphosoft.com → Intern SerphoSoft (L8)');
+    console.log('    in@fenixa.com → Intern Fenixa Solutions (L8)');
     console.log('    cl@grovia.in     → Client Grovia (L9)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 

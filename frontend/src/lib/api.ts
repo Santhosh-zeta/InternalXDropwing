@@ -60,27 +60,27 @@ export const getMe = async () => {
 
 // Users
 export const getUsers = async () => {
-  const res = await api.get('/users');
+  const res = await api.get('/team-members');
   return res.data;
 };
 
 export const createUser = async (data: any) => {
-  const res = await api.post('/users', data);
+  const res = await api.post('/team-members', data);
   return res.data;
 };
 
 export const updateUser = async (id: number, data: any) => {
-  const res = await api.put(`/users/${id}`, data);
+  const res = await api.put(`/team-members/${id}`, data);
   return res.data;
 };
 
 export const deleteUser = async (id: number) => {
-  const res = await api.delete(`/users/${id}`);
+  const res = await api.delete(`/team-members/${id}`);
   return res.data;
 };
 
 export const getUserDetails = async (id: number) => {
-  const res = await api.get(`/users/${id}`);
+  const res = await api.get(`/team-members/${id}`);
   return res.data;
 };
 
@@ -134,13 +134,13 @@ export const sendChatMessage = async (data: { content: string, ventureId?: strin
 
 // Analytics
 export const getAnalytics = async () => {
-  const res = await api.get('/analytics');
+  const res = await api.get('/platform-metrics');
   return res.data;
 };
 
 // Audit
 export const getAuditLogs = async () => {
-  const res = await api.get('/audit');
+  const res = await api.get('/action-logs');
   return res.data;
 };
 
@@ -152,6 +152,16 @@ export const getAccessLevels = async () => {
 
 export const updateLevelPermissions = async (level: number, permissions: Record<string, boolean>) => {
   const res = await api.put(`/access-control/${level}`, { permissions });
+  return res.data;
+};
+
+export const get2FAConfig = async () => {
+  const res = await api.get('/access-control/2fa-config');
+  return res.data;
+};
+
+export const update2FAConfig = async (enable2FA: boolean) => {
+  const res = await api.put('/access-control/2fa-config', { enable2FA });
   return res.data;
 };
 
@@ -236,6 +246,76 @@ export const deleteLearningFeedback = async (id: number) => {
 // Strategy
 export const getStrategyData = async () => {
   const res = await api.get('/strategy');
+  return res.data;
+};
+
+// ── Role Management ──────────────────────────────────────────────────────────
+export const getRoles = async () => {
+  const res = await api.get('/role-management');
+  return res.data;
+};
+
+export const getRoleVentures = async () => {
+  const res = await api.get('/role-management/ventures');
+  return res.data;
+};
+
+export const getRoleById = async (id: number) => {
+  const res = await api.get(`/role-management/${id}`);
+  return res.data;
+};
+
+export const getRoleAssignableUsers = async () => {
+  const res = await api.get('/role-management/assign-team-members');
+  return res.data;
+};
+
+export const createRole = async (data: {
+  role_name: string;
+  role_key: string;
+  description?: string;
+  color?: string;
+  icon?: string;
+  base_level?: number;
+  permissions?: Record<string, boolean>;
+  venture_id?: number | null;
+  sort_order?: number;
+}) => {
+  const res = await api.post('/role-management', data);
+  return res.data;
+};
+
+export const updateRole = async (id: number, data: Partial<{
+  role_name: string;
+  role_key: string;
+  description: string;
+  color: string;
+  icon: string;
+  base_level: number;
+  permissions: Record<string, boolean>;
+  sort_order: number;
+}>) => {
+  const res = await api.put(`/role-management/${id}`, data);
+  return res.data;
+};
+
+export const deleteRole = async (id: number) => {
+  const res = await api.delete(`/role-management/${id}`);
+  return res.data;
+};
+
+export const duplicateRole = async (id: number) => {
+  const res = await api.post(`/role-management/${id}/duplicate`);
+  return res.data;
+};
+
+export const assignRoleToUser = async (user_id: number, role_id: number) => {
+  const res = await api.post('/role-management/assign', { user_id, role_id });
+  return res.data;
+};
+
+export const removeRoleFromUser = async (user_id: number, role_id: number) => {
+  const res = await api.delete('/role-management/assign', { data: { user_id, role_id } });
   return res.data;
 };
 

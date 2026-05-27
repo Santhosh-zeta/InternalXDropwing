@@ -67,7 +67,7 @@ InternalX manages **4 ventures** within Dropwing Groups, each with its own brand
 | Venture | Slug | Color | Description |
 |---------|------|-------|-------------|
 | **Dropwing Design Studio** | `dropwing` | `#8B5CF6` (Purple) | Creative design studio — brand identity & UI/UX |
-| **SerphoSoft** | `serphosoft` | `#06B6D4` (Cyan) | Software development & SaaS solutions |
+| **Fenixa Solutions** | `fenixa` | `#06B6D4` (Cyan) | Software development & SaaS solutions |
 | **PerSyniX** | `persynix` | `#F59E0B` (Amber) | AI & ML solutions platform |
 | **Grovia** | `grovia` | `#10B981` (Green) | Marketing and growth solutions |
 
@@ -535,28 +535,26 @@ All accounts use password: **`Test@1234`**
 
 ### Per-Venture Accounts
 
-Each venture (Dropwing, SerphoSoft, PerSyniX, Grovia) has one account per role level:
+Each venture (Dropwing, Fenixa Solutions, PerSyniX, Grovia) has one account per role level:
 
-| Role | Dropwing | SerphoSoft | PerSyniX | Grovia |
+| Role | Dropwing | Fenixa Solutions | PerSyniX | Grovia |
 |------|----------|-----------|---------|--------|
-| **L1** Super Admin | `sa@dropwing.in` | `sa@serphosoft.com` | `sa@persynix.com` | `sa@grovia.in` |
-| **L2** MD | `md@dropwing.in` | `md@serphosoft.com` | `md@persynix.com` | `md@grovia.in` |
-| **L3** Admin | `ad@dropwing.in` | `ad@serphosoft.com` | `ad@persynix.com` | `ad@grovia.in` |
-| **L4** CXO | `cx@dropwing.in` | `cx@serphosoft.com` | `cx@persynix.com` | `cx@grovia.in` |
-| **L5** Manager | `mg@dropwing.in` | `mg@serphosoft.com` | `mg@persynix.com` | `mg@grovia.in` |
-| **L6** Exec Staff | `es@dropwing.in` | `es@serphosoft.com` | `es@persynix.com` | `es@grovia.in` |
-| **L7** Staff | `st@dropwing.in` | `st@serphosoft.com` | `st@persynix.com` | `st@grovia.in` |
-| **L8** Intern | `in@dropwing.in` | `in@serphosoft.com` | `in@persynix.com` | `in@grovia.in` |
-| **L9** Client | `cl@dropwing.in` | `cl@serphosoft.com` | `cl@persynix.com` | `cl@grovia.in` |
+| **L3** Admin | `ad@dropwing.in` | `ad@fenixa.com` | `ad@persynix.com` | `ad@grovia.in` |
+| **L4** CXO | `cx@dropwing.in` | `cx@fenixa.com` | `cx@persynix.com` | `cx@grovia.in` |
+| **L5** Manager | `mg@dropwing.in` | `mg@fenixa.com` | `mg@persynix.com` | `mg@grovia.in` |
+| **L6** Exec Staff | `es@dropwing.in` | `es@fenixa.com` | `es@persynix.com` | `es@grovia.in` |
+| **L7** Staff | `st@dropwing.in` | `st@fenixa.com` | `st@persynix.com` | `st@grovia.in` |
+| **L8** Intern | `in@dropwing.in` | `in@fenixa.com` | `in@persynix.com` | `in@grovia.in` |
+| **L9** Client | `cl@dropwing.in` | `cl@fenixa.com` | `cl@persynix.com` | `cl@grovia.in` |
 
-> **Total:** 2 global + 36 per-venture = **38 test accounts**
+> **Total:** 2 global + 28 per-venture = **30 test accounts**
 
 ### Employee ID Format
 
 ```
 [VENTURE_CODE]-[ROLE_CODE]-[SEQUENCE]
   DW = Dropwing    SA = Super Admin    001 ...
-  SS = SerphoSoft  MD = Managing Dir
+  FS = Fenixa Sol. MD = Managing Dir
   PX = PerSyniX    AD = Admin
   GV = Grovia      CX = CXO
                    MG = Manager

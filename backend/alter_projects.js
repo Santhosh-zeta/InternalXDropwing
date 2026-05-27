@@ -39,7 +39,7 @@ async function alterProjects() {
 
     const dummyProjects = [
       ['Website Redesign 2026', 'Complete overhaul of the Dropwing marketing site.', 'active', 15000.00, getVentureId('dropwing'), '2026-05-01', '2026-08-01', 1],
-      ['SaaS Platform Alpha', 'Initial release of SerphoSoft analytics tool.', 'active', 45000.00, getVentureId('serphosoft'), '2026-03-01', '2026-11-15', 1],
+      ['SaaS Platform Alpha', 'Initial release of Fenixa Solutions analytics tool.', 'active', 45000.00, getVentureId('fenixa'), '2026-03-01', '2026-11-15', 1],
       ['AI Model Training', 'Training the new NLP engine for PerSyniX.', 'planning', 22000.00, getVentureId('persynix'), '2026-06-01', '2026-12-31', 1],
       ['Q3 Marketing Push', 'Aggressive ad campaigns for Grovia clients.', 'planning', 8000.00, getVentureId('grovia'), '2026-07-01', '2026-09-30', 1],
     ];

@@ -421,7 +421,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-between mb-4">
                 <p className="text-[10px] font-bold tracking-widest uppercase text-[var(--color-text-muted)]">Quick Access Logins</p>
                 <div className="flex gap-1.5">
-                  {['all', 'dropwing', 'serphosoft', 'persynix', 'grovia'].map(v => (
+                  {['all', 'dropwing', 'fenixa', 'persynix', 'grovia'].map(v => (
                     <button 
                       key={v}
                       onClick={() => setSelectedVenture(v === 'all' ? '' : v)}
