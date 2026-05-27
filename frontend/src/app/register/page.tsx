@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 
 export default function RegisterPage() {
   const router = useRouter();
+  const hasGoogleClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
   
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -215,25 +216,29 @@ export default function RegisterPage() {
             </button>
           </form>
 
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-[var(--color-border)]"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-[var(--color-bg-secondary)] px-2 text-[var(--color-text-muted)]">Or continue with</span>
-            </div>
-          </div>
+          {hasGoogleClientId && (
+            <>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-[var(--color-border)]"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-[var(--color-bg-secondary)] px-2 text-[var(--color-text-muted)]">Or continue with</span>
+                </div>
+              </div>
 
-          <div className="flex justify-center w-full">
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => toast.error('Google login failed')}
-              useOneTap
-              theme="filled_black"
-              shape="pill"
-              width="100%"
-            />
-          </div>
+              <div className="flex justify-center w-full">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => toast.error('Google login failed')}
+                  useOneTap
+                  theme="filled_black"
+                  shape="pill"
+                  width="100%"
+                />
+              </div>
+            </>
+          )}
           
           <div className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             Already have an account?{' '}

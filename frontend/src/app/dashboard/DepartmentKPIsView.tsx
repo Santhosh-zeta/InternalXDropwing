@@ -161,7 +161,7 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
                     <Pie data={levels.filter(l => l.count > 0)} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="count">
                       {levels.filter(l => l.count > 0).map((l, i) => <Cell key={i} fill={LEVEL_COLORS[l.level_number] || color} />)}
                     </Pie>
-                    <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v: number, n: string, p: any) => [v, p.payload.level_name]} />
+                    <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v, _n, p) => [Number(v ?? 0), p.payload.level_name]} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-wrap gap-2.5 mt-3">
@@ -306,7 +306,7 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                   <XAxis dataKey="venture" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v: number) => [`${v}h`, 'Total Hours']} />
+                  <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v) => [`${Number(v ?? 0)}h`, 'Total Hours']} />
                   <Bar dataKey="total_hours" radius={[8, 8, 0, 0]} name="Total Hours">{timesheets.map((_, i) => <Cell key={i} fill={`url(#tsg${i})`} />)}</Bar>
                 </BarChart>
               </ResponsiveContainer>
