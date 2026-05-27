@@ -86,6 +86,7 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
+<<<<<<< Updated upstream
     // Read 2FA config
     let enable2FA = true;
     try {
@@ -104,10 +105,15 @@ const login = async (req, res) => {
 
     // If user is already verified, or 2FA is globally disabled, log them in directly
     if (user.is_verified || !enable2FA) {
+=======
+    // TEMPORARY: Bypass 2FA for all users
+    // if (user.is_verified) {
+>>>>>>> Stashed changes
       await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
       return generateAuthResponse(user, res, 'Login successful');
-    }
+    // }
 
+    /*
     // Otherwise, generate OTP
     const otp = generateOTP();
     // 5 minutes expiry
@@ -128,6 +134,7 @@ const login = async (req, res) => {
         email: user.email // Return email so frontend knows which email to verify
       }
     });
+    */
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ success: false, message: 'Server error during login' });

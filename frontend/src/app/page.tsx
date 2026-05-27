@@ -211,7 +211,7 @@ export default function LoginPage() {
             </div>
           </motion.div>
 
-          {step === 1 ? (
+          {step === 1 && (
             <motion.div 
               key="step1"
               initial={{ opacity: 0, x: -20 }}
@@ -320,7 +320,6 @@ export default function LoginPage() {
                 <GoogleLogin
                   onSuccess={handleGoogleSuccess}
                   onError={() => toast.error('Google login failed')}
-                  useOneTap
                   theme="filled_black"
                   shape="pill"
                   width="100%"
@@ -334,7 +333,10 @@ export default function LoginPage() {
                 </Link>
               </div>
             </motion.div>
-          ) : (
+          )}
+
+          {/* 2FA Temporarily Disabled
+          {step === 2 && (
             <motion.div 
               key="step2"
               initial={{ opacity: 0, x: 20 }}
@@ -410,6 +412,7 @@ export default function LoginPage() {
               </form>
             </motion.div>
           )}
+          */}
 
           {step === 1 && (
             <motion.div

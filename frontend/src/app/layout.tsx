@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
@@ -24,9 +27,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
+<<<<<<< Updated upstream
       <body className="antialiased" suppressHydrationWarning>
         <script
           id="theme-init"
+=======
+      <head>
+        <script
+          id="theme-init"
+          suppressHydrationWarning
+>>>>>>> Stashed changes
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
