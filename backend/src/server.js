@@ -13,11 +13,23 @@ const { testConnection } = require('./config/database');
 const app = express();
 
 // Security & Middleware
+<<<<<<< Updated upstream
 app.use(helmet({
   contentSecurityPolicy: false,
 }));
+=======
+app.use(helmet({ contentSecurityPolicy: false }));
+>>>>>>> Stashed changes
 app.use(morgan('dev'));
 app.use(cookieParser());
+
+// Force HTTPS in production
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(301, `https://${req.hostname}${req.url}`);
+  }
+  next();
+});
 
 // CORS
 app.use(cors({

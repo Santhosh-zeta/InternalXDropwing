@@ -9,8 +9,8 @@ router.use(authenticate, requireLevel(1));
 // List all tables
 router.get('/tables', async (req, res) => {
   try {
-    const [tables] = await pool.query('SHOW TABLES');
-    const tableNames = tables.map(t => Object.values(t)[0]);
+    const [tables] = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+    const tableNames = tables.map(t => t.table_name || Object.values(t)[0]);
     res.json({ success: true, tables: tableNames });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -21,15 +21,15 @@ router.get('/tables', async (req, res) => {
 router.get('/table/:name', async (req, res) => {
   try {
     const tableName = req.params.name;
-    const [tables] = await pool.query('SHOW TABLES');
-    const tableNames = tables.map(t => Object.values(t)[0]);
+    const [tables] = await pool.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+    const tableNames = tables.map(t => t.table_name || Object.values(t)[0]);
     if (!tableNames.includes(tableName)) {
       return res.status(400).json({ success: false, message: 'Invalid table name' });
     }
 
-    const [columns] = await pool.query(`SHOW COLUMNS FROM ??`, [tableName]);
-    const [rows] = await pool.query(`SELECT * FROM ?? LIMIT 100`, [tableName]);
-    const [countRes] = await pool.query(`SELECT COUNT(*) as total FROM ??`, [tableName]);
+    const [columns] = await pool.query(`SELECT column_name as Field, data_type as Type FROM information_schema.columns WHERE table_name = $1`, [tableName]);
+    const [rows] = await pool.query(`SELECT * FROM "${tableName}" LIMIT 100`);
+    const [countRes] = await pool.query(`SELECT COUNT(*) as total FROM "${tableName}"`);
 
     res.json({
       success: true,

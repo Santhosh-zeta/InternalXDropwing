@@ -19,7 +19,7 @@ router.get('/checklist', authenticate, async (req, res) => {
           COUNT(lip.id) AS completions,
           COUNT(DISTINCT u.id) AS total_interns
         FROM learning_checklist_items lci
-        LEFT JOIN learning_intern_progress lip ON lip.checklist_item_id = lci.id AND lip.completed = 1
+        LEFT JOIN learning_intern_progress lip ON lip.checklist_item_id = lci.id AND lip.completed = true
         LEFT JOIN users u ON u.venture_id = ? AND u.access_level = 8
         WHERE lci.venture_id = ? OR lci.venture_id IS NULL
         GROUP BY lci.id
@@ -31,7 +31,7 @@ router.get('/checklist', authenticate, async (req, res) => {
       const [items] = await pool.query(`
         SELECT
           lci.*,
-          COALESCE(lip.completed, 0) AS completed,
+          COALESCE(lip.completed, false) AS completed,
           lip.completed_at
         FROM learning_checklist_items lci
         LEFT JOIN learning_intern_progress lip ON lip.checklist_item_id = lci.id AND lip.user_id = ?
@@ -98,12 +98,12 @@ router.patch('/progress/:checklistItemId', authenticate, async (req, res) => {
     if (existing.length > 0) {
       await pool.query(
         'UPDATE learning_intern_progress SET completed = ?, completed_at = ? WHERE user_id = ? AND checklist_item_id = ?',
-        [completed ? 1 : 0, completed ? new Date() : null, userId, checklistItemId]
+        [completed ? true : false, completed ? new Date() : null, userId, checklistItemId]
       );
     } else {
       await pool.query(
         'INSERT INTO learning_intern_progress (user_id, checklist_item_id, completed, completed_at) VALUES (?,?,?,?)',
-        [userId, checklistItemId, completed ? 1 : 0, completed ? new Date() : null]
+        [userId, checklistItemId, completed ? true : false, completed ? new Date() : null]
       );
     }
     res.json({ success: true });
@@ -123,7 +123,7 @@ router.get('/progress', authenticate, async (req, res) => {
       SELECT
         u.id, u.full_name, u.email, u.department, u.designation,
         COUNT(lci.id) AS total_items,
-        SUM(COALESCE(lip.completed, 0)) AS completed_items,
+        SUM(CASE WHEN lip.completed THEN 1 ELSE 0 END) AS completed_items,
         MAX(lip.completed_at) AS last_activity
       FROM users u
       CROSS JOIN learning_checklist_items lci ON (lci.venture_id = u.venture_id OR lci.venture_id IS NULL)

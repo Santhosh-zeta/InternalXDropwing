@@ -31,7 +31,7 @@ const upload = multer({
 router.get('/', authenticate, async (req, res) => {
   try {
     let query = `
-      SELECT u.id, u.employee_id, u.full_name, u.email, u.personal_email, u.phone, u.emergency_contact, u.access_level, u.department,
+      SELECT u.id, u.employee_id, u.full_name, u.email, u.phone, u.access_level, u.department,
              u.designation, u.is_active, u.last_login, u.created_at,
              al.level_name, v.name AS venture_name, u.venture_id, u.avatar_url
       FROM users u
@@ -175,7 +175,7 @@ router.get('/:id', authenticate, async (req, res) => {
     }
 
     const [userRows] = await pool.query(`
-      SELECT u.id, u.employee_id, u.full_name, u.email, u.personal_email, u.phone, u.emergency_contact, u.access_level, u.department,
+      SELECT u.id, u.employee_id, u.full_name, u.email, u.phone, u.access_level, u.department,
              u.designation, u.is_active, u.last_login, u.created_at,
              al.level_name, al.description as level_description, v.name AS venture_name, u.venture_id, u.avatar_url
       FROM users u
@@ -207,7 +207,7 @@ router.get('/:id', authenticate, async (req, res) => {
 router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
   try {
     const userId = req.params.id;
-    const { access_level, venture_id, is_active, full_name, department, designation, personal_email, phone, emergency_contact } = req.body;
+    const { access_level, venture_id, is_active, full_name, department, designation, phone } = req.body;
     
     // Only L1/L2 can modify everyone. Others can only modify lower levels
     if (req.user.accessLevel > 2) {
@@ -233,9 +233,7 @@ router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
     if (full_name !== undefined) { updates.push('full_name = ?'); params.push(full_name); }
     if (department !== undefined) { updates.push('department = ?'); params.push(department); }
     if (designation !== undefined) { updates.push('designation = ?'); params.push(designation); }
-    if (personal_email !== undefined) { updates.push('personal_email = ?'); params.push(personal_email); }
     if (phone !== undefined) { updates.push('phone = ?'); params.push(phone); }
-    if (emergency_contact !== undefined) { updates.push('emergency_contact = ?'); params.push(emergency_contact); }
 
     if (updates.length === 0) return res.json({ success: true, message: 'No changes provided' });
 

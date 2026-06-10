@@ -46,7 +46,6 @@ async function ensureTables() {
 // ── GET /api/role-management — List roles (filtered by venture for L4, all for L1/L2) ──
 router.get('/', authenticate, async (req, res) => {
   try {
-    await ensureTables();
     const { accessLevel, ventureId } = req.user;
 
     let query = `
@@ -67,7 +66,7 @@ router.get('/', authenticate, async (req, res) => {
       params.push(ventureId);
     }
 
-    query += ` GROUP BY vr.id ORDER BY vr.venture_id ASC, vr.sort_order ASC, vr.role_name ASC`;
+    query += ` GROUP BY vr.id, v.name, v.slug, v.primary_color, u.full_name ORDER BY vr.venture_id ASC, vr.sort_order ASC, vr.role_name ASC`;
 
     const [rows] = await pool.query(query, params);
     const parsed = rows.map(r => ({
@@ -126,7 +125,7 @@ router.get('/assign-team-members', authenticate, async (req, res) => {
       query += ' AND u.venture_id = ?';
       params.push(ventureId);
     }
-    query += ' GROUP BY u.id ORDER BY u.access_level ASC, u.full_name ASC';
+    query += ' GROUP BY u.id, al.level_name, v.name, v.primary_color ORDER BY u.access_level ASC, u.full_name ASC';
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
   } catch (err) {
@@ -138,7 +137,6 @@ router.get('/assign-team-members', authenticate, async (req, res) => {
 // ── GET /api/role-management/:id — Get a single role with its assigned users ──
 router.get('/:id', authenticate, async (req, res) => {
   try {
-    await ensureTables();
     const roleId = parseInt(req.params.id);
     const [rows] = await pool.query(`
       SELECT vr.*, v.name AS venture_name, v.slug AS venture_slug, v.primary_color AS venture_color,
@@ -185,7 +183,6 @@ router.post('/', authenticate, async (req, res) => {
     if (accessLevel > 4) {
       return res.status(403).json({ success: false, message: 'Insufficient privileges to create roles' });
     }
-    await ensureTables();
 
     const { role_name, role_key, description, color, icon, base_level, permissions, venture_id, sort_order } = req.body;
 
@@ -236,7 +233,6 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
     if (accessLevel > 4) {
       return res.status(403).json({ success: false, message: 'Insufficient privileges' });
     }
-    await ensureTables();
 
     const roleId = parseInt(req.params.id);
     const [existing] = await pool.query('SELECT * FROM venture_roles WHERE id = ?', [roleId]);
@@ -268,7 +264,6 @@ router.post('/assign', authenticate, async (req, res) => {
     if (accessLevel > 4) {
       return res.status(403).json({ success: false, message: 'Insufficient privileges' });
     }
-    await ensureTables();
 
     const { user_id, role_id } = req.body;
     if (!user_id || !role_id) {
@@ -328,7 +323,6 @@ router.put('/:id', authenticate, async (req, res) => {
     if (accessLevel > 4) {
       return res.status(403).json({ success: false, message: 'Insufficient privileges' });
     }
-    await ensureTables();
 
     const roleId = parseInt(req.params.id);
     const [existing] = await pool.query('SELECT * FROM venture_roles WHERE id = ?', [roleId]);
@@ -373,7 +367,6 @@ router.delete('/:id', authenticate, async (req, res) => {
     if (accessLevel > 4) {
       return res.status(403).json({ success: false, message: 'Insufficient privileges' });
     }
-    await ensureTables();
 
     const roleId = parseInt(req.params.id);
     const [existing] = await pool.query('SELECT * FROM venture_roles WHERE id = ?', [roleId]);
@@ -384,7 +377,7 @@ router.delete('/:id', authenticate, async (req, res) => {
       return res.status(403).json({ success: false, message: 'Cannot delete roles outside your venture' });
     }
 
-    await pool.query('UPDATE venture_roles SET is_active = 0 WHERE id = ?', [roleId]);
+    await pool.query('UPDATE venture_roles SET is_active = FALSE WHERE id = ?', [roleId]);
     await logAudit(userId, 'DELETE_CUSTOM_ROLE', 'venture_role', roleId, { roleId, role_name: role.role_name });
 
     res.json({ success: true, message: 'Role deactivated successfully' });

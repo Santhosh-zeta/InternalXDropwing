@@ -88,6 +88,13 @@ fs.writeFileSync(path.join(prodDir, '.env.example'), envExample);
 // uploads/.gitkeep
 fs.writeFileSync(path.join(prodDir, 'uploads', '.gitkeep'), '');
 
+// .htaccess
+const htaccessContent = `RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+`;
+fs.writeFileSync(path.join(prodDir, '.htaccess'), htaccessContent);
+
 // README_DEPLOY.md / HOSTINGER_UPLOAD_GUIDE.md
 const readme = `# Hostinger Node.js Deployment Guide for DGOS InternalX
 
