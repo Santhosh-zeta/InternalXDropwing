@@ -13,7 +13,9 @@ const { testConnection } = require('./config/database');
 const app = express();
 
 // Security & Middleware
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+}));
 app.use(morgan('dev'));
 app.use(cookieParser());
 

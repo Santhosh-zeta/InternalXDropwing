@@ -24,7 +24,7 @@ export default function DatabaseView() {
   const fetchTables = async () => {
     setLoadingTables(true);
     try {
-      const res = await fetch('http://localhost:5000/api/database/tables', { headers: authHeader() });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/database/tables`, { headers: authHeader() });
       const data = await res.json();
       if (data.success) { setTables(data.tables); if (data.tables.length > 0 && !selectedTable) setSelectedTable(data.tables[0]); }
       else toast.error(data.message || 'Failed to fetch tables');
@@ -35,7 +35,7 @@ export default function DatabaseView() {
   const fetchTableData = async (name: string) => {
     setLoadingTableData(true); setTableData(null);
     try {
-      const res = await fetch(`http://localhost:5000/api/database/table/${name}`, { headers: authHeader() });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/database/table/${name}`, { headers: authHeader() });
       const data = await res.json();
       if (data.success) setTableData({ columns: data.columns, rows: data.rows, totalCount: data.totalCount });
       else toast.error(data.message || 'Failed to fetch table data');
@@ -47,7 +47,7 @@ export default function DatabaseView() {
     if (!query.trim()) return;
     setLoadingQuery(true); setQueryError(null); setQueryResult(null);
     try {
-      const res = await fetch('http://localhost:5000/api/database/query', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/database/query`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() },
         body: JSON.stringify({ query }),
       });

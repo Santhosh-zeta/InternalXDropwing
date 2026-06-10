@@ -67,7 +67,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
 
   // Init socket & users
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'http://localhost:5000';
+    const url = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://internalx.dropwinggroups.com';
     const s = io(url, { withCredentials: true });
     setSocket(s);
     getUsers().then(r => { if (r.success) setAllUsers(r.data.filter((u: any) => u.id !== currentUser.id)); });

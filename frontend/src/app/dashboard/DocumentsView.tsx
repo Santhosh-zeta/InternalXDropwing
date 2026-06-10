@@ -69,7 +69,7 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
     try {
       setUploading(true);
       const token = localStorage.getItem('internalx_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/documents/upload`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/documents/upload`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
@@ -134,7 +134,7 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
   };
 
   const handleDownload = (doc: DocItem) => {
-    const url = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/uploads/${doc.path}`;
+    const url = `${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/uploads/${doc.path}`;
     window.open(url, '_blank');
   };
 

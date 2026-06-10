@@ -80,7 +80,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
     try {
       setSaving(true);
       const token = localStorage.getItem('internalx_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/team-members/me/avatar`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/team-members/me/avatar`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
@@ -208,7 +208,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
                   className="w-20 h-20 rounded-2xl bg-[var(--color-bg-secondary)] border-2 border-[var(--color-border)] overflow-hidden flex items-center justify-center shrink-0 relative group cursor-pointer"
                   onClick={() => fileInputRef.current?.click()}
                   style={{
-                    backgroundImage: avatarUrl ? `url(${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}${avatarUrl})` : 'none',
+                    backgroundImage: avatarUrl ? `url(${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}${avatarUrl})` : 'none',
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                   }}

@@ -38,7 +38,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
       };
       const ep = endpointMap[tab];
       if (!ep) { setLoading(false); return; }
-      const res = await fetch(`http://localhost:5000${ep}`, { headers: apiHeaders() });
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}${ep}`, { headers: apiHeaders() });
       const data = await res.json();
       if (!data.success) return;
       if (tab === 'checklist' || tab === 'manage_checklists') setChecklists(data.data);
@@ -51,7 +51,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
 
   const toggleProgress = async (id: number, current: boolean) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/learning/progress/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/progress/${id}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
         body: JSON.stringify({ completed: !current }),
       });
@@ -62,7 +62,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   const createChecklist = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/learning/checklist', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/checklist`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
         body: JSON.stringify(newChecklist),
       });
@@ -75,7 +75,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   const deleteChecklist = async (id: number) => {
     if (!confirm('Delete this checklist item?')) return;
     try {
-      if ((await (await fetch(`http://localhost:5000/api/learning/checklist/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
+      if ((await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/checklist/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
         toast.success('Deleted'); fetchData('manage_checklists');
       }
     } catch { toast.error('Failed to delete'); }
@@ -84,7 +84,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   const createResource = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/learning/resources', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/resources`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
         body: JSON.stringify(newResource),
       });
@@ -96,7 +96,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
 
   const deleteResource = async (id: number) => {
     try {
-      if ((await (await fetch(`http://localhost:5000/api/learning/resources/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
+      if ((await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/resources/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
         toast.success('Deleted'); fetchData('resources');
       }
     } catch { toast.error('Failed to delete'); }
@@ -105,7 +105,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   const createFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/learning/feedback', {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/feedback`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
         body: JSON.stringify(newFeedback),
       });
@@ -117,7 +117,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
 
   const deleteFeedback = async (id: number) => {
     try {
-      if ((await (await fetch(`http://localhost:5000/api/learning/feedback/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
+      if ((await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/feedback/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
         toast.success('Deleted'); fetchData('feedback');
       }
     } catch { toast.error('Failed to delete'); }

@@ -233,7 +233,7 @@ export default function RegisterPage() {
                   onError={() => toast.error('Google login failed')}
                   theme="filled_black"
                   shape="pill"
-                  width="100%"
+                  width="350"
                 />
               </div>
             </>
