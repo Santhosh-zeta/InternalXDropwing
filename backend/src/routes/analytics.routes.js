@@ -32,7 +32,7 @@ router.get('/', authenticate, async (req, res) => {
     let velocityQuery = `
       SELECT DATE(updated_at) as date, COUNT(*) as completed_tasks
       FROM tasks
-      WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+      WHERE status = 'completed' AND updated_at >= CURRENT_DATE - INTERVAL '7 days'
     `;
     const velocityParams = [];
     if (accessLevel > 2) {
@@ -90,7 +90,7 @@ router.get('/', authenticate, async (req, res) => {
     const [monthlyTasks] = await pool.query(`
       SELECT TO_CHAR(updated_at, 'Mon') as name, COUNT(*) as tasks, EXTRACT(MONTH FROM updated_at) as m
       FROM tasks
-      WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+      WHERE status = 'completed' AND updated_at >= CURRENT_DATE - INTERVAL '6 months'
       GROUP BY TO_CHAR(updated_at, 'Mon'), EXTRACT(MONTH FROM updated_at)
       ORDER BY m ASC
     `);
@@ -98,7 +98,7 @@ router.get('/', authenticate, async (req, res) => {
     const [monthlyProjects] = await pool.query(`
       SELECT TO_CHAR(updated_at, 'Mon') as name, COUNT(*) as projects, EXTRACT(MONTH FROM updated_at) as m
       FROM projects
-      WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+      WHERE status = 'completed' AND updated_at >= CURRENT_DATE - INTERVAL '6 months'
       GROUP BY TO_CHAR(updated_at, 'Mon'), EXTRACT(MONTH FROM updated_at)
       ORDER BY m ASC
     `);
