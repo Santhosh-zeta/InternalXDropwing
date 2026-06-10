@@ -126,7 +126,7 @@ router.get('/progress', authenticate, async (req, res) => {
         SUM(CASE WHEN lip.completed THEN 1 ELSE 0 END) AS completed_items,
         MAX(lip.completed_at) AS last_activity
       FROM users u
-      CROSS JOIN learning_checklist_items lci ON (lci.venture_id = u.venture_id OR lci.venture_id IS NULL)
+      JOIN learning_checklist_items lci ON (lci.venture_id = u.venture_id OR lci.venture_id IS NULL)
       LEFT JOIN learning_intern_progress lip ON lip.user_id = u.id AND lip.checklist_item_id = lci.id
       WHERE u.venture_id = ? AND u.access_level = 8
       GROUP BY u.id
