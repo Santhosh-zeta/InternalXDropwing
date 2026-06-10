@@ -58,7 +58,7 @@ const createTask = async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO tasks (title, description, status, priority, assigned_to, assigned_by, venture_id, due_date, project_id, parent_task_id)
-       VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       [title, description || null, priority || 'medium', assigned_to, assigned_by, taskVentureId, due_date || null, project_id || null, parent_task_id || null]
     );
 

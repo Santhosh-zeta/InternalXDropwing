@@ -8,21 +8,21 @@ const { logAudit } = require('../services/audit.service');
 async function ensureTables() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS venture_roles (
-      id INT AUTO_INCREMENT PRIMARY KEY,
-      venture_id INT NULL COMMENT 'NULL = global role (SA/MD only)',
+      id SERIAL PRIMARY KEY,
+      venture_id INT NULL,
       role_name VARCHAR(100) NOT NULL,
       role_key VARCHAR(60) NOT NULL,
       description TEXT,
       color VARCHAR(7) DEFAULT '#6366f1',
       icon VARCHAR(10) DEFAULT '🔷',
-      base_level INT NOT NULL DEFAULT 5 COMMENT 'maps to closest access_level for permissions inheritance',
+      base_level INT NOT NULL DEFAULT 5,
       permissions JSON,
       is_active BOOLEAN DEFAULT TRUE,
       sort_order INT DEFAULT 100,
       created_by INT NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      UNIQUE KEY uq_role_key_venture (role_key, venture_id),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE (role_key, venture_id),
       FOREIGN KEY (venture_id) REFERENCES ventures(id) ON DELETE CASCADE,
       FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
     )
@@ -30,12 +30,12 @@ async function ensureTables() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS venture_role_assignments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       user_id INT NOT NULL,
       role_id INT NOT NULL,
       assigned_by INT NULL,
       assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE KEY uq_user_role (user_id, role_id),
+      UNIQUE (user_id, role_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (role_id) REFERENCES venture_roles(id) ON DELETE CASCADE,
       FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
@@ -57,7 +57,7 @@ router.get('/', authenticate, async (req, res) => {
       LEFT JOIN ventures v ON vr.venture_id = v.id
       LEFT JOIN users u ON vr.created_by = u.id
       LEFT JOIN venture_role_assignments vra ON vra.role_id = vr.id
-      WHERE vr.is_active = 1
+      WHERE vr.is_active = TRUE
     `;
     const params = [];
 
@@ -90,7 +90,7 @@ router.get('/', authenticate, async (req, res) => {
 router.get('/ventures', authenticate, async (req, res) => {
   try {
     const { accessLevel, ventureId } = req.user;
-    let query = 'SELECT id, name, slug, primary_color FROM ventures WHERE is_active = 1';
+    let query = 'SELECT id, name, slug, primary_color FROM ventures WHERE is_active = TRUE';
     const params = [];
     if (accessLevel === 4) {
       query += ' AND id = ?';
@@ -111,15 +111,15 @@ router.get('/assign-team-members', authenticate, async (req, res) => {
     let query = `
       SELECT u.id, u.full_name, u.email, u.access_level, u.department, u.designation,
              al.level_name, v.name AS venture_name, v.primary_color AS venture_color,
-             GROUP_CONCAT(vr.id) AS assigned_role_ids,
-             GROUP_CONCAT(vr.role_name SEPARATOR '||') AS assigned_role_names,
-             GROUP_CONCAT(vr.color SEPARATOR '||') AS assigned_role_colors
+             string_agg(vr.id::text, ',') AS assigned_role_ids,
+             string_agg(vr.role_name::text, '||') AS assigned_role_names,
+             string_agg(vr.color::text, '||') AS assigned_role_colors
       FROM users u
       JOIN access_levels al ON u.access_level = al.level_number
       LEFT JOIN ventures v ON u.venture_id = v.id
       LEFT JOIN venture_role_assignments vra ON vra.user_id = u.id
-      LEFT JOIN venture_roles vr ON vr.id = vra.role_id AND vr.is_active = 1
-      WHERE u.is_active = 1
+      LEFT JOIN venture_roles vr ON vr.id = vra.role_id AND vr.is_active = TRUE
+      WHERE u.is_active = TRUE
     `;
     const params = [];
     if (accessLevel === 4) {
@@ -202,7 +202,7 @@ router.post('/', authenticate, async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO venture_roles (venture_id, role_name, role_key, description, color, icon, base_level, permissions, sort_order, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       [
         targetVenture,
         role_name.trim(),
@@ -248,7 +248,7 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO venture_roles (venture_id, role_name, role_key, description, color, icon, base_level, permissions, sort_order, created_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       [role.venture_id, newName, newKey, role.description, role.color, role.icon, role.base_level, role.permissions, role.sort_order + 1, userId]
     );
 
@@ -276,7 +276,7 @@ router.post('/assign', authenticate, async (req, res) => {
     }
 
     // Verify role exists and user has access
-    const [roleRows] = await pool.query('SELECT * FROM venture_roles WHERE id = ? AND is_active = 1', [role_id]);
+    const [roleRows] = await pool.query('SELECT * FROM venture_roles WHERE id = ? AND is_active = TRUE', [role_id]);
     if (!roleRows.length) return res.status(404).json({ success: false, message: 'Role not found' });
 
     const role = roleRows[0];
@@ -285,7 +285,7 @@ router.post('/assign', authenticate, async (req, res) => {
     }
 
     await pool.query(
-      `INSERT IGNORE INTO venture_role_assignments (user_id, role_id, assigned_by) VALUES (?, ?, ?)`,
+      `INSERT INTO venture_role_assignments (user_id, role_id, assigned_by) VALUES (?, ?, ?) ON CONFLICT (user_id, role_id) DO NOTHING`,
       [user_id, role_id, userId]
     );
 

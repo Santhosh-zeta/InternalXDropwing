@@ -31,7 +31,7 @@ router.get('/hr', authenticate, async (req, res) => {
     // Department breakdown (across all/own venture)
     let deptQuery = `
       SELECT u.department, COUNT(u.id) AS count,
-        GROUP_CONCAT(DISTINCT v.name) AS ventures
+        string_agg(DISTINCT v.name::text, ',') AS ventures
       FROM users u
       LEFT JOIN ventures v ON u.venture_id = v.id
       WHERE u.is_active = TRUE AND u.department IS NOT NULL AND u.department != ''

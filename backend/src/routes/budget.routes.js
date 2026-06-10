@@ -133,8 +133,8 @@ router.get('/monthly', authenticate, async (req, res) => {
     const isGlobal = accessLevel <= 2;
     let query = `
       SELECT
-        DATE_FORMAT(t.date, '%b %Y') AS month,
-        DATE_FORMAT(t.date, '%Y-%m') AS month_key,
+        TO_CHAR(t.date, 'Mon YYYY') AS month,
+        TO_CHAR(t.date, 'YYYY-MM') AS month_key,
         COALESCE(SUM(t.hours_worked * 50), 0) AS expenses,
         COALESCE(SUM(t.hours_worked), 0) AS hours
       FROM timesheets t

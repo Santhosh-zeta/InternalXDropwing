@@ -71,7 +71,7 @@ const login = async (req, res) => {
        FROM users u
        JOIN access_levels al ON u.access_level = al.level_number
        LEFT JOIN ventures v ON u.venture_id = v.id
-       WHERE u.email = ? AND u.is_active = 1`,
+       WHERE u.email = ? AND u.is_active = TRUE`,
       [email.toLowerCase().trim()]
     );
 
@@ -86,30 +86,9 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-<<<<<<< Updated upstream
-    // Read 2FA config
-    let enable2FA = true;
-    try {
-      const fs = require('fs');
-      const path = require('path');
-      const configPath = path.join(__dirname, '../../config.json');
-      if (fs.existsSync(configPath)) {
-        const configData = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-        if (configData.enable2FA === false) {
-          enable2FA = false;
-        }
-      }
-    } catch (e) {
-      console.error('Error reading config.json for 2FA', e);
-    }
-
-    // If user is already verified, or 2FA is globally disabled, log them in directly
-    if (user.is_verified || !enable2FA) {
-=======
     // TEMPORARY: Bypass 2FA for all users
     // if (user.is_verified) {
->>>>>>> Stashed changes
-      await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+      await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
       return generateAuthResponse(user, res, 'Login successful');
     // }
 
@@ -158,7 +137,7 @@ const verifyOtp = async (req, res) => {
        FROM users u
        JOIN access_levels al ON u.access_level = al.level_number
        LEFT JOIN ventures v ON u.venture_id = v.id
-       WHERE u.email = ? AND u.is_active = 1`,
+       WHERE u.email = ? AND u.is_active = TRUE`,
       [email.toLowerCase().trim()]
     );
 
@@ -175,7 +154,7 @@ const verifyOtp = async (req, res) => {
 
     // Mark as verified, clear OTP and update last login
     await pool.query(
-      'UPDATE users SET is_verified = 1, otp = NULL, otp_expires_at = NULL, last_login = NOW() WHERE id = ?',
+      'UPDATE users SET is_verified = TRUE, otp = NULL, otp_expires_at = NULL, last_login = CURRENT_TIMESTAMP WHERE id = ?',
       [user.id]
     );
 
@@ -198,7 +177,7 @@ const forgotPassword = async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT id, full_name, email FROM users WHERE email = ? AND is_active = 1',
+      'SELECT id, full_name, email FROM users WHERE email = ? AND is_active = TRUE',
       [email.toLowerCase().trim()]
     );
 
@@ -242,7 +221,7 @@ const resetPassword = async (req, res) => {
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
 
     const [rows] = await pool.query(
-      'SELECT id FROM users WHERE reset_password_token = ? AND reset_password_expires_at > NOW() AND is_active = 1',
+      'SELECT id FROM users WHERE reset_password_token = ? AND reset_password_expires_at > CURRENT_TIMESTAMP AND is_active = TRUE',
       [hashedToken]
     );
 
@@ -286,7 +265,7 @@ const getMe = async (req, res) => {
        FROM users u
        JOIN access_levels al ON u.access_level = al.level_number
        LEFT JOIN ventures v ON u.venture_id = v.id
-       WHERE u.id = ? AND u.is_active = 1`,
+       WHERE u.id = ? AND u.is_active = TRUE`,
       [req.user.id]
     );
 
@@ -387,7 +366,7 @@ const googleLogin = async (req, res) => {
        FROM users u
        JOIN access_levels al ON u.access_level = al.level_number
        LEFT JOIN ventures v ON u.venture_id = v.id
-       WHERE u.email = ? AND u.is_active = 1`,
+       WHERE u.email = ? AND u.is_active = TRUE`,
       [email.toLowerCase().trim()]
     );
 
@@ -396,8 +375,8 @@ const googleLogin = async (req, res) => {
       user = rows[0];
       // Mark as verified if not already (Google users are auto-verified)
       if (!user.is_verified) {
-        await pool.query('UPDATE users SET is_verified = 1 WHERE id = ?', [user.id]);
-        user.is_verified = 1;
+        await pool.query('UPDATE users SET is_verified = TRUE WHERE id = ?', [user.id]);
+        user.is_verified = TRUE;
       }
     } else {
       // Create new user (Intern level 8 by default)
@@ -407,7 +386,7 @@ const googleLogin = async (req, res) => {
 
       const [result] = await pool.query(
         `INSERT INTO users (employee_id, full_name, email, password_hash, access_level, is_verified, avatar_url) 
-         VALUES (?, ?, ?, ?, 8, 1, ?)`,
+         VALUES (?, ?, ?, ?, 8, 1, ?) RETURNING id`,
         [employeeId, name, email.toLowerCase().trim(), passwordHash, picture]
       );
 
@@ -422,7 +401,7 @@ const googleLogin = async (req, res) => {
       user = newUser[0];
     }
 
-    await pool.query('UPDATE users SET last_login = NOW() WHERE id = ?', [user.id]);
+    await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
     return generateAuthResponse(user, res, 'Google login successful');
   } catch (err) {
     console.error('Google login error:', err);

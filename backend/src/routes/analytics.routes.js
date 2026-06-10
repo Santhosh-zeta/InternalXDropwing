@@ -88,18 +88,18 @@ router.get('/', authenticate, async (req, res) => {
 
     // 5. Monthly Performance (Last 6 Months)
     const [monthlyTasks] = await pool.query(`
-      SELECT DATE_FORMAT(updated_at, '%b') as name, COUNT(*) as tasks, MONTH(updated_at) as m
+      SELECT TO_CHAR(updated_at, 'Mon') as name, COUNT(*) as tasks, EXTRACT(MONTH FROM updated_at) as m
       FROM tasks
       WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-      GROUP BY DATE_FORMAT(updated_at, '%b'), MONTH(updated_at)
+      GROUP BY TO_CHAR(updated_at, 'Mon'), EXTRACT(MONTH FROM updated_at)
       ORDER BY m ASC
     `);
 
     const [monthlyProjects] = await pool.query(`
-      SELECT DATE_FORMAT(updated_at, '%b') as name, COUNT(*) as projects, MONTH(updated_at) as m
+      SELECT TO_CHAR(updated_at, 'Mon') as name, COUNT(*) as projects, EXTRACT(MONTH FROM updated_at) as m
       FROM projects
       WHERE status = 'completed' AND updated_at >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-      GROUP BY DATE_FORMAT(updated_at, '%b'), MONTH(updated_at)
+      GROUP BY TO_CHAR(updated_at, 'Mon'), EXTRACT(MONTH FROM updated_at)
       ORDER BY m ASC
     `);
 

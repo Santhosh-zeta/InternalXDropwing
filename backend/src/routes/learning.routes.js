@@ -56,7 +56,7 @@ router.post('/checklist', authenticate, async (req, res) => {
     if (!title) return res.status(400).json({ success: false, message: 'Title is required.' });
 
     const [result] = await pool.query(
-      `INSERT INTO learning_checklist_items (title, description, category, sort_order, due_days, venture_id) VALUES (?,?,?,?,?,?)`,
+      `INSERT INTO learning_checklist_items (title, description, category, sort_order, due_days, venture_id) VALUES (?,?,?,?,?,?) RETURNING id`,
       [title, description || null, category || 'General', sort_order, due_days, ventureId]
     );
     res.json({ success: true, data: { id: result.insertId, title, description, category, sort_order, due_days, venture_id: ventureId } });
@@ -169,7 +169,7 @@ router.post('/resources', authenticate, async (req, res) => {
     if (!title || !url) return res.status(400).json({ success: false, message: 'Title and URL are required.' });
 
     const [result] = await pool.query(
-      `INSERT INTO learning_resources (title, description, url, category, resource_type, added_by, venture_id) VALUES (?,?,?,?,?,?,?)`,
+      `INSERT INTO learning_resources (title, description, url, category, resource_type, added_by, venture_id) VALUES (?,?,?,?,?,?,?) RETURNING id`,
       [title, description || null, url, category || 'General', resource_type, userId, ventureId]
     );
     res.json({ success: true, data: { id: result.insertId, title, description, url, category, resource_type, venture_id: ventureId } });
@@ -240,7 +240,7 @@ router.post('/feedback', authenticate, async (req, res) => {
     if (!intern_id || !note) return res.status(400).json({ success: false, message: 'Intern and note are required.' });
 
     const [result] = await pool.query(
-      `INSERT INTO learning_feedback (manager_id, intern_id, note, rating, week_label, venture_id) VALUES (?,?,?,?,?,?)`,
+      `INSERT INTO learning_feedback (manager_id, intern_id, note, rating, week_label, venture_id) VALUES (?,?,?,?,?,?) RETURNING id`,
       [managerId, intern_id, note, rating, week_label, ventureId]
     );
     res.json({ success: true, data: { id: result.insertId, manager_id: managerId, intern_id, note, rating, week_label } });

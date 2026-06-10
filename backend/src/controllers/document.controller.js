@@ -13,7 +13,7 @@ exports.uploadDocument = async (req, res, next) => {
 
     const query = `
       INSERT INTO documents (file_name, original_name, mime_type, size, path, venture_id, project_id, uploaded_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
     `;
 
     const values = [

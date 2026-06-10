@@ -51,8 +51,8 @@ router.get('/overview', authenticate, async (req, res) => {
       // Use timesheets-based invoice simulation
       const [invRows] = await pool.query(`
         SELECT
-          CONCAT('INV-', DATE_FORMAT(MIN(t.date), '%Y%m'), '-', u.venture_id) AS invoice_number,
-          DATE_FORMAT(MIN(t.date), '%b %Y') AS month,
+          CONCAT('INV-', TO_CHAR(MIN(t.date), 'YYYYMM'), '-', u.venture_id) AS invoice_number,
+          TO_CHAR(MIN(t.date), 'Mon YYYY') AS month,
           SUM(t.hours_worked) AS total_hours,
           SUM(t.hours_worked * 50) AS total_amount,
           'pending' AS status,
@@ -60,7 +60,7 @@ router.get('/overview', authenticate, async (req, res) => {
         FROM timesheets t
         JOIN users u ON t.user_id = u.id
         WHERE u.venture_id = ? AND t.status = 'approved'
-        GROUP BY DATE_FORMAT(t.date, '%Y-%m'), u.venture_id
+        GROUP BY TO_CHAR(t.date, 'YYYY-MM'), u.venture_id
         ORDER BY MIN(t.date) DESC
         LIMIT 12
       `, [ventureId]);

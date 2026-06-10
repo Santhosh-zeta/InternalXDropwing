@@ -59,7 +59,7 @@ router.get('/', authenticate, async (req, res) => {
 // GET /api/users/ventures — Public list of ventures
 router.get('/ventures', async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM ventures WHERE is_active = 1');
+    const [rows] = await pool.query('SELECT * FROM ventures WHERE is_active = TRUE');
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -293,7 +293,7 @@ router.post('/', authenticate, requireLevel(3), async (req, res) => {
 
     const [result] = await pool.query(
       `INSERT INTO users (employee_id, full_name, email, password_hash, access_level, venture_id, department, designation)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
       [employeeId, full_name, email, hash, access_level, venture_id || null, department || null, designation || null]
     );
 

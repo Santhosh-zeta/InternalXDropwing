@@ -11,7 +11,7 @@ exports.logHours = async (req, res, next) => {
 
     const query = `
       INSERT INTO timesheets (user_id, task_id, project_id, venture_id, hours_worked, date, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id
     `;
     const values = [req.user.id, taskId || null, projectId || null, ventureId || req.user.ventureId || null, hours, activityDate, notes || ''];
 

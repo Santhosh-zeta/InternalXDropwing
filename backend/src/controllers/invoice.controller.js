@@ -26,7 +26,7 @@ exports.getInvoices = async (req, res, next) => {
       SELECT 
         t.venture_id,
         v.name as venture_name,
-        DATE_FORMAT(t.date, '%Y-%m') as invoice_month,
+        TO_CHAR(t.date, 'YYYY-MM') as invoice_month,
         SUM(t.hours_worked) as total_hours,
         COUNT(t.id) as timesheet_count
       FROM timesheets t
@@ -83,7 +83,7 @@ exports.getInvoiceDetails = async (req, res, next) => {
       JOIN users u ON t.user_id = u.id
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN tasks ts ON t.task_id = ts.id
-      WHERE t.status = 'approved' AND t.venture_id = ? AND DATE_FORMAT(t.date, '%Y-%m') = ?
+      WHERE t.status = 'approved' AND t.venture_id = ? AND TO_CHAR(t.date, 'YYYY-MM') = ?
       ORDER BY t.date ASC
     `;
 

@@ -112,7 +112,7 @@ router.post('/', authenticate, requireLevel(4), async (req, res) => {
         name, description, status, priority, category, budget, 
         venture_id, start_date, end_date, client_name, client_email, created_by, tags
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
     `, [
       name, description, status || 'planning', priority || 'medium', category || 'General',
       budget || 0, vId, start_date || null, end_date || null, 

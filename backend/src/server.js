@@ -53,9 +53,39 @@ app.use('/api/role-management', require('./routes/role_management.routes'));
 const path = require('path');
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
+// Serve frontend build
+app.use(express.static(path.join(__dirname, '../public/frontend-build'), { extensions: ['html'] }));
+
+// Redirect /index.html to / to prevent Next.js router from rendering a blank page
+app.get('/index.html', (req, res) => res.redirect(301, '/'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'InternalX API is running', timestamp: new Date().toISOString() });
+});
+
+// SPA Fallback for frontend
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
+    return next();
+  }
+  
+  const fs = require('fs');
+  const indexPath = path.join(__dirname, '../public/frontend-build/index.html');
+  
+  if (fs.existsSync(indexPath)) {
+    res.sendFile(indexPath);
+  } else {
+    res.status(503).send(`
+      <html>
+        <head><title>Service Unavailable</title></head>
+        <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+          <h1>Frontend is currently building or not deployed yet.</h1>
+          <p>Please try again later. If you are the administrator, ensure the frontend build is located in <code>public/frontend-build</code>.</p>
+        </body>
+      </html>
+    `);
+  }
 });
 
 // 404 handler

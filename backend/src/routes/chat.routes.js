@@ -61,7 +61,7 @@ router.post('/messages', authenticate, async (req, res) => {
     }
 
     const [result] = await pool.query(
-      'INSERT INTO messages (sender_id, receiver_id, venture_id, content) VALUES (?, ?, ?, ?)',
+      'INSERT INTO messages (sender_id, receiver_id, venture_id, content) VALUES (?, ?, ?, ?) RETURNING id',
       [req.user.id, rId, vId, content]
     );
 
