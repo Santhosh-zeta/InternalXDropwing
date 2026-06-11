@@ -8,8 +8,8 @@ part of 'task_models.dart';
 
 _$TaskAssigneeImpl _$$TaskAssigneeImplFromJson(Map<String, dynamic> json) =>
     _$TaskAssigneeImpl(
-      id: (json['id'] as num).toInt(),
-      name: json['name'] as String,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      name: json['name'] as String? ?? '',
       avatar: json['avatar'] as String?,
     );
 
@@ -22,20 +22,24 @@ Map<String, dynamic> _$$TaskAssigneeImplToJson(_$TaskAssigneeImpl instance) =>
 
 _$TaskModelImpl _$$TaskModelImplFromJson(Map<String, dynamic> json) =>
     _$TaskModelImpl(
-      id: (json['id'] as num).toInt(),
-      title: json['title'] as String,
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      title: json['title'] as String? ?? '',
       description: json['description'] as String?,
-      status: json['status'] as String,
-      priority: json['priority'] as String,
-      assignedBy: (json['assigned_by'] as num).toInt(),
+      status: json['status'] as String? ?? 'pending',
+      priority: json['priority'] as String? ?? 'medium',
+      assignedBy: (json['assigned_by'] as num?)?.toInt() ?? 0,
       ventureId: (json['venture_id'] as num?)?.toInt(),
       projectId: (json['project_id'] as num?)?.toInt(),
       parentTaskId: (json['parent_task_id'] as num?)?.toInt(),
       dueDate: json['due_date'] == null
           ? null
           : DateTime.parse(json['due_date'] as String),
-      createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: DateTime.parse(json['updated_at'] as String),
+      createdAt: json['created_at'] == null
+          ? null
+          : DateTime.parse(json['created_at'] as String),
+      updatedAt: json['updated_at'] == null
+          ? null
+          : DateTime.parse(json['updated_at'] as String),
       assignedByName: json['assigned_by_name'] as String?,
       assignedByAvatar: json['assigned_by_avatar'] as String?,
       ventureName: json['venture_name'] as String?,
@@ -60,8 +64,8 @@ Map<String, dynamic> _$$TaskModelImplToJson(_$TaskModelImpl instance) =>
       'project_id': instance.projectId,
       'parent_task_id': instance.parentTaskId,
       'due_date': instance.dueDate?.toIso8601String(),
-      'created_at': instance.createdAt.toIso8601String(),
-      'updated_at': instance.updatedAt.toIso8601String(),
+      'created_at': instance.createdAt?.toIso8601String(),
+      'updated_at': instance.updatedAt?.toIso8601String(),
       'assigned_by_name': instance.assignedByName,
       'assigned_by_avatar': instance.assignedByAvatar,
       'venture_name': instance.ventureName,

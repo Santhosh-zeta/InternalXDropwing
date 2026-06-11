@@ -1,81 +1,62 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import '../../data/models/project_models.dart';
+import '../../data/repositories/projects_repository_impl.dart';
 
-enum ProjectFilter { all, mine, archived }
+part 'projects_provider.g.dart';
+
+enum ProjectFilter { all, active, completed, archived }
 
 final projectFilterProvider =
     StateProvider<ProjectFilter>((ref) => ProjectFilter.all);
 
-final projectsProvider = Provider<List<ProjectModel>>((ref) {
-  return [
-    ProjectModel(
-      id: 1,
-      name: 'Website Redesign',
-      progress: 0.75,
-      budget: 15000.0,
-      memberAvatars: [
-        'https://i.pravatar.cc/150?img=11',
-        'https://i.pravatar.cc/150?img=12'
-      ],
-      completedMilestones: 3,
-      totalMilestones: 4,
-      isArchived: false,
-      isMine: true,
-    ),
-    ProjectModel(
-      id: 2,
-      name: 'Mobile App Launch',
-      progress: 0.40,
-      budget: 32000.0,
-      memberAvatars: [
-        'https://i.pravatar.cc/150?img=33',
-        'https://i.pravatar.cc/150?img=44',
-        'https://i.pravatar.cc/150?img=55'
-      ],
-      completedMilestones: 2,
-      totalMilestones: 5,
-      isArchived: false,
-      isMine: true,
-    ),
-    ProjectModel(
-      id: 3,
-      name: 'Marketing Campaign Q3',
-      progress: 1.0,
-      budget: 8500.0,
-      memberAvatars: ['https://i.pravatar.cc/150?img=66'],
-      completedMilestones: 5,
-      totalMilestones: 5,
-      isArchived: true,
-      isMine: false,
-    ),
-    ProjectModel(
-      id: 4,
-      name: 'Backend Migration',
-      progress: 0.10,
-      budget: 50000.0,
-      memberAvatars: [
-        'https://i.pravatar.cc/150?img=68',
-        'https://i.pravatar.cc/150?img=69'
-      ],
-      completedMilestones: 1,
-      totalMilestones: 10,
-      isArchived: false,
-      isMine: false,
-    ),
-  ];
-});
+@riverpod
+class ProjectList extends _$ProjectList {
+  @override
+  Future<List<ProjectModel>> build() async {
+    final repository = ref.watch(projectsRepositoryProvider);
+    return repository.getProjects();
+  }
 
-final filteredProjectsProvider = Provider<List<ProjectModel>>((ref) {
-  final projects = ref.watch(projectsProvider);
+  Future<void> refresh() async {
+    ref.invalidateSelf();
+    await future;
+  }
+
+  Future<bool> deleteProject(int id) async {
+    try {
+      final repository = ref.read(projectsRepositoryProvider);
+      await repository.deleteProject(id);
+      // Remove from local state
+      final currentList = state.value ?? [];
+      state = AsyncData(currentList.where((p) => p.id != id).toList());
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+}
+
+@riverpod
+Future<List<ProjectModel>> filteredProjects(FilteredProjectsRef ref) async {
+  final projects = await ref.watch(projectListProvider.future);
   final filter = ref.watch(projectFilterProvider);
 
   switch (filter) {
-    case ProjectFilter.mine:
-      return projects.where((p) => p.isMine && !p.isArchived).toList();
+    case ProjectFilter.active:
+      return projects.where((p) => p.isActive && !p.isArchived).toList();
+    case ProjectFilter.completed:
+      return projects.where((p) => p.isCompleted).toList();
     case ProjectFilter.archived:
       return projects.where((p) => p.isArchived).toList();
     case ProjectFilter.all:
     default:
-      return projects.where((p) => !p.isArchived).toList();
+      return projects;
   }
-});
+}
+
+@riverpod
+Future<ProjectModel> projectDetail(ProjectDetailRef ref, int id) async {
+  final repository = ref.watch(projectsRepositoryProvider);
+  return repository.getProjectById(id);
+}

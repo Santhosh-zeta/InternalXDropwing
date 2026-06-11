@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/theme/nebula_colors.dart';
 
 class WorkspaceScreen extends StatelessWidget {
   const WorkspaceScreen({super.key});
@@ -6,11 +9,13 @@ class WorkspaceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: NebulaColors.background,
       appBar: AppBar(
         title: const Text('Workspace',
-            style: TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.white,
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: NebulaColors.textPrimary)),
+        backgroundColor: NebulaColors.surfaceCard,
         elevation: 0,
         centerTitle: false,
       ),
@@ -21,21 +26,30 @@ class WorkspaceScreen extends StatelessWidget {
           children: [
             const Text(
               'Your Hub for Knowledge & Strategy',
-              style: TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: NebulaColors.textSecondary),
             ),
             const SizedBox(height: 24),
             _buildSection(
               context,
               title: 'Learning',
-              icon: Icons.school_outlined,
+              icon: LucideIcons.graduationCap,
               color: Colors.purple,
               items: [
                 _WorkspaceItem(
-                    title: 'Courses', icon: Icons.play_lesson_outlined),
+                  title: 'Learning Hub',
+                  icon: LucideIcons.bookOpen,
+                  route: '/learning',
+                ),
                 _WorkspaceItem(
-                    title: 'Resources', icon: Icons.library_books_outlined),
+                  title: 'Resources',
+                  icon: LucideIcons.library,
+                  route: '/learning',
+                ),
                 _WorkspaceItem(
-                    title: 'Checklists', icon: Icons.checklist_rtl_outlined),
+                  title: 'Checklists',
+                  icon: LucideIcons.listChecks,
+                  route: '/learning',
+                ),
               ],
             ),
             const SizedBox(height: 20),
@@ -46,38 +60,74 @@ class WorkspaceScreen extends StatelessWidget {
               color: Colors.blue,
               items: [
                 _WorkspaceItem(
-                    title: 'Company Docs', icon: Icons.business_outlined),
+                  title: 'All Files',
+                  icon: LucideIcons.files,
+                  route: '/documents',
+                ),
                 _WorkspaceItem(
-                    title: 'Project Docs', icon: Icons.snippet_folder_outlined),
-                _WorkspaceItem(title: 'Policies', icon: Icons.policy_outlined),
+                  title: 'Upload',
+                  icon: LucideIcons.upload,
+                  route: '/documents',
+                ),
+                _WorkspaceItem(
+                  title: 'Shared',
+                  icon: LucideIcons.share2,
+                  route: '/documents',
+                ),
               ],
             ),
             const SizedBox(height: 20),
             _buildSection(
               context,
               title: 'Strategy',
-              icon: Icons.lightbulb_outline,
+              icon: LucideIcons.lightbulb,
               color: Colors.orange,
               items: [
                 _WorkspaceItem(
-                    title: 'OKRs', icon: Icons.track_changes_outlined),
-                _WorkspaceItem(title: 'KPIs', icon: Icons.trending_up_outlined),
+                  title: 'OKRs',
+                  icon: LucideIcons.target,
+                  route: '/strategy',
+                  comingSoon: false,
+                ),
                 _WorkspaceItem(
-                    title: 'Risks', icon: Icons.warning_amber_outlined),
+                  title: 'KPIs',
+                  icon: LucideIcons.trendingUp,
+                  route: '/kpis',
+                  comingSoon: false,
+                ),
+                _WorkspaceItem(
+                  title: 'Risks',
+                  icon: LucideIcons.alertTriangle,
+                  route: '/strategy',
+                  comingSoon: false,
+                ),
               ],
             ),
             const SizedBox(height: 20),
             _buildSection(
               context,
-              title: 'Analytics',
-              icon: Icons.analytics_outlined,
+              title: 'Analytics & Management',
+              icon: LucideIcons.pieChart,
               color: Colors.teal,
               items: [
                 _WorkspaceItem(
-                    title: 'Performance', icon: Icons.speed_outlined),
-                _WorkspaceItem(title: 'Reports', icon: Icons.pie_chart_outline),
+                  title: 'Timesheets',
+                  icon: LucideIcons.clock,
+                  route: '/timesheets',
+                  comingSoon: false,
+                ),
                 _WorkspaceItem(
-                    title: 'Insights', icon: Icons.insights_outlined),
+                  title: 'Audit Logs',
+                  icon: LucideIcons.shield,
+                  route: '/audit',
+                  comingSoon: false,
+                ),
+                _WorkspaceItem(
+                  title: 'Team Mgmt',
+                  icon: LucideIcons.users,
+                  route: '/team',
+                  comingSoon: false,
+                ),
               ],
             ),
             const SizedBox(height: 32),
@@ -96,7 +146,7 @@ class WorkspaceScreen extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
@@ -126,7 +176,7 @@ class WorkspaceScreen extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+                  color: NebulaColors.textPrimary,
                 ),
               ),
             ],
@@ -150,35 +200,64 @@ class WorkspaceScreen extends StatelessWidget {
 
   Widget _buildItemCard(
       BuildContext context, _WorkspaceItem item, Color sectionColor) {
+    final isAvailable = item.route != null;
+
     return InkWell(
       onTap: () {
-        // Navigation will be implemented based on routes
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Navigating to ${item.title}...')),
-        );
+        if (isAvailable && item.route != null) {
+          context.push(item.route!);
+        } else if (item.comingSoon) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('${item.title} — Coming Soon'),
+              behavior: SnackBarBehavior.floating,
+              backgroundColor: NebulaColors.surfaceCard,
+            ),
+          );
+        }
       },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: NebulaColors.background,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade100),
+          border: Border.all(
+            color: isAvailable
+                ? sectionColor.withOpacity(0.3)
+                : NebulaColors.surface,
+          ),
         ),
         padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(item.icon, color: sectionColor.withOpacity(0.8), size: 28),
+            Icon(item.icon,
+                color: isAvailable
+                    ? sectionColor.withOpacity(0.9)
+                    : NebulaColors.textSecondary.withOpacity(0.4),
+                size: 28),
             const SizedBox(height: 12),
             Text(
               item.title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: Colors.black87,
+                color: isAvailable
+                    ? NebulaColors.textPrimary
+                    : NebulaColors.textSecondary.withOpacity(0.5),
               ),
             ),
+            if (item.comingSoon) ...[
+              const SizedBox(height: 4),
+              const Text(
+                'Soon',
+                style: TextStyle(
+                    fontSize: 9,
+                    color: NebulaColors.textSecondary,
+                    fontStyle: FontStyle.italic),
+              ),
+            ],
           ],
         ),
       ),
@@ -189,6 +268,13 @@ class WorkspaceScreen extends StatelessWidget {
 class _WorkspaceItem {
   final String title;
   final IconData icon;
+  final String? route;
+  final bool comingSoon;
 
-  _WorkspaceItem({required this.title, required this.icon});
+  _WorkspaceItem({
+    required this.title,
+    required this.icon,
+    this.route,
+    this.comingSoon = false,
+  });
 }

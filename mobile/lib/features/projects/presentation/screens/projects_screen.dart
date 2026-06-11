@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/theme/nebula_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -10,19 +12,28 @@ class ProjectsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final projects = ref.watch(filteredProjectsProvider);
+    final projectsAsync = ref.watch(filteredProjectsProvider);
     final currentFilter = ref.watch(projectFilterProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: NebulaColors.background,
       appBar: AppBar(
         title: const Text('Projects',
-            style: TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.white,
+            style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: NebulaColors.textPrimary)),
+        backgroundColor: NebulaColors.surfaceCard,
         elevation: 0,
         centerTitle: false,
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.plus, color: NebulaColors.primary),
+            onPressed: () => context.push('/projects/create'),
+            tooltip: 'New Project',
+          ),
+        ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
+          preferredSize: const Size.fromHeight(56),
           child: Container(
             alignment: Alignment.centerLeft,
             padding:
@@ -32,7 +43,7 @@ class ProjectsScreen extends ConsumerWidget {
               child: Row(
                 children: [
                   _FilterChip(
-                    label: 'All Projects',
+                    label: 'All',
                     isSelected: currentFilter == ProjectFilter.all,
                     onSelected: () => ref
                         .read(projectFilterProvider.notifier)
@@ -40,11 +51,19 @@ class ProjectsScreen extends ConsumerWidget {
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
-                    label: 'My Projects',
-                    isSelected: currentFilter == ProjectFilter.mine,
+                    label: 'Active',
+                    isSelected: currentFilter == ProjectFilter.active,
                     onSelected: () => ref
                         .read(projectFilterProvider.notifier)
-                        .state = ProjectFilter.mine,
+                        .state = ProjectFilter.active,
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: 'Completed',
+                    isSelected: currentFilter == ProjectFilter.completed,
+                    onSelected: () => ref
+                        .read(projectFilterProvider.notifier)
+                        .state = ProjectFilter.completed,
                   ),
                   const SizedBox(width: 8),
                   _FilterChip(
@@ -60,18 +79,72 @@ class ProjectsScreen extends ConsumerWidget {
           ),
         ),
       ),
-      body: projects.isEmpty
-          ? const Center(
-              child: Text('No projects found.',
-                  style: TextStyle(color: Colors.grey)))
-          : ListView.separated(
+      body: projectsAsync.when(
+        data: (projects) {
+          if (projects.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(LucideIcons.folderOpen,
+                      size: 64,
+                      color: NebulaColors.textSecondary.withOpacity(0.4)),
+                  const SizedBox(height: 16),
+                  const Text('No projects found.',
+                      style: TextStyle(
+                          color: NebulaColors.textSecondary, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  const Text('Tap + to create your first project.',
+                      style: TextStyle(
+                          color: NebulaColors.textSecondary, fontSize: 13)),
+                ],
+              ),
+            );
+          }
+          return RefreshIndicator(
+            onRefresh: () => ref.read(projectListProvider.notifier).refresh(),
+            child: ListView.separated(
               padding: const EdgeInsets.all(16.0),
               itemCount: projects.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 16),
+              separatorBuilder: (context, index) =>
+                  const SizedBox(height: 16),
               itemBuilder: (context, index) {
                 return _ProjectCard(project: projects[index]);
               },
             ),
+          );
+        },
+        loading: () => const Center(
+            child: CircularProgressIndicator(color: NebulaColors.primary)),
+        error: (e, st) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(LucideIcons.alertCircle,
+                  size: 48, color: NebulaColors.critical),
+              const SizedBox(height: 12),
+              Text(
+                'Failed to load projects',
+                style: const TextStyle(
+                    color: NebulaColors.textPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 8),
+              Text(e.toString(),
+                  style: const TextStyle(
+                      color: NebulaColors.textSecondary, fontSize: 12),
+                  textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () => ref.invalidate(projectListProvider),
+                icon: const Icon(LucideIcons.refreshCw),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -81,23 +154,56 @@ class _ProjectCard extends StatelessWidget {
 
   const _ProjectCard({required this.project});
 
+  Color _statusColor() {
+    switch (project.status) {
+      case 'active':
+        return NebulaColors.primary;
+      case 'completed':
+        return NebulaColors.success;
+      case 'archived':
+        return NebulaColors.textSecondary;
+      case 'on-hold':
+        return NebulaColors.warning;
+      default:
+        return NebulaColors.highlight;
+    }
+  }
+
+  Color _priorityColor() {
+    switch (project.priority) {
+      case 'high':
+        return NebulaColors.critical;
+      case 'medium':
+        return NebulaColors.warning;
+      case 'low':
+        return NebulaColors.success;
+      default:
+        return NebulaColors.textSecondary;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final currencyFormatter = NumberFormat.currency(symbol: '\$');
+    final statusColor = _statusColor();
+    final hasProgress = project.taskCount > 0;
+    final progressValue =
+        hasProgress ? project.completedTaskCount / project.taskCount : 0.0;
 
     return InkWell(
       onTap: () => context.push('/projects/${project.id}'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: NebulaColors.surfaceCard,
           borderRadius: BorderRadius.circular(16),
+          border: Border(
+            left: BorderSide(color: statusColor, width: 3),
+          ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.08),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -105,168 +211,197 @@ class _ProjectCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header: Name and Status
+            // Header row
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(
-                    project.name,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (project.ventureName != null)
+                        Text(
+                          project.ventureName!,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: statusColor,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.5),
+                        ),
+                      const SizedBox(height: 2),
+                      Text(
+                        project.name,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: NebulaColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ),
-                if (project.isArchived)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'ARCHIVED',
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey),
-                    ),
-                  )
-                else if (project.progress == 1.0)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'COMPLETED',
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.green),
-                    ),
-                  )
-                else
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      'ACTIVE',
-                      style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.blue),
-                    ),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(20),
                   ),
+                  child: Text(
+                    project.status.toUpperCase(),
+                    style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: statusColor),
+                  ),
+                ),
               ],
             ),
+
+            if (project.description != null &&
+                project.description!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                project.description!,
+                style: const TextStyle(
+                    fontSize: 13, color: NebulaColors.textSecondary),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+
             const SizedBox(height: 16),
 
-            // Progress Bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Progress',
-                    style: TextStyle(fontSize: 12, color: Colors.grey)),
-                Text('${(project.progress * 100).toInt()}%',
+            // Progress bar
+            if (hasProgress) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${project.completedTaskCount}/${project.taskCount} tasks',
                     style: const TextStyle(
+                        fontSize: 12, color: NebulaColors.textSecondary),
+                  ),
+                  Text(
+                    '${(progressValue * 100).toInt()}%',
+                    style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            LinearProgressIndicator(
-              value: project.progress,
-              backgroundColor: Colors.grey.shade200,
-              color:
-                  project.progress == 1.0 ? Colors.green : theme.primaryColor,
-              minHeight: 6,
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const SizedBox(height: 20),
+                        color: statusColor),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: progressValue,
+                  backgroundColor: NebulaColors.surface,
+                  valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+                  minHeight: 5,
+                ),
+              ),
+              const SizedBox(height: 14),
+            ],
 
-            // Metrics: Budget, Milestones, Members
+            // Footer row: priority, members, date
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                // Budget & Milestones
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // Priority badge
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.attach_money,
-                            size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          currencyFormatter.format(project.budget),
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.black87),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.flag_outlined,
-                            size: 16, color: Colors.grey),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${project.completedMilestones}/${project.totalMilestones} Milestones',
-                          style:
-                              const TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ],
+                    Icon(LucideIcons.flag,
+                        size: 13, color: _priorityColor()),
+                    const SizedBox(width: 4),
+                    Text(
+                      project.priority.toUpperCase(),
+                      style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _priorityColor()),
                     ),
                   ],
                 ),
 
-                // Members
-                if (project.memberAvatars.isNotEmpty)
+                if (project.category != null) ...[
+                  const SizedBox(width: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: NebulaColors.surface,
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      project.category!,
+                      style: const TextStyle(
+                          fontSize: 10, color: NebulaColors.textSecondary),
+                    ),
+                  ),
+                ],
+
+                const Spacer(),
+
+                // Members avatars
+                if (project.members.isNotEmpty)
                   SizedBox(
-                    width: project.memberAvatars.length * 18.0 + 12,
-                    height: 28,
+                    width: project.members.length.clamp(1, 3) * 18.0 + 12,
+                    height: 26,
                     child: Stack(
                       children: List.generate(
-                        project.memberAvatars.length > 3
+                        project.members.length > 3
                             ? 3
-                            : project.memberAvatars.length,
+                            : project.members.length,
                         (i) => Positioned(
-                          right: i * 16.0,
+                          right: i * 14.0,
                           child: CircleAvatar(
-                            radius: 14,
-                            backgroundColor: Colors.white,
-                            child: CircleAvatar(
-                              radius: 12,
-                              backgroundImage:
-                                  NetworkImage(project.memberAvatars[i]),
+                            radius: 13,
+                            backgroundColor: NebulaColors.primary,
+                            child: Text(
+                              project.members[i].fullName.isNotEmpty
+                                  ? project.members[i].fullName[0]
+                                      .toUpperCase()
+                                  : '?',
+                              style: const TextStyle(
+                                  fontSize: 9,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
                       ),
                     ),
                   ),
+
+                if (project.endDate != null) ...[
+                  const SizedBox(width: 8),
+                  Icon(LucideIcons.calendar,
+                      size: 12, color: NebulaColors.textSecondary),
+                  const SizedBox(width: 3),
+                  Text(
+                    _formatDate(project.endDate!),
+                    style: const TextStyle(
+                        fontSize: 11, color: NebulaColors.textSecondary),
+                  ),
+                ],
               ],
             ),
           ],
         ),
       ),
     );
+  }
+
+  String _formatDate(String dateStr) {
+    try {
+      final dt = DateTime.parse(dateStr);
+      return DateFormat('MMM d, yy').format(dt);
+    } catch (_) {
+      return dateStr;
+    }
   }
 }
 
@@ -288,15 +423,16 @@ class _FilterChip extends StatelessWidget {
       selected: isSelected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.black87,
+        color: isSelected ? Colors.white : NebulaColors.textPrimary,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        fontSize: 12,
       ),
-      selectedColor: Theme.of(context).primaryColor,
-      backgroundColor: Colors.white,
+      selectedColor: NebulaColors.primary,
+      backgroundColor: NebulaColors.surfaceCard,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: isSelected ? Colors.transparent : Colors.grey.shade300,
+          color: isSelected ? Colors.transparent : NebulaColors.surface,
         ),
       ),
       showCheckmark: false,

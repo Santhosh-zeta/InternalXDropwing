@@ -127,14 +127,16 @@ class __$$TaskAssigneeImplCopyWithImpl<$Res>
 /// @nodoc
 @JsonSerializable()
 class _$TaskAssigneeImpl implements _TaskAssignee {
-  const _$TaskAssigneeImpl({required this.id, required this.name, this.avatar});
+  const _$TaskAssigneeImpl({this.id = 0, this.name = '', this.avatar});
 
   factory _$TaskAssigneeImpl.fromJson(Map<String, dynamic> json) =>
       _$$TaskAssigneeImplFromJson(json);
 
   @override
+  @JsonKey()
   final int id;
   @override
+  @JsonKey()
   final String name;
   @override
   final String? avatar;
@@ -176,8 +178,8 @@ class _$TaskAssigneeImpl implements _TaskAssignee {
 
 abstract class _TaskAssignee implements TaskAssignee {
   const factory _TaskAssignee(
-      {required final int id,
-      required final String name,
+      {final int id,
+      final String name,
       final String? avatar}) = _$TaskAssigneeImpl;
 
   factory _TaskAssignee.fromJson(Map<String, dynamic> json) =
@@ -220,9 +222,9 @@ mixin _$TaskModel {
   @JsonKey(name: 'due_date')
   DateTime? get dueDate => throw _privateConstructorUsedError;
   @JsonKey(name: 'created_at')
-  DateTime get createdAt => throw _privateConstructorUsedError;
+  DateTime? get createdAt => throw _privateConstructorUsedError;
   @JsonKey(name: 'updated_at')
-  DateTime get updatedAt =>
+  DateTime? get updatedAt =>
       throw _privateConstructorUsedError; // Virtual fields from joins
   @JsonKey(name: 'assigned_by_name')
   String? get assignedByName => throw _privateConstructorUsedError;
@@ -264,8 +266,8 @@ abstract class $TaskModelCopyWith<$Res> {
       @JsonKey(name: 'project_id') int? projectId,
       @JsonKey(name: 'parent_task_id') int? parentTaskId,
       @JsonKey(name: 'due_date') DateTime? dueDate,
-      @JsonKey(name: 'created_at') DateTime createdAt,
-      @JsonKey(name: 'updated_at') DateTime updatedAt,
+      @JsonKey(name: 'created_at') DateTime? createdAt,
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'assigned_by_name') String? assignedByName,
       @JsonKey(name: 'assigned_by_avatar') String? assignedByAvatar,
       @JsonKey(name: 'venture_name') String? ventureName,
@@ -300,8 +302,8 @@ class _$TaskModelCopyWithImpl<$Res, $Val extends TaskModel>
     Object? projectId = freezed,
     Object? parentTaskId = freezed,
     Object? dueDate = freezed,
-    Object? createdAt = null,
-    Object? updatedAt = null,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
     Object? assignedByName = freezed,
     Object? assignedByAvatar = freezed,
     Object? ventureName = freezed,
@@ -351,14 +353,14 @@ class _$TaskModelCopyWithImpl<$Res, $Val extends TaskModel>
           ? _value.dueDate
           : dueDate // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-      createdAt: null == createdAt
+      createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
+              as DateTime?,
+      updatedAt: freezed == updatedAt
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
+              as DateTime?,
       assignedByName: freezed == assignedByName
           ? _value.assignedByName
           : assignedByName // ignore: cast_nullable_to_non_nullable
@@ -410,8 +412,8 @@ abstract class _$$TaskModelImplCopyWith<$Res>
       @JsonKey(name: 'project_id') int? projectId,
       @JsonKey(name: 'parent_task_id') int? parentTaskId,
       @JsonKey(name: 'due_date') DateTime? dueDate,
-      @JsonKey(name: 'created_at') DateTime createdAt,
-      @JsonKey(name: 'updated_at') DateTime updatedAt,
+      @JsonKey(name: 'created_at') DateTime? createdAt,
+      @JsonKey(name: 'updated_at') DateTime? updatedAt,
       @JsonKey(name: 'assigned_by_name') String? assignedByName,
       @JsonKey(name: 'assigned_by_avatar') String? assignedByAvatar,
       @JsonKey(name: 'venture_name') String? ventureName,
@@ -444,8 +446,8 @@ class __$$TaskModelImplCopyWithImpl<$Res>
     Object? projectId = freezed,
     Object? parentTaskId = freezed,
     Object? dueDate = freezed,
-    Object? createdAt = null,
-    Object? updatedAt = null,
+    Object? createdAt = freezed,
+    Object? updatedAt = freezed,
     Object? assignedByName = freezed,
     Object? assignedByAvatar = freezed,
     Object? ventureName = freezed,
@@ -495,14 +497,14 @@ class __$$TaskModelImplCopyWithImpl<$Res>
           ? _value.dueDate
           : dueDate // ignore: cast_nullable_to_non_nullable
               as DateTime?,
-      createdAt: null == createdAt
+      createdAt: freezed == createdAt
           ? _value.createdAt
           : createdAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
-      updatedAt: null == updatedAt
+              as DateTime?,
+      updatedAt: freezed == updatedAt
           ? _value.updatedAt
           : updatedAt // ignore: cast_nullable_to_non_nullable
-              as DateTime,
+              as DateTime?,
       assignedByName: freezed == assignedByName
           ? _value.assignedByName
           : assignedByName // ignore: cast_nullable_to_non_nullable
@@ -539,18 +541,18 @@ class __$$TaskModelImplCopyWithImpl<$Res>
 @JsonSerializable()
 class _$TaskModelImpl implements _TaskModel {
   const _$TaskModelImpl(
-      {required this.id,
-      required this.title,
+      {this.id = 0,
+      this.title = '',
       this.description,
-      required this.status,
-      required this.priority,
-      @JsonKey(name: 'assigned_by') required this.assignedBy,
+      this.status = 'pending',
+      this.priority = 'medium',
+      @JsonKey(name: 'assigned_by') this.assignedBy = 0,
       @JsonKey(name: 'venture_id') this.ventureId,
       @JsonKey(name: 'project_id') this.projectId,
       @JsonKey(name: 'parent_task_id') this.parentTaskId,
       @JsonKey(name: 'due_date') this.dueDate,
-      @JsonKey(name: 'created_at') required this.createdAt,
-      @JsonKey(name: 'updated_at') required this.updatedAt,
+      @JsonKey(name: 'created_at') this.createdAt,
+      @JsonKey(name: 'updated_at') this.updatedAt,
       @JsonKey(name: 'assigned_by_name') this.assignedByName,
       @JsonKey(name: 'assigned_by_avatar') this.assignedByAvatar,
       @JsonKey(name: 'venture_name') this.ventureName,
@@ -564,14 +566,18 @@ class _$TaskModelImpl implements _TaskModel {
       _$$TaskModelImplFromJson(json);
 
   @override
+  @JsonKey()
   final int id;
   @override
+  @JsonKey()
   final String title;
   @override
   final String? description;
   @override
+  @JsonKey()
   final String status;
   @override
+  @JsonKey()
   final String priority;
   @override
   @JsonKey(name: 'assigned_by')
@@ -590,10 +596,10 @@ class _$TaskModelImpl implements _TaskModel {
   final DateTime? dueDate;
   @override
   @JsonKey(name: 'created_at')
-  final DateTime createdAt;
+  final DateTime? createdAt;
   @override
   @JsonKey(name: 'updated_at')
-  final DateTime updatedAt;
+  final DateTime? updatedAt;
 // Virtual fields from joins
   @override
   @JsonKey(name: 'assigned_by_name')
@@ -711,18 +717,18 @@ class _$TaskModelImpl implements _TaskModel {
 
 abstract class _TaskModel implements TaskModel {
   const factory _TaskModel(
-      {required final int id,
-      required final String title,
+      {final int id,
+      final String title,
       final String? description,
-      required final String status,
-      required final String priority,
-      @JsonKey(name: 'assigned_by') required final int assignedBy,
+      final String status,
+      final String priority,
+      @JsonKey(name: 'assigned_by') final int assignedBy,
       @JsonKey(name: 'venture_id') final int? ventureId,
       @JsonKey(name: 'project_id') final int? projectId,
       @JsonKey(name: 'parent_task_id') final int? parentTaskId,
       @JsonKey(name: 'due_date') final DateTime? dueDate,
-      @JsonKey(name: 'created_at') required final DateTime createdAt,
-      @JsonKey(name: 'updated_at') required final DateTime updatedAt,
+      @JsonKey(name: 'created_at') final DateTime? createdAt,
+      @JsonKey(name: 'updated_at') final DateTime? updatedAt,
       @JsonKey(name: 'assigned_by_name') final String? assignedByName,
       @JsonKey(name: 'assigned_by_avatar') final String? assignedByAvatar,
       @JsonKey(name: 'venture_name') final String? ventureName,
@@ -761,10 +767,10 @@ abstract class _TaskModel implements TaskModel {
   DateTime? get dueDate;
   @override
   @JsonKey(name: 'created_at')
-  DateTime get createdAt;
+  DateTime? get createdAt;
   @override
   @JsonKey(name: 'updated_at')
-  DateTime get updatedAt; // Virtual fields from joins
+  DateTime? get updatedAt; // Virtual fields from joins
   @override
   @JsonKey(name: 'assigned_by_name')
   String? get assignedByName;

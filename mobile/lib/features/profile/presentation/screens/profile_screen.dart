@@ -1,52 +1,80 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/theme/nebula_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../providers/profile_provider.dart';
+import 'package:file_picker/file_picker.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
+    final profileState = ref.watch(profileProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: NebulaColors.background,
       appBar: AppBar(
         title: const Text('Profile',
-            style: TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.white,
+            style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
+        backgroundColor: NebulaColors.surfaceCard,
         elevation: 0,
         centerTitle: false,
       ),
-      body: authState.maybeWhen(
-        authenticated: (user) {
+      body: profileState.when(
+        data: (user) {
           return SingleChildScrollView(
             child: Column(
               children: [
                 // User Card
                 Container(
-                  color: Colors.white,
+                  color: NebulaColors.surfaceCard,
                   padding: const EdgeInsets.all(24.0),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor:
-                            Theme.of(context).primaryColor.withOpacity(0.1),
-                        backgroundImage: user.avatarUrl != null
-                            ? NetworkImage(user.avatarUrl!)
-                            : null,
-                        child: user.avatarUrl == null
-                            ? Text(
-                                user.fullName.isNotEmpty
-                                    ? user.fullName[0].toUpperCase()
-                                    : '?',
-                                style: TextStyle(
-                                    fontSize: 24,
-                                    color: Theme.of(context).primaryColor,
-                                    fontWeight: FontWeight.bold),
-                              )
-                            : null,
+                      Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 40,
+                            backgroundColor:
+                                Theme.of(context).primaryColor.withOpacity(0.1),
+                            backgroundImage: user.avatarUrl != null
+                                ? NetworkImage(user.avatarUrl!.startsWith('http') ? user.avatarUrl! : 'https://internalx.dropwinggroups.com\${user.avatarUrl}')
+                                : null,
+                            child: user.avatarUrl == null
+                                ? Text(
+                                    user.fullName.isNotEmpty
+                                        ? user.fullName[0].toUpperCase()
+                                        : '?',
+                                    style: TextStyle(
+                                        fontSize: 24,
+                                        color: Theme.of(context).primaryColor,
+                                        fontWeight: FontWeight.bold),
+                                  )
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: GestureDetector(
+                              onTap: () async {
+                                final result = await FilePicker.platform.pickFiles(type: FileType.image);
+                                if (result != null && result.files.single.path != null) {
+                                  ref.read(profileProvider.notifier).uploadAvatar(result.files.single.path!);
+                                }
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: const BoxDecoration(
+                                  color: NebulaColors.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(LucideIcons.camera, size: 16, color: Colors.white),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                       const SizedBox(width: 20),
                       Expanded(
@@ -58,7 +86,7 @@ class ProfileScreen extends ConsumerWidget {
                               style: const TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black87),
+                                  color: NebulaColors.textPrimary),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -71,13 +99,13 @@ class ProfileScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(Icons.business_outlined,
-                                    size: 14, color: Colors.grey),
+                                const Icon(LucideIcons.building,
+                                    size: 14, color: NebulaColors.textSecondary),
                                 const SizedBox(width: 4),
                                 Text(
                                   user.department ?? 'No Department',
                                   style: const TextStyle(
-                                      fontSize: 14, color: Colors.grey),
+                                      fontSize: 14, color: NebulaColors.textSecondary),
                                 ),
                               ],
                             ),
@@ -93,31 +121,31 @@ class ProfileScreen extends ConsumerWidget {
                 _buildSectionGroup([
                   _SectionItem(
                       title: 'My Profile',
-                      icon: Icons.person_outline,
+                      icon: LucideIcons.user,
                       onTap: () {}),
                   _SectionItem(
                       title: 'My Performance',
-                      icon: Icons.insights_outlined,
+                      icon: LucideIcons.barChart,
                       onTap: () {}),
                 ]),
                 const SizedBox(height: 16),
                 _buildSectionGroup([
                   _SectionItem(
                       title: 'Notifications',
-                      icon: Icons.notifications_none_outlined,
+                      icon: LucideIcons.bell,
                       onTap: () {}),
                   _SectionItem(
                       title: 'Settings',
-                      icon: Icons.settings_outlined,
+                      icon: LucideIcons.settings,
                       onTap: () {}),
                   _SectionItem(
-                      title: 'Help', icon: Icons.help_outline, onTap: () {}),
+                      title: 'Help', icon: LucideIcons.helpCircle, onTap: () {}),
                 ]),
                 const SizedBox(height: 16),
                 _buildSectionGroup([
                   _SectionItem(
                     title: 'Logout',
-                    icon: Icons.logout,
+                    icon: LucideIcons.logOut,
                     color: Colors.red,
                     onTap: () {
                       ref.read(authProvider.notifier).logout();
@@ -129,14 +157,15 @@ class ProfileScreen extends ConsumerWidget {
             ),
           );
         },
-        orElse: () => const Center(child: CircularProgressIndicator()),
+        error: (error, stack) => Center(child: Text('Error: $error')),
+        loading: () => const Center(child: CircularProgressIndicator()),
       ),
     );
   }
 
   Widget _buildSectionGroup(List<_SectionItem> items) {
     return Container(
-      color: Colors.white,
+      color: NebulaColors.surfaceCard,
       child: Column(
         children: items.asMap().entries.map((entry) {
           final index = entry.key;
@@ -158,10 +187,10 @@ class ProfileScreen extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: item.color ?? Colors.black87,
+                    color: item.color ?? NebulaColors.textPrimary,
                   ),
                 ),
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                trailing: const Icon(LucideIcons.chevronRight, color: NebulaColors.textSecondary),
                 onTap: item.onTap,
               ),
               if (index < items.length - 1)
@@ -187,3 +216,5 @@ class _SectionItem {
     this.color,
   });
 }
+
+

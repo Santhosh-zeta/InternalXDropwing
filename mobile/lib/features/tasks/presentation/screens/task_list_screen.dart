@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/theme/nebula_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../providers/task_list_provider.dart';
 import '../../data/models/task_models.dart';
+import '../../../projects/presentation/providers/projects_provider.dart';
 
 class TaskListScreen extends ConsumerWidget {
   const TaskListScreen({super.key});
@@ -12,17 +15,19 @@ class TaskListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tasksAsync = ref.watch(filteredTasksProvider);
     final currentFilter = ref.watch(taskFilterProvider);
+    final currentProjectFilter = ref.watch(taskProjectFilterProvider);
+    final projectsAsync = ref.watch(projectListProvider);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: NebulaColors.background,
       appBar: AppBar(
         title:
-            const Text('Tasks', style: TextStyle(fontWeight: FontWeight.w600)),
-        backgroundColor: Colors.white,
+            const Text('Tasks', style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
+        backgroundColor: NebulaColors.surfaceCard,
         elevation: 0,
         centerTitle: false,
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(120),
+          preferredSize: const Size.fromHeight(160),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -31,11 +36,13 @@ class TaskListScreen extends ConsumerWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: TextField(
+                  style: const TextStyle(color: NebulaColors.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Search tasks...',
-                    prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                    hintStyle: const TextStyle(color: NebulaColors.textSecondary),
+                    prefixIcon: const Icon(LucideIcons.search, color: NebulaColors.textSecondary),
                     filled: true,
-                    fillColor: Colors.grey[100],
+                    fillColor: NebulaColors.surface,
                     contentPadding: const EdgeInsets.symmetric(vertical: 0),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -45,6 +52,35 @@ class TaskListScreen extends ConsumerWidget {
                   onChanged: (value) {
                     ref.read(taskSearchQueryProvider.notifier).state = value;
                   },
+                ),
+              ),
+              // Project Dropdown
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: projectsAsync.when(
+                  data: (projects) => DropdownButtonFormField<int?>(
+                    value: currentProjectFilter,
+                    decoration: InputDecoration(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      filled: true,
+                      fillColor: NebulaColors.surface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      hintText: 'All Projects',
+                    ),
+                    dropdownColor: NebulaColors.surfaceCard,
+                    items: [
+                      const DropdownMenuItem<int?>(value: null, child: Text('All Projects')),
+                      ...projects.map((p) => DropdownMenuItem<int?>(value: p.id, child: Text(p.name))),
+                    ],
+                    onChanged: (v) {
+                      ref.read(taskProjectFilterProvider.notifier).state = v;
+                    },
+                  ),
+                  loading: () => const LinearProgressIndicator(),
+                  error: (_, __) => const SizedBox(),
                 ),
               ),
               // Filters
@@ -105,7 +141,7 @@ class TaskListScreen extends ConsumerWidget {
           if (tasks.isEmpty) {
             return const Center(
                 child: Text('No tasks found.',
-                    style: TextStyle(color: Colors.grey)));
+                    style: TextStyle(color: NebulaColors.textSecondary)));
           }
           return RefreshIndicator(
             onRefresh: () async {
@@ -129,19 +165,19 @@ class TaskListScreen extends ConsumerWidget {
         onPressed: () {
           context.push('/tasks/create');
         },
-        child: const Icon(Icons.add),
+        child: const Icon(LucideIcons.plus),
       ),
     );
   }
 }
 
-class _TaskCard extends StatelessWidget {
+class _TaskCard extends ConsumerWidget {
   final TaskModel task;
 
   const _TaskCard({required this.task});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final isCompleted = task.status.toLowerCase() == 'completed' ||
         task.status.toLowerCase() == 'done';
@@ -149,7 +185,7 @@ class _TaskCard extends StatelessWidget {
         !isCompleted &&
         task.dueDate!.isBefore(DateTime.now());
 
-    Color statusColor = Colors.grey;
+    Color statusColor = NebulaColors.textSecondary;
     if (isCompleted) {
       statusColor = Colors.green;
     } else if (isOverdue) {
@@ -162,7 +198,7 @@ class _TaskCard extends StatelessWidget {
       statusColor = Colors.orange;
     }
 
-    Color priorityColor = Colors.grey;
+    Color priorityColor = NebulaColors.textSecondary;
     switch (task.priority.toLowerCase()) {
       case 'high':
         priorityColor = Colors.redAccent;
@@ -180,7 +216,7 @@ class _TaskCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: NebulaColors.surfaceCard,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
@@ -206,26 +242,44 @@ class _TaskCard extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       decoration:
                           isCompleted ? TextDecoration.lineThrough : null,
-                      color: isCompleted ? Colors.grey : Colors.black87,
+                      color: isCompleted ? NebulaColors.textSecondary : NebulaColors.textPrimary,
                     ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 const SizedBox(width: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    task.status.toUpperCase(),
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      color: statusColor,
+                PopupMenuButton<String>(
+                  initialValue: task.status,
+                  onSelected: (newStatus) {
+                    ref.read(taskListProvider.notifier).updateTaskStatusLocally(task.id, newStatus);
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(value: 'pending', child: Text('Pending')),
+                    const PopupMenuItem(value: 'in-progress', child: Text('In Progress')),
+                    const PopupMenuItem(value: 'completed', child: Text('Completed')),
+                  ],
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          task.status.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: statusColor,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(Icons.arrow_drop_down, size: 12, color: statusColor),
+                      ],
                     ),
                   ),
                 ),
@@ -235,15 +289,15 @@ class _TaskCard extends StatelessWidget {
             if (task.projectName != null || task.ventureName != null) ...[
               Row(
                 children: [
-                  const Icon(Icons.folder_outlined,
-                      size: 14, color: Colors.grey),
+                  const Icon(LucideIcons.folder,
+                      size: 14, color: NebulaColors.textSecondary),
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
                       [task.ventureName, task.projectName]
                           .where((e) => e != null && e.isNotEmpty)
                           .join(' / '),
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, color: NebulaColors.textSecondary),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -257,11 +311,11 @@ class _TaskCard extends StatelessWidget {
                 // Priority
                 Row(
                   children: [
-                    Icon(Icons.flag, size: 14, color: priorityColor),
+                    Icon(LucideIcons.flag, size: 14, color: priorityColor),
                     const SizedBox(width: 4),
                     Text(
                       task.priority,
-                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      style: const TextStyle(fontSize: 12, color: NebulaColors.textSecondary),
                     ),
                   ],
                 ),
@@ -270,15 +324,15 @@ class _TaskCard extends StatelessWidget {
                 if (task.dueDate != null) ...[
                   Row(
                     children: [
-                      Icon(Icons.calendar_today_outlined,
+                      Icon(LucideIcons.calendar,
                           size: 14,
-                          color: isOverdue ? Colors.red : Colors.grey),
+                          color: isOverdue ? Colors.red : NebulaColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         DateFormat('MMM d, yyyy').format(task.dueDate!),
                         style: TextStyle(
                             fontSize: 12,
-                            color: isOverdue ? Colors.red : Colors.grey,
+                            color: isOverdue ? Colors.red : NebulaColors.textSecondary,
                             fontWeight: isOverdue
                                 ? FontWeight.w600
                                 : FontWeight.normal),
@@ -321,13 +375,13 @@ class _TaskCard extends StatelessWidget {
                 else if (task.assignedByName != null)
                   Row(
                     children: [
-                      const Icon(Icons.person_outline,
-                          size: 14, color: Colors.grey),
+                      const Icon(LucideIcons.user,
+                          size: 14, color: NebulaColors.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         task.assignedByName!,
                         style:
-                            const TextStyle(fontSize: 12, color: Colors.grey),
+                            const TextStyle(fontSize: 12, color: NebulaColors.textSecondary),
                       ),
                     ],
                   ),
@@ -358,18 +412,20 @@ class _FilterChip extends StatelessWidget {
       selected: isSelected,
       onSelected: (_) => onSelected(),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : Colors.black87,
+        color: isSelected ? Colors.white : NebulaColors.textPrimary,
         fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
       ),
       selectedColor: Theme.of(context).primaryColor,
-      backgroundColor: Colors.white,
+      backgroundColor: NebulaColors.surfaceCard,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
         side: BorderSide(
-          color: isSelected ? Colors.transparent : Colors.grey.shade300,
+          color: isSelected ? Colors.transparent : NebulaColors.surface,
         ),
       ),
       showCheckmark: false,
     );
   }
 }
+
+

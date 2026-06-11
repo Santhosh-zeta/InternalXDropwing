@@ -10,6 +10,7 @@ enum TaskFilter { all, assignedToMe, createdByMe, overdue, completed }
 
 final taskFilterProvider = StateProvider<TaskFilter>((ref) => TaskFilter.all);
 final taskSearchQueryProvider = StateProvider<String>((ref) => '');
+final taskProjectFilterProvider = StateProvider<int?>((ref) => null);
 
 @riverpod
 class TaskList extends _$TaskList {
@@ -87,6 +88,12 @@ Future<List<TaskModel>> filteredTasks(FilteredTasksRef ref) async {
       return t.title.toLowerCase().contains(searchQuery) ||
           (t.description?.toLowerCase().contains(searchQuery) ?? false);
     }).toList();
+  }
+
+  // 3. Apply Project Filter
+  final projectFilterId = ref.watch(taskProjectFilterProvider);
+  if (projectFilterId != null) {
+    resultTasks = resultTasks.where((t) => t.projectId == projectFilterId).toList();
   }
 
   return resultTasks;

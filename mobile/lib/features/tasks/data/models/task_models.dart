@@ -6,8 +6,8 @@ part 'task_models.g.dart';
 @freezed
 class TaskAssignee with _$TaskAssignee {
   const factory TaskAssignee({
-    required int id,
-    required String name,
+    @Default(0) int id,
+    @Default('') String name,
     String? avatar,
   }) = _TaskAssignee;
 
@@ -17,18 +17,18 @@ class TaskAssignee with _$TaskAssignee {
 @freezed
 class TaskModel with _$TaskModel {
   const factory TaskModel({
-    required int id,
-    required String title,
+    @Default(0) int id,
+    @Default('') String title,
     String? description,
-    required String status,
-    required String priority,
-    @JsonKey(name: 'assigned_by') required int assignedBy,
+    @Default('pending') String status,
+    @Default('medium') String priority,
+    @JsonKey(name: 'assigned_by') @Default(0) int assignedBy,
     @JsonKey(name: 'venture_id') int? ventureId,
     @JsonKey(name: 'project_id') int? projectId,
     @JsonKey(name: 'parent_task_id') int? parentTaskId,
     @JsonKey(name: 'due_date') DateTime? dueDate,
-    @JsonKey(name: 'created_at') required DateTime createdAt,
-    @JsonKey(name: 'updated_at') required DateTime updatedAt,
+    @JsonKey(name: 'created_at') DateTime? createdAt,
+    @JsonKey(name: 'updated_at') DateTime? updatedAt,
     
     // Virtual fields from joins
     @JsonKey(name: 'assigned_by_name') String? assignedByName,
