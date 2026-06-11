@@ -13,13 +13,8 @@ const { testConnection } = require('./config/database');
 const app = express();
 
 // Security & Middleware
-<<<<<<< Updated upstream
-app.use(helmet({
-  contentSecurityPolicy: false,
-}));
-=======
+app.set('trust proxy', 1);
 app.use(helmet({ contentSecurityPolicy: false }));
->>>>>>> Stashed changes
 app.use(morgan('dev'));
 app.use(cookieParser());
 
