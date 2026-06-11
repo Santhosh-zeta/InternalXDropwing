@@ -1,0 +1,27 @@
+// GENERATED CODE - DO NOT MODIFY BY HAND
+
+part of 'task_form_provider.dart';
+
+// **************************************************************************
+// RiverpodGenerator
+// **************************************************************************
+
+String _$taskFormControllerHash() =>
+    r'69e98180a8b650209442a55577862a464545db0e';
+
+/// See also [TaskFormController].
+@ProviderFor(TaskFormController)
+final taskFormControllerProvider =
+    AutoDisposeAsyncNotifierProvider<TaskFormController, void>.internal(
+  TaskFormController.new,
+  name: r'taskFormControllerProvider',
+  debugGetCreateSourceHash: const bool.fromEnvironment('dart.vm.product')
+      ? null
+      : _$taskFormControllerHash,
+  dependencies: null,
+  allTransitiveDependencies: null,
+);
+
+typedef _$TaskFormController = AutoDisposeAsyncNotifier<void>;
+// ignore_for_file: type=lint
+// ignore_for_file: subtype_of_sealed_class, invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member, deprecated_member_use_from_same_package

@@ -13,8 +13,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _emailController = TextEditingController(text: 'admin@internalx.com');
+  final _passwordController = TextEditingController(text: 'password123');
 
   @override
   void dispose() {
@@ -123,11 +123,55 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         )
                       : const Text('Login', style: TextStyle(fontSize: 16)),
                 ),
+                const SizedBox(height: 32),
+                const Divider(),
+                const SizedBox(height: 16),
+                const Text(
+                  'QUICK ACCESS LOGINS',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 40,
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      _buildTestChip('Super Admin', 'sa@dropwinggroups.com', Icons.shield, Colors.purple),
+                      const SizedBox(width: 8),
+                      _buildTestChip('Managing Director', 'md@dropwinggroups.com', Icons.account_balance, Colors.purple),
+                      const SizedBox(width: 8),
+                      _buildTestChip('Dropwing Admin', 'ad@dropwing.in', Icons.settings, Colors.blue),
+                      const SizedBox(width: 8),
+                      _buildTestChip('Fenixa Admin', 'ad@fenixa.com', Icons.settings, Colors.cyan),
+                      const SizedBox(width: 8),
+                      _buildTestChip('PerSyniX Admin', 'ad@persynix.com', Icons.settings, Colors.orange),
+                      const SizedBox(width: 8),
+                      _buildTestChip('Grovia Admin', 'ad@grovia.in', Icons.settings, Colors.green),
+                      const SizedBox(width: 8),
+                      _buildTestChip('Dropwing Staff', 'st@dropwing.in', Icons.person, Colors.blue),
+                      const SizedBox(width: 8),
+                      _buildTestChip('Fenixa Staff', 'st@fenixa.com', Icons.person, Colors.cyan),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildTestChip(String label, String email, IconData icon, Color color) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      avatar: Icon(icon, size: 16, color: color),
+      onPressed: () {
+        _emailController.text = email;
+        _passwordController.text = 'Test@1234';
+        _submit();
+      },
     );
   }
 }

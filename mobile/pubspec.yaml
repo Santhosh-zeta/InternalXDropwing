@@ -28,6 +28,9 @@ dependencies:
 
   freezed_annotation: ^2.4.1
   json_annotation: ^4.9.0
+  riverpod_annotation: ^2.6.1
+  intl: ^0.20.2
+  connectivity_plus: ^7.1.1
 
 dev_dependencies:
   flutter_test:

@@ -48,12 +48,15 @@ class KPICardWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                kpi.title.toUpperCase(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2,
-                  color: Theme.of(context).textTheme.bodySmall?.color,
+              Expanded(
+                child: Text(
+                  kpi.title.toUpperCase(),
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                    color: Theme.of(context).textTheme.bodySmall?.color,
+                  ),
                 ),
               ),
               Container(

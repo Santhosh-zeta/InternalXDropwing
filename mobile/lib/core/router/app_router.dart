@@ -6,23 +6,40 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/dashboard/presentation/screens/dashboard_screen.dart';
+import '../../features/tasks/presentation/screens/task_list_screen.dart';
+import '../../features/tasks/presentation/screens/task_detail_screen.dart';
+import '../../features/tasks/presentation/screens/task_form_screen.dart';
+import '../layout/main_layout_screen.dart';
+import '../../features/projects/presentation/screens/projects_screen.dart';
+import '../../features/workspace/presentation/screens/workspace_screen.dart';
+import '../../features/profile/presentation/screens/profile_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/dashboard',
     redirect: (context, state) {
-      final isLoggingIn = state.uri.path == '/login';
-      final isSplash = state.uri.path == '/';
-      final isForgotPassword = state.uri.path == '/forgot-password';
-
+      final isLoggingIn = state.matchedLocation == '/login' || 
+                          state.matchedLocation == '/forgot-password' ||
+                          state.matchedLocation == '/';
+      
       return authState.maybeWhen(
-        initial: () => isSplash ? null : '/',
-        loading: () => null, // don't redirect while loading
-        authenticated: (_) => (isLoggingIn || isSplash || isForgotPassword) ? '/dashboard' : null,
-        unauthenticated: () => (!isLoggingIn && !isForgotPassword) ? '/login' : null,
-        error: (_) => (!isLoggingIn && !isForgotPassword) ? '/login' : null,
+        initial: () => '/',
+        loading: () => null, // Don't redirect while loading
+        authenticated: (_) {
+          if (isLoggingIn) return '/dashboard';
+          return null;
+        },
+        unauthenticated: () {
+          if (!isLoggingIn) return '/login';
+          return null;
+        },
+        error: (_) {
+          if (!isLoggingIn) return '/login';
+          return null;
+        },
         orElse: () => null,
       );
     },
@@ -39,24 +56,84 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
-      GoRoute(
-        path: '/dashboard',
-        builder: (context, state) => Scaffold(
-          appBar: AppBar(
-            title: const Text('Dashboard'),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.logout),
-                onPressed: () {
-                  ref.read(authProvider.notifier).logout();
-                },
-              )
+      
+      // Bottom Navigation Shell
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return MainLayoutScreen(navigationShell: navigationShell);
+        },
+        branches: [
+          // Tab 0: Home (Dashboard)
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/dashboard',
+                builder: (context, state) => const DashboardScreen(),
+              ),
             ],
           ),
-          body: const Center(child: Text('Protected Dashboard Scaffold')),
-        ),
+          
+          // Tab 1: Tasks
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/tasks',
+                builder: (context, state) => const TaskListScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'create',
+                    builder: (context, state) => const TaskFormScreen(),
+                  ),
+                  GoRoute(
+                    path: 'edit/:id',
+                    builder: (context, state) {
+                      final id = int.tryParse(state.pathParameters['id'] ?? '');
+                      return TaskFormScreen(taskId: id);
+                    },
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    builder: (context, state) {
+                      final id = int.tryParse(state.pathParameters['id'] ?? '0') ?? 0;
+                      return TaskDetailScreen(taskId: id);
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+          
+          // Tab 2: Projects
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/projects',
+                builder: (context, state) => const ProjectsScreen(),
+              ),
+            ],
+          ),
+          
+          // Tab 3: Workspace
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/workspace',
+                builder: (context, state) => const WorkspaceScreen(),
+              ),
+            ],
+          ),
+          
+          // Tab 4: Profile
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
-      // Add other routes here: projects, tasks, notifications, profile
     ],
   );
 });
