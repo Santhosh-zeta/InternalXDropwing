@@ -22,7 +22,7 @@ router.get('/hr', authenticate, async (req, res) => {
     `;
     const headcountParams = [];
     if (!isGlobal) {
-      headcountQuery += ` WHERE v.id = ?`;
+      headcountQuery += ` WHERE v.id = $1`;
       headcountParams.push(ventureId);
     }
     headcountQuery += ` GROUP BY v.id ORDER BY total DESC`;
@@ -38,7 +38,7 @@ router.get('/hr', authenticate, async (req, res) => {
     `;
     const deptParams = [];
     if (!isGlobal) {
-      deptQuery += ` AND u.venture_id = ?`;
+      deptQuery += ` AND u.venture_id = $1`;
       deptParams.push(ventureId);
     }
     deptQuery += ` GROUP BY u.department ORDER BY count DESC LIMIT 20`;
@@ -50,11 +50,13 @@ router.get('/hr', authenticate, async (req, res) => {
       FROM access_levels al
       LEFT JOIN users u ON u.access_level = al.level_number AND u.is_active = TRUE
     `;
+    const levelParams = [];
     if (!isGlobal) {
-      levelQuery += ` AND u.venture_id = ${pool.escape(ventureId)}`;
+      levelQuery += ` AND u.venture_id = $1`;
+      levelParams.push(ventureId);
     }
     levelQuery += ` GROUP BY al.level_number ORDER BY al.level_number ASC`;
-    const [levelRows] = await pool.query(levelQuery);
+    const [levelRows] = await pool.query(levelQuery, levelParams);
 
     // Task performance by employee (top performers)
     let perfQuery = `
@@ -65,13 +67,13 @@ router.get('/hr', authenticate, async (req, res) => {
         ROUND(COUNT(CASE WHEN t.status = 'completed' THEN 1 END) / NULLIF(COUNT(t.id),0) * 100, 0) AS completion_rate
       FROM users u
       LEFT JOIN task_assignees ta ON ta.user_id = u.id
-      LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= CURRENT_DATE - INTERVAL '30 days'
       LEFT JOIN ventures v ON u.venture_id = v.id
       WHERE u.is_active = TRUE AND u.access_level >= 5
     `;
     const perfParams = [];
     if (!isGlobal) {
-      perfQuery += ` AND u.venture_id = ?`;
+      perfQuery += ` AND u.venture_id = $1`;
       perfParams.push(ventureId);
     }
     perfQuery += ` GROUP BY u.id ORDER BY completed_tasks DESC LIMIT 15`;
@@ -86,11 +88,11 @@ router.get('/hr', authenticate, async (req, res) => {
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
       JOIN ventures v ON u.venture_id = v.id
-      WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      WHERE t.date >= CURRENT_DATE - INTERVAL '30 days'
     `;
     const tsParams = [];
     if (!isGlobal) {
-      tsQuery += ` AND u.venture_id = ?`;
+      tsQuery += ` AND u.venture_id = $1`;
       tsParams.push(ventureId);
     }
     tsQuery += ` GROUP BY v.id ORDER BY total_hours DESC`;
@@ -142,12 +144,12 @@ router.get('/department', authenticate, async (req, res) => {
       LEFT JOIN ventures v ON u.venture_id = v.id
       LEFT JOIN projects p ON p.venture_id = u.venture_id AND p.status = 'active'
       LEFT JOIN task_assignees ta ON ta.user_id = u.id
-      LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= CURRENT_DATE - INTERVAL '30 days'
       WHERE u.is_active = TRUE AND u.department IS NOT NULL AND u.department != ''
     `;
     const params = [];
     if (!isGlobal) {
-      query += ` AND u.venture_id = ?`;
+      query += ` AND u.venture_id = $1`;
       params.push(ventureId);
     }
     query += ` GROUP BY u.department, u.venture_id ORDER BY kpi_score DESC LIMIT 30`;

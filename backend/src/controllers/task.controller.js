@@ -27,8 +27,8 @@ const getTasks = async (req, res) => {
     const params = [];
 
     if (accessLevel >= 3 && accessLevel <= 6) {
-      query += ` AND t.venture_id = ?`;
-      params.push(ventureId);
+      query += ` AND (t.venture_id = ? OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?))`;
+      params.push(ventureId, userId);
     } else if (accessLevel >= 7) {
       query += ` AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?) OR t.assigned_by = ?)`;
       params.push(userId, userId);
@@ -62,7 +62,15 @@ const createTask = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Title and Assignee are required' });
     }
 
-    const taskVentureId = req.user.accessLevel <= 2 ? (req.body.venture_id || null) : ventureId;
+    let taskVentureId = req.user.accessLevel <= 2 ? (req.body.venture_id || null) : ventureId;
+
+    // If no venture_id resolved, look up from first assignee
+    if (!taskVentureId && assignees[0]) {
+      const [assigneeData] = await pool.query('SELECT venture_id FROM users WHERE id = ?', [assignees[0]]);
+      if (assigneeData.length > 0 && assigneeData[0].venture_id) {
+        taskVentureId = assigneeData[0].venture_id;
+      }
+    }
 
     const [result] = await pool.query(
       `INSERT INTO tasks (title, description, status, priority, assigned_to, assigned_by, venture_id, due_date, project_id, parent_task_id)
@@ -92,7 +100,10 @@ const createTask = async (req, res) => {
       if (projData.length > 0) projectName = projData[0].name;
     }
 
-    const [usersData] = await pool.query('SELECT id, email, full_name FROM users WHERE id IN (?) OR id = ?', [assignees.length ? assignees : [0], assigned_by]);
+    const assigneeIds = assignees.filter(Boolean).map(id => parseInt(id));
+    const allIds = [...new Set([...assigneeIds, parseInt(assigned_by)])];
+    const placeholders = allIds.map((_, i) => `$${i + 1}`).join(', ');
+    const [usersData] = await pool.query(`SELECT id, email, full_name FROM users WHERE id IN (${placeholders})`, allIds);
     const assigner = usersData.find(u => u.id === parseInt(assigned_by));
     const assignedByName = assigner ? assigner.full_name : 'An Administrator';
 

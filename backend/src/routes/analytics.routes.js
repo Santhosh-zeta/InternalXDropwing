@@ -19,7 +19,7 @@ router.get('/', authenticate, async (req, res) => {
       `;
       const budgetParams = [];
       if (accessLevel > 2) {
-        budgetQuery += ` WHERE p.venture_id = ?`;
+        budgetQuery += ` WHERE p.venture_id = $1`;
         budgetParams.push(userVentureId);
       }
       budgetQuery += ` GROUP BY v.id`;
@@ -37,10 +37,10 @@ router.get('/', authenticate, async (req, res) => {
     const velocityParams = [];
     if (accessLevel > 2) {
       if (accessLevel <= 5) {
-        velocityQuery += ` AND venture_id = ?`;
+        velocityQuery += ` AND venture_id = $1`;
         velocityParams.push(userVentureId);
       } else {
-        velocityQuery += ` AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.id AND ta.user_id = ?) OR assigned_by = ?)`;
+        velocityQuery += ` AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.id AND ta.user_id = $1) OR assigned_by = $2)`;
         velocityParams.push(req.user.id, req.user.id);
       }
     }
@@ -56,7 +56,7 @@ router.get('/', authenticate, async (req, res) => {
     `;
     const userDistParams = [];
     if (accessLevel > 2) {
-      userDistQuery += ` AND u.venture_id = ?`;
+      userDistQuery += ` AND u.venture_id = $1`;
       userDistParams.push(userVentureId);
     }
     userDistQuery += ` GROUP BY v.id`;
@@ -80,7 +80,7 @@ router.get('/', authenticate, async (req, res) => {
     `;
     const auditParams = [];
     if (accessLevel > 2) {
-      auditQuery += ` WHERE u.venture_id = ? OR u.venture_id IS NULL`;
+      auditQuery += ` WHERE u.venture_id = $1 OR u.venture_id IS NULL`;
       auditParams.push(userVentureId);
     }
     auditQuery += ` ORDER BY a.created_at DESC LIMIT 10`;

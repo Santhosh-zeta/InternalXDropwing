@@ -23,7 +23,7 @@ router.get('/summary', authenticate, async (req, res) => {
     `;
     const budgetParams = [];
     if (!isGlobal) {
-      budgetQuery += ` WHERE v.id = ?`;
+      budgetQuery += ` WHERE v.id = $1`;
       budgetParams.push(ventureId);
     }
     budgetQuery += ` GROUP BY v.id, v.name, v.primary_color, v.slug ORDER BY allocated_budget DESC`;
@@ -39,7 +39,7 @@ router.get('/summary', authenticate, async (req, res) => {
     `;
     const expenseParams = [];
     if (!isGlobal) {
-      expenseQuery += ` WHERE u.venture_id = ?`;
+      expenseQuery += ` WHERE u.venture_id = $1`;
       expenseParams.push(ventureId);
     }
     expenseQuery += ` GROUP BY v.id, v.name, v.primary_color`;
@@ -105,15 +105,15 @@ router.get('/expenses', authenticate, async (req, res) => {
     const conditions = [];
 
     if (!isGlobal) {
-      conditions.push(`u.venture_id = ?`);
+      conditions.push(`u.venture_id = $${params.length + 1}`);
       params.push(ventureId);
     } else if (venture_id) {
-      conditions.push(`u.venture_id = ?`);
+      conditions.push(`u.venture_id = $${params.length + 1}`);
       params.push(venture_id);
     }
 
     if (conditions.length) query += ` WHERE ` + conditions.join(' AND ');
-    query += ` ORDER BY t.date DESC LIMIT ?`;
+    query += ` ORDER BY t.date DESC LIMIT $${params.length + 1}`;
     params.push(parseInt(limit) || 50);
 
     const [rows] = await pool.query(query, params);
@@ -139,11 +139,11 @@ router.get('/monthly', authenticate, async (req, res) => {
         COALESCE(SUM(t.hours_worked), 0) AS hours
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
-      WHERE t.date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
+      WHERE t.date >= CURRENT_DATE - INTERVAL '6 months'
     `;
     const params = [];
     if (!isGlobal) {
-      query += ` AND u.venture_id = ?`;
+      query += ` AND u.venture_id = $1`;
       params.push(ventureId);
     }
     query += ` GROUP BY month_key, month ORDER BY month_key ASC`;
