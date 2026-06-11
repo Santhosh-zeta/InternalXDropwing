@@ -8,8 +8,10 @@ import {
   Search, Filter, Edit2, Trash2, X, Check,
   Shield, Building2, Briefcase, Mail, UserCircle2,
   ChevronDown, UserPlus, AlertCircle, Phone, Clock,
-  Activity, Calendar, Loader2, Info
+  Activity, Calendar, Loader2, Info, Download
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface UserManagementViewProps {
   currentUser: User;
@@ -194,6 +196,35 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
     }
   };
 
+  const exportPDF = () => {
+    const doc = new jsPDF();
+    
+    // Add title
+    doc.setFontSize(18);
+    doc.text('InternalX - Team Members', 14, 22);
+    
+    // Create table
+    const tableColumn = ["Name", "Email", "Role", "Department", "Level"];
+    const tableRows = filteredUsers.map(u => [
+      u.full_name,
+      u.email,
+      u.designation || 'No Role',
+      u.department || 'No Dept',
+      `L${u.access_level} - ${u.level_name}`
+    ]);
+    
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: 30,
+      theme: 'grid',
+      styles: { fontSize: 10, cellPadding: 3 },
+      headStyles: { fillColor: [139, 92, 246] }
+    });
+    
+    doc.save('InternalX_Team_Members.pdf');
+  };
+
   return (
     <div className="flex flex-col gap-6 h-full pb-10 relative">
       {/* Header & Filters */}
@@ -205,12 +236,20 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
               Manage access levels, departments, and roles.
             </p>
           </div>
-          <button
-            className="px-5 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm"
-            onClick={() => setShowAddModal(true)}
-          >
-            <UserPlus size={16} strokeWidth={2.5} /> Add Member
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              className="px-5 py-2.5 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm"
+              onClick={exportPDF}
+            >
+              <Download size={16} strokeWidth={2.5} /> Export PDF
+            </button>
+            <button
+              className="px-5 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-colors shadow-sm"
+              onClick={() => setShowAddModal(true)}
+            >
+              <UserPlus size={16} strokeWidth={2.5} /> Add Member
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-4 flex-wrap">

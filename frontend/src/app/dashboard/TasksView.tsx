@@ -7,7 +7,7 @@ import { User } from '@/lib/constants';
 import { 
   Plus, LayoutGrid, Calendar as CalendarIcon, ChevronLeft, ChevronRight, 
   ListTodo, Clock, CheckCircle2, Trash2, Folder, CornerDownRight, 
-  Clock4, Loader2, GripVertical, AlertCircle
+  Clock4, Loader2, GripVertical, AlertCircle, Edit2
 } from 'lucide-react';
 
 interface Task {
@@ -16,13 +16,11 @@ interface Task {
   description: string;
   status: 'pending' | 'in-progress' | 'completed';
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  assigned_to: number;
   assigned_by: number;
   venture_id: number;
   due_date: string;
   created_at: string;
-  assigned_to_name: string;
-  assigned_to_avatar: string;
+  assignees: {id: number, name: string, avatar: string}[];
   assigned_by_name: string;
   assigned_by_avatar: string;
   venture_name: string;
@@ -40,13 +38,79 @@ const PRIORITY_COLORS = {
   urgent: '#f43f5e', // red
 };
 
+function CustomDatePicker({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(value ? new Date(value) : new Date());
+
+  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+  const daysInMonth = getDaysInMonth(year, month);
+  const firstDay = getFirstDayOfMonth(year, month);
+
+  const days = [];
+  for (let i = 0; i < firstDay; i++) {
+    days.push(<div key={`empty-${i}`} className="p-2" />);
+  }
+  for (let i = 1; i <= daysInMonth; i++) {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+    const isSelected = value === dateStr;
+    const isToday = new Date().toISOString().split('T')[0] === dateStr;
+    const isPast = dateStr < new Date().toISOString().split('T')[0];
+    days.push(
+      <button
+        key={`day-${i}`}
+        type="button"
+        disabled={isPast}
+        onClick={() => { onChange(dateStr); setIsOpen(false); }}
+        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-colors ${isPast ? 'opacity-30 cursor-not-allowed text-[var(--color-text-muted)]' : isSelected ? 'bg-[var(--color-purple-glow)] text-white font-bold' : isToday ? 'bg-[var(--color-purple-glow)]/20 text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'}`}
+      >
+        {i}
+      </button>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button 
+        type="button" 
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] text-left flex items-center justify-between"
+      >
+        {value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Select Date'}
+        <CalendarIcon size={14} className="text-[var(--color-text-muted)]" />
+      </button>
+      {isOpen && (
+        <div className="absolute top-full mt-1 left-0 w-[260px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-xl z-50 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <button type="button" onClick={() => setCurrentMonth(new Date(year, month - 1))} className="p-1 hover:bg-[var(--color-bg-secondary)] rounded text-[var(--color-text-secondary)]"><ChevronLeft size={16} /></button>
+            <div className="text-sm font-bold text-[var(--color-text-primary)]">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</div>
+            <button type="button" onClick={() => setCurrentMonth(new Date(year, month + 1))} className="p-1 hover:bg-[var(--color-bg-secondary)] rounded text-[var(--color-text-secondary)]"><ChevronRight size={16} /></button>
+          </div>
+          <div className="grid grid-cols-7 text-center mb-1">
+            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
+              <div key={d} className="text-[10px] font-semibold text-[var(--color-text-muted)]">{d}</div>
+            ))}
+          </div>
+          <div className="grid grid-cols-7 gap-1 place-items-center">
+            {days}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function TasksView({ currentUser }: { currentUser: User }) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [projects, setProjects] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', assigned_to: '', due_date: '', project_id: '', parent_task_id: '' });
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', assigned_to: [] as string[], due_date: '', project_id: '', parent_task_id: '' });
   const [filterProjectId, setFilterProjectId] = useState<string>('all');
   
   const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
@@ -72,7 +136,7 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.title || !newTask.assigned_to) {
+    if (!newTask.title || newTask.assigned_to.length === 0) {
       toast.error('Title and Assignee are required');
       return;
     }
@@ -82,15 +146,23 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
         project_id: newTask.project_id || undefined,
         parent_task_id: newTask.parent_task_id || undefined
       };
-      const res = await createTask(payload);
+      
+      let res;
+      if (editingTask) {
+        res = await updateTask(editingTask.id, payload);
+      } else {
+        res = await createTask(payload);
+      }
+
       if (res.success) {
-        toast.success('Task created successfully');
+        toast.success(editingTask ? 'Task updated successfully' : 'Task created successfully');
         setShowModal(false);
-        setNewTask({ title: '', description: '', priority: 'medium', assigned_to: '', due_date: '', project_id: '', parent_task_id: '' });
+        setEditingTask(null);
+        setNewTask({ title: '', description: '', priority: 'medium', assigned_to: [], due_date: '', project_id: '', parent_task_id: '' });
         fetchData();
       }
     } catch (error) {
-      toast.error('Failed to create task');
+      toast.error(editingTask ? 'Failed to update task' : 'Failed to create task');
     }
   };
 
@@ -283,7 +355,11 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
           </select>
           
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setEditingTask(null);
+              setNewTask({ title: '', description: '', priority: 'medium', assigned_to: [], due_date: '', project_id: '', parent_task_id: '' });
+              setShowModal(true);
+            }}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white text-[13px] font-bold transition-colors shadow-sm"
           >
             <Plus size={16} strokeWidth={2.5} /> New Task
@@ -331,9 +407,29 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                       <div className="flex items-center gap-1">
                         <GripVertical size={14} className="text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" />
                         {(currentUser.id === task.assigned_by || currentUser.accessLevel <= 3) && (
-                          <button onClick={() => handleDelete(task.id)} className="text-[var(--color-text-muted)] hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">
-                            <Trash2 size={14} />
-                          </button>
+                          <>
+                            <button 
+                              onClick={() => {
+                                setEditingTask(task);
+                                setNewTask({
+                                  title: task.title,
+                                  description: task.description || '',
+                                  priority: task.priority,
+                                  assigned_to: task.assignees ? task.assignees.map(a => a.id.toString()) : [],
+                                  due_date: task.due_date ? task.due_date.split('T')[0] : '',
+                                  project_id: task.project_id?.toString() || '',
+                                  parent_task_id: task.parent_task_id?.toString() || ''
+                                });
+                                setShowModal(true);
+                              }} 
+                              className="text-[var(--color-text-muted)] hover:text-[var(--color-purple-glow)] transition-colors opacity-0 group-hover:opacity-100 mr-1"
+                            >
+                              <Edit2 size={14} />
+                            </button>
+                            <button onClick={() => handleDelete(task.id)} className="text-[var(--color-text-muted)] hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">
+                              <Trash2 size={14} />
+                            </button>
+                          </>
                         )}
                       </div>
                     </div>
@@ -364,10 +460,31 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                     
                     <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
                       <div className="flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] flex items-center justify-center text-[10px] font-bold text-[var(--color-text-primary)] shrink-0">
-                          {task.assigned_to_name.charAt(0)}
+                        <div className="flex -space-x-2">
+                          {task.assignees?.slice(0, 3).map((a, idx) => (
+                            <div key={idx} className="w-6 h-6 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] flex items-center justify-center text-[10px] font-bold text-[var(--color-text-primary)] shrink-0" title={a.name}>
+                              {a.name.charAt(0)}
+                            </div>
+                          ))}
+                          {task.assignees?.length > 3 && (
+                            <div className="w-6 h-6 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] flex items-center justify-center text-[9px] font-bold text-[var(--color-text-muted)] shrink-0">
+                              +{task.assignees.length - 3}
+                            </div>
+                          )}
                         </div>
-                        <span className="text-[11px] font-medium text-[var(--color-text-secondary)] truncate max-w-[100px]">{task.assigned_to_name.split(' ')[0]}</span>
+                        {task.assignees?.length === 1 && (
+                          <span className="text-[11px] font-medium text-[var(--color-text-secondary)] truncate max-w-[100px] ml-1">
+                            {task.assignees[0].name.split(' ')[0]}
+                          </span>
+                        )}
+                        {task.assignees?.length > 1 && (
+                          <span className="text-[11px] font-medium text-[var(--color-text-secondary)] truncate max-w-[100px] ml-1">
+                            {task.assignees.length} Assignees
+                          </span>
+                        )}
+                        {(!task.assignees || task.assignees.length === 0) && (
+                          <span className="text-[11px] font-medium text-[var(--color-text-muted)] italic">Unassigned</span>
+                        )}
                       </div>
                       
                       <div className="flex gap-1 md:hidden group-hover:flex">
@@ -404,7 +521,7 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
       {showModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] w-full max-w-[500px] rounded-2xl p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-5">Create New Task</h3>
+            <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-5">{editingTask ? 'Edit Task' : 'Create New Task'}</h3>
             <form onSubmit={handleCreateTask} className="flex flex-col gap-4">
               <div>
                 <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Task Title</label>
@@ -427,15 +544,27 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
               <div className="flex gap-4">
                 <div className="flex-1">
                   <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Assign To</label>
-                  <select 
-                    required value={newTask.assigned_to} onChange={e => setNewTask({...newTask, assigned_to: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
-                  >
-                    <option value="">Select a user...</option>
-                    {users.map(u => (
-                      <option key={u.id} value={u.id}>{u.full_name} ({u.level_name})</option>
-                    ))}
-                  </select>
+                  <div className="w-full max-h-[120px] overflow-y-auto px-2 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] custom-scrollbar flex flex-col gap-1">
+                    {users.map(u => {
+                      const isSelected = newTask.assigned_to.includes(u.id.toString());
+                      return (
+                        <label key={u.id} className="flex items-center gap-2 text-[13px] text-[var(--color-text-primary)] cursor-pointer hover:bg-[var(--color-bg-secondary)] p-1.5 rounded transition-colors">
+                          <input 
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              const newArr = e.target.checked 
+                                ? [...newTask.assigned_to, u.id.toString()]
+                                : newTask.assigned_to.filter(id => id !== u.id.toString());
+                              setNewTask({...newTask, assigned_to: newArr});
+                            }}
+                            className="accent-[var(--color-purple-glow)] w-3.5 h-3.5"
+                          />
+                          {u.full_name}
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
                 
                 <div className="flex-1">
@@ -482,10 +611,7 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
 
               <div>
                 <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Due Date</label>
-                <input 
-                  type="date" value={newTask.due_date} onChange={e => setNewTask({...newTask, due_date: e.target.value})}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
-                />
+                <CustomDatePicker value={newTask.due_date} onChange={val => setNewTask({...newTask, due_date: val})} />
               </div>
 
               <div className="flex justify-end gap-3 mt-4">
@@ -493,7 +619,7 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                   Cancel
                 </button>
                 <button type="submit" className="px-4 py-2 rounded-lg bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-[13px] font-bold text-white transition-colors">
-                  Create Task
+                  {editingTask ? 'Save Changes' : 'Create Task'}
                 </button>
               </div>
             </form>

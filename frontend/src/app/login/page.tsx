@@ -6,6 +6,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { loginUser, verifyOtp, googleLogin } from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
+import Cookies from 'js-cookie';
 import { TEST_ACCOUNTS, VENTURES } from '@/lib/constants';
 import { 
   Mail, 
@@ -46,6 +47,8 @@ export default function LoginPage() {
         if (data.data?.token) {
           localStorage.setItem('internalx_token', data.data.token);
           localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
+          Cookies.set('internalx_token', data.data.token, { expires: 7 });
+          Cookies.set('internalx_user', JSON.stringify(data.data.user), { expires: 7 });
           toast.success(`Welcome back, ${data.data.user.fullName}`);
           router.push('/dashboard');
         } else {

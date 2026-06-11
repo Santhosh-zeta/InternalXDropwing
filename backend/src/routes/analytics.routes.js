@@ -40,7 +40,7 @@ router.get('/', authenticate, async (req, res) => {
         velocityQuery += ` AND venture_id = ?`;
         velocityParams.push(userVentureId);
       } else {
-        velocityQuery += ` AND (assigned_to = ? OR assigned_by = ?)`;
+        velocityQuery += ` AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.id AND ta.user_id = ?) OR assigned_by = ?)`;
         velocityParams.push(req.user.id, req.user.id);
       }
     }

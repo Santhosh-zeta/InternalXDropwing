@@ -511,11 +511,11 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
                  </div>
                  <div>
                    <label className="block text-[11px] text-[var(--color-text-muted)] mb-1.5 font-bold uppercase">Deployment</label>
-                   <input type="date" value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} disabled={!canCreate} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)] [color-scheme:dark]" />
+                   <input type="date" min={new Date().toISOString().split('T')[0]} value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} disabled={!canCreate} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)] [color-scheme:dark]" />
                  </div>
                  <div>
                    <label className="block text-[11px] text-[var(--color-text-muted)] mb-1.5 font-bold uppercase">Termination</label>
-                   <input type="date" value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} disabled={!canCreate} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)] [color-scheme:dark]" />
+                   <input type="date" min={new Date().toISOString().split('T')[0]} value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} disabled={!canCreate} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)] [color-scheme:dark]" />
                  </div>
                  <div className="col-span-2">
                    <label className="block text-[11px] text-[var(--color-text-muted)] mb-1.5 font-bold uppercase">Budgetary Allocation (USD)</label>
@@ -568,7 +568,7 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
                       />
                       <div className="grid grid-cols-2 gap-3">
                         <input 
-                          type="date" value={m.due_date ? m.due_date.split('T')[0] : ''} 
+                          type="date" min={new Date().toISOString().split('T')[0]} value={m.due_date ? m.due_date.split('T')[0] : ''} 
                           onChange={e => {
                             const newM = [...form.milestones];
                             newM[idx].due_date = e.target.value;

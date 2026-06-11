@@ -40,7 +40,7 @@ router.get('/overview', authenticate, async (req, res) => {
         t.created_at, u.full_name AS assigned_by_name
       FROM tasks t
       JOIN users u ON t.assigned_by = u.id
-      WHERE t.assigned_to = ?
+      WHERE EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?)
       ORDER BY t.due_date ASC
       LIMIT 30
     `, [userId]);

@@ -191,7 +191,7 @@ router.get('/:id', authenticate, async (req, res) => {
     const [activityRows] = await pool.query(`
       SELECT id, title, status, priority, created_at, updated_at
       FROM tasks
-      WHERE assigned_to = ? OR assigned_by = ?
+      WHERE EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.id AND ta.user_id = ?) OR assigned_by = ?
       ORDER BY updated_at DESC
       LIMIT 10
     `, [userId, userId]);

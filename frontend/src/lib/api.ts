@@ -1,4 +1,5 @@
 import axios from 'axios';
+import Cookies from 'js-cookie';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com';
 
@@ -8,10 +9,10 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach token from localStorage if present
+// Attach token from localStorage or cookies
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('internalx_token');
+    const token = Cookies.get('internalx_token') || localStorage.getItem('internalx_token');
     if (token) config.headers.Authorization = `Bearer ${token}`;
   }
   return config;

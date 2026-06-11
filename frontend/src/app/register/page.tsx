@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { register, googleLogin } from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
+import Cookies from 'js-cookie';
 import { Mail, Lock, User, Hexagon, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -56,6 +57,8 @@ export default function RegisterPage() {
       if (data.success) {
         localStorage.setItem('internalx_token', data.data.token);
         localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
+        Cookies.set('internalx_token', data.data.token, { expires: 7 });
+        Cookies.set('internalx_user', JSON.stringify(data.data.user), { expires: 7 });
         toast.success(`Welcome back, ${data.data.user.fullName}`);
         router.push('/dashboard');
       }

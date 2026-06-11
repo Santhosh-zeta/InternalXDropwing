@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { User, VENTURES } from '@/lib/constants';
 import { getChatMessages, sendChatMessage, getUsers } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { io, Socket } from 'socket.io-client';
+import { useSocket } from '@/components/SocketProvider';
 import { Send, Hash, MessageSquare, AtSign, ChevronDown, Loader2, Globe, Sparkles } from 'lucide-react';
 
 interface ChatViewProps { currentUser: User; }
 interface Channel { type: 'venture' | 'dm'; id: string | number; name: string; color: string; }
-interface Msg { id: number; sender_id: number; sender_name: string; content: string; created_at: string; ventureId?: any; receiver_id?: number; }
+interface Msg { id: number; sender_id: number; sender_name: string; content: string; created_at: string; ventureId?: any; venture_id?: any; receiver_id?: number; receiverId?: number; }
 
 const AVATAR_GRADIENTS = [
   'linear-gradient(135deg,#8b5cf6,#6d28d9)',
@@ -52,7 +52,7 @@ function isSameDay(a: string, b: string) {
 }
 
 export default function ChatView({ currentUser }: ChatViewProps) {
-  const [socket, setSocket] = useState<Socket | null>(null);
+  const { socket, latestMessages } = useSocket();
   const [allUsers, setAllUsers] = useState<any[]>([]);
   const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'venture', id: 'global', name: 'Global HQ', color: '#8b5cf6' });
   const [messages, setMessages] = useState<Msg[]>([]);
@@ -65,13 +65,9 @@ export default function ChatView({ currentUser }: ChatViewProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<any>(null);
 
-  // Init socket & users
+  // Init users
   useEffect(() => {
-    const url = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://internalx.dropwinggroups.com';
-    const s = io(url, { withCredentials: true });
-    setSocket(s);
     getUsers().then(r => { if (r.success) setAllUsers(r.data.filter((u: any) => u.id !== currentUser.id)); });
-    return () => { s.close(); };
   }, []);
 
   // Join channel + listen
@@ -86,11 +82,19 @@ export default function ChatView({ currentUser }: ChatViewProps) {
     const handler = (msg: Msg) => {
       setMessages(prev => {
         if (prev.some(m => m.id === msg.id)) return prev;
+        
+        const vId = msg.ventureId || msg.venture_id;
+        const rId = msg.receiver_id || msg.receiverId;
+        
         if (activeChannel.type === 'venture') {
-          if (msg.ventureId === activeChannel.id || (msg.ventureId === null && activeChannel.id === 'global')) return [...prev, msg];
+          if (vId === activeChannel.id || ((vId === null || vId === 'global') && activeChannel.id === 'global')) {
+            return [...prev, msg];
+          }
         } else {
-          if ((msg.sender_id === activeChannel.id && msg.receiver_id === currentUser.id) ||
-            (msg.sender_id === currentUser.id && msg.receiver_id === activeChannel.id)) return [...prev, msg];
+          if ((msg.sender_id === activeChannel.id && rId === currentUser.id) ||
+              (msg.sender_id === currentUser.id && rId === activeChannel.id)) {
+            return [...prev, msg];
+          }
         }
         return prev;
       });
@@ -150,7 +154,20 @@ export default function ChatView({ currentUser }: ChatViewProps) {
 
   const filteredUsers = allUsers.filter(u => u.full_name?.toLowerCase().includes(dmSearch.toLowerCase()));
 
-  const VENTURE_CHANNELS = VENTURES.map((v, i) => ({ v, vId: i + 1 })).filter(({ vId }) => currentUser.accessLevel <= 2 || currentUser.venture?.id === vId);
+  // Sort channels by latest message
+  const getChannelTimestamp = (chKey: string) => {
+    const lm = latestMessages[chKey];
+    return lm ? new Date(lm.timestamp).getTime() : 0;
+  };
+
+  const VENTURE_CHANNELS = VENTURES.map((v, i) => ({ v, vId: i + 1 }))
+    .filter(({ vId }) => currentUser.accessLevel <= 2 || currentUser.venture?.id === vId)
+    .sort((a, b) => getChannelTimestamp(`venture_${b.vId}`) - getChannelTimestamp(`venture_${a.vId}`));
+
+  const sortedUsers = [...filteredUsers].sort((a, b) => getChannelTimestamp(`dm_${b.id}`) - getChannelTimestamp(`dm_${a.id}`));
+
+  const globalActive = activeChannel.id === 'global';
+  const globalUnread = latestMessages['global'] && getChannelTimestamp('global') > Date.now() - 60000; // rough highlight for very recent
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-0 rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-2xl">
@@ -177,20 +194,27 @@ export default function ChatView({ currentUser }: ChatViewProps) {
             </div>
             {/* Global */}
             <SidebarBtn
-              active={activeChannel.id === 'global'}
+              active={globalActive}
               color="#8b5cf6"
               onClick={() => switchChannel({ type: 'venture', id: 'global', name: 'Global HQ', color: '#8b5cf6' })}
               icon={<Globe size={14} />}
               label="Global HQ"
+              isRecent={!globalActive && !!globalUnread}
             />
-            {VENTURE_CHANNELS.map(({ v, vId }) => (
-              <SidebarBtn key={v.slug} active={activeChannel.id === vId && activeChannel.type === 'venture'}
-                color={v.color}
-                onClick={() => switchChannel({ type: 'venture', id: vId, name: v.name, color: v.color })}
-                icon={<Hash size={14} />}
-                label={v.name}
-              />
-            ))}
+            {VENTURE_CHANNELS.map(({ v, vId }) => {
+              const chKey = `venture_${vId}`;
+              const isRecent = latestMessages[chKey] && getChannelTimestamp(chKey) > Date.now() - 60000;
+              const isActive = activeChannel.id === vId && activeChannel.type === 'venture';
+              return (
+                <SidebarBtn key={v.slug} active={isActive}
+                  color={v.color}
+                  onClick={() => switchChannel({ type: 'venture', id: vId, name: v.name, color: v.color })}
+                  icon={<Hash size={14} />}
+                  label={v.name}
+                  isRecent={!isActive && !!isRecent}
+                />
+              );
+            })}
           </div>
 
           {/* DMs */}
@@ -202,8 +226,10 @@ export default function ChatView({ currentUser }: ChatViewProps) {
             <div className="mx-1 mb-2">
               <input value={dmSearch} onChange={e => setDmSearch(e.target.value)} placeholder="Search people..." className="w-full px-2.5 py-1.5 text-[12px] rounded-lg bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]" />
             </div>
-            {filteredUsers.map(u => {
+            {sortedUsers.map(u => {
               const isActive = activeChannel.id === u.id && activeChannel.type === 'dm';
+              const chKey = `dm_${u.id}`;
+              const isRecent = latestMessages[chKey] && getChannelTimestamp(chKey) > Date.now() - 60000;
               return (
                 <button key={u.id} onClick={() => switchChannel({ type: 'dm', id: u.id, name: u.full_name, color: '#06b6d4' })}
                   className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition-all mb-0.5 border ${isActive ? 'bg-[var(--color-purple-glow)]/15 border-[var(--color-purple-glow)]/30' : 'border-transparent hover:bg-[var(--color-bg-primary)]'}`}
@@ -212,7 +238,12 @@ export default function ChatView({ currentUser }: ChatViewProps) {
                     <Avatar name={u.full_name} size={26} />
                     <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--color-bg-secondary)] ${u.is_active ? 'bg-emerald-500' : 'bg-[var(--color-border)]'}`} />
                   </div>
-                  <span className={`text-[13px] font-semibold truncate flex-1 ${isActive ? 'text-[var(--color-purple-glow)]' : 'text-[var(--color-text-secondary)]'}`}>{u.full_name}</span>
+                  <div className="flex-1 min-w-0 flex items-center justify-between">
+                    <span className={`text-[13px] font-semibold truncate ${isActive ? 'text-[var(--color-purple-glow)]' : (isRecent ? 'text-[var(--color-text-primary)] font-bold' : 'text-[var(--color-text-secondary)]')}`}>
+                      {u.full_name}
+                    </span>
+                    {isRecent && !isActive && <div className="w-2 h-2 rounded-full bg-[var(--color-purple-glow)] shrink-0 ml-2" />}
+                  </div>
                 </button>
               );
             })}
@@ -387,15 +418,16 @@ export default function ChatView({ currentUser }: ChatViewProps) {
   );
 }
 
-function SidebarBtn({ active, color, onClick, icon, label }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string; }) {
+function SidebarBtn({ active, color, onClick, icon, label, isRecent }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string; isRecent?: boolean; }) {
   return (
     <button onClick={onClick}
       className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition-all mb-0.5 border ${active ? 'border shadow-sm font-bold' : 'border-transparent hover:bg-[var(--color-bg-primary)] font-medium'}`}
-      style={active ? { background: `${color}15`, borderColor: `${color}35`, color } : { color: 'var(--color-text-secondary)' }}
+      style={active ? { background: `${color}15`, borderColor: `${color}35`, color } : { color: isRecent ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}
     >
       <span style={active ? { color } : { color: 'var(--color-text-muted)' }}>{icon}</span>
-      <span className="text-[13px] truncate">{label}</span>
+      <span className={`text-[13px] truncate ${isRecent && !active ? 'font-bold' : ''}`}>{label}</span>
       {active && <div className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: color }} />}
+      {isRecent && !active && <div className="ml-auto w-2 h-2 rounded-full bg-[var(--color-purple-glow)]" />}
     </button>
   );
 }

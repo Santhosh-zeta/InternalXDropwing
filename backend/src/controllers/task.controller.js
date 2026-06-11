@@ -7,13 +7,17 @@ const getTasks = async (req, res) => {
     
     let query = `
       SELECT t.*, 
-        u1.full_name as assigned_to_name, u1.avatar_url as assigned_to_avatar,
         u2.full_name as assigned_by_name, u2.avatar_url as assigned_by_avatar,
         v.name as venture_name, v.primary_color,
         p.name as project_name,
-        pt.title as parent_task_title
+        pt.title as parent_task_title,
+        (
+          SELECT json_agg(json_build_object('id', u.id, 'name', u.full_name, 'avatar', u.avatar_url))
+          FROM task_assignees ta
+          JOIN users u ON ta.user_id = u.id
+          WHERE ta.task_id = t.id
+        ) as assignees
       FROM tasks t
-      JOIN users u1 ON t.assigned_to = u1.id
       JOIN users u2 ON t.assigned_by = u2.id
       LEFT JOIN ventures v ON t.venture_id = v.id
       LEFT JOIN projects p ON t.project_id = p.id
@@ -22,14 +26,11 @@ const getTasks = async (req, res) => {
     `;
     const params = [];
 
-    // Global admins (Level 1, 2) can see everything. 
-    // Level 3-6 can see all tasks within their venture.
-    // Level 7-9 can only see tasks assigned to them or by them.
     if (accessLevel >= 3 && accessLevel <= 6) {
       query += ` AND t.venture_id = ?`;
       params.push(ventureId);
     } else if (accessLevel >= 7) {
-      query += ` AND (t.assigned_to = ? OR t.assigned_by = ?)`;
+      query += ` AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?) OR t.assigned_by = ?)`;
       params.push(userId, userId);
     }
 
@@ -37,7 +38,13 @@ const getTasks = async (req, res) => {
 
     const [tasks] = await pool.query(query, params);
     
-    return res.json({ success: true, data: tasks });
+    // Fallback if assignees is null due to empty JSON agg
+    const processedTasks = tasks.map(t => ({
+      ...t,
+      assignees: t.assignees || []
+    }));
+    
+    return res.json({ success: true, data: processedTasks });
   } catch (error) {
     console.error('Error fetching tasks:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -49,56 +56,63 @@ const createTask = async (req, res) => {
     const { title, description, assigned_to, due_date, priority, project_id, parent_task_id } = req.body;
     const { id: assigned_by, ventureId } = req.user;
 
-    if (!title || !assigned_to) {
+    const assignees = Array.isArray(assigned_to) ? assigned_to : [assigned_to];
+
+    if (!title || assignees.length === 0 || !assignees[0]) {
       return res.status(400).json({ success: false, message: 'Title and Assignee are required' });
     }
 
-    // Determine venture_id for the task. If global admin, maybe pass it in body, else use creator's venture
     const taskVentureId = req.user.accessLevel <= 2 ? (req.body.venture_id || null) : ventureId;
 
     const [result] = await pool.query(
       `INSERT INTO tasks (title, description, status, priority, assigned_to, assigned_by, venture_id, due_date, project_id, parent_task_id)
        VALUES (?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      [title, description || null, priority || 'medium', assigned_to, assigned_by, taskVentureId, due_date || null, project_id || null, parent_task_id || null]
+      [title, description || null, priority || 'medium', assignees[0], assigned_by, taskVentureId, due_date || null, project_id || null, parent_task_id || null]
     );
 
-    await logAudit(req.user.id, 'CREATE_TASK', 'task', result.insertId, { title, assigned_to, project_id, parent_task_id });
+    const taskId = result.insertId || (result.rows && result.rows[0] ? result.rows[0].id : null);
 
-    // CREATE NOTIFICATION
-    const { createNotification } = require('../services/notification.service');
-    createNotification(
-      assigned_to, 
-      'task_assigned', 
-      'New Task Assigned', 
-      `You have been assigned a new task: ${title}`,
-      `/dashboard/tasks`
-    ).catch(console.error);
-
-    // FETCH USER DETAILS FOR EMAIL
-    try {
-      const [usersData] = await pool.query('SELECT id, email, full_name FROM users WHERE id IN (?, ?)', [assigned_to, assigned_by]);
-      
-      const assignee = usersData.find(u => u.id === parseInt(assigned_to));
-      const assigner = usersData.find(u => u.id === parseInt(assigned_by));
-
-      if (assignee) {
-        const assignedByName = assigner ? assigner.full_name : 'An Administrator';
-        
-        let projectName = '';
-        if (project_id) {
-          const [projData] = await pool.query('SELECT name FROM projects WHERE id = ?', [project_id]);
-          if (projData.length > 0) projectName = projData[0].name;
+    if (taskId) {
+      for (let uid of assignees) {
+        if (uid) {
+          await pool.query('INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [taskId, uid]);
         }
-
-        const { sendTaskAssignmentEmail } = require('../services/email.service');
-        // Do not await to avoid blocking the API response
-        sendTaskAssignmentEmail(assignee.email, assignee.full_name, title, assignedByName, projectName).catch(console.error);
       }
-    } catch (emailErr) {
-      console.error('Error triggering assignment email:', emailErr);
     }
 
-    return res.status(201).json({ success: true, message: 'Task created', data: { id: result.insertId } });
+    await logAudit(req.user.id, 'CREATE_TASK', 'task', taskId, { title, assigned_to: assignees, project_id, parent_task_id });
+
+    // NOTIFICATIONS & EMAILS
+    const { createNotification } = require('../services/notification.service');
+    const { sendTaskAssignmentEmail } = require('../services/email.service');
+    
+    let projectName = '';
+    if (project_id) {
+      const [projData] = await pool.query('SELECT name FROM projects WHERE id = ?', [project_id]);
+      if (projData.length > 0) projectName = projData[0].name;
+    }
+
+    const [usersData] = await pool.query('SELECT id, email, full_name FROM users WHERE id IN (?) OR id = ?', [assignees.length ? assignees : [0], assigned_by]);
+    const assigner = usersData.find(u => u.id === parseInt(assigned_by));
+    const assignedByName = assigner ? assigner.full_name : 'An Administrator';
+
+    for (let uid of assignees) {
+      if (!uid) continue;
+      createNotification(
+        uid, 
+        'task_assigned', 
+        'New Task Assigned', 
+        `You have been assigned a new task: ${title}`,
+        `/dashboard/tasks`
+      ).catch(console.error);
+
+      const assignee = usersData.find(u => u.id === parseInt(uid));
+      if (assignee) {
+        sendTaskAssignmentEmail(assignee.email, assignee.full_name, title, assignedByName, projectName).catch(console.error);
+      }
+    }
+
+    return res.status(201).json({ success: true, message: 'Task created', data: { id: taskId } });
   } catch (error) {
     console.error('Error creating task:', error);
     return res.status(500).json({ success: false, message: 'Server error' });
@@ -108,9 +122,8 @@ const createTask = async (req, res) => {
 const updateTask = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status, title, description, priority, due_date, project_id, parent_task_id } = req.body;
+    const { status, title, description, priority, due_date, project_id, parent_task_id, assigned_to } = req.body;
     
-    // Build dynamic update
     const updates = [];
     const params = [];
     if (status) { updates.push('status = ?'); params.push(status); }
@@ -121,36 +134,49 @@ const updateTask = async (req, res) => {
     if (project_id !== undefined) { updates.push('project_id = ?'); params.push(project_id); }
     if (parent_task_id !== undefined) { updates.push('parent_task_id = ?'); params.push(parent_task_id); }
 
-    if (updates.length === 0) {
-      return res.status(400).json({ success: false, message: 'No fields to update' });
+    let assignees = null;
+    if (assigned_to !== undefined) {
+      assignees = Array.isArray(assigned_to) ? assigned_to : [assigned_to];
+      if (assignees.length > 0 && assignees[0]) {
+        updates.push('assigned_to = ?'); params.push(assignees[0]);
+      }
     }
 
-    params.push(id);
-    
-    const [result] = await pool.query(
-      `UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`,
-      params
-    );
+    if (updates.length > 0) {
+      params.push(id);
+      const [result] = await pool.query(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`, params);
+      if (result.affectedRows === 0 && updates.length > 0) {
+        return res.status(404).json({ success: false, message: 'Task not found' });
+      }
+    }
 
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'Task not found' });
+    if (assignees !== null) {
+      await pool.query('DELETE FROM task_assignees WHERE task_id = ?', [id]);
+      for (let uid of assignees) {
+        if (uid) {
+          await pool.query('INSERT INTO task_assignees (task_id, user_id) VALUES (?, ?) ON CONFLICT DO NOTHING', [id, uid]);
+        }
+      }
     }
 
     await logAudit(req.user.id, 'UPDATE_TASK', 'task', id, { targetId: id, changedFields: updates });
 
-    // IF STATUS CHANGED, NOTIFY ASSIGNEE
+    // IF STATUS CHANGED, NOTIFY ASSIGNEES
     if (status) {
       try {
-        const [[taskData]] = await pool.query('SELECT title, assigned_to FROM tasks WHERE id = ?', [id]);
+        const [[taskData]] = await pool.query('SELECT title FROM tasks WHERE id = ?', [id]);
+        const [assigneesData] = await pool.query('SELECT user_id FROM task_assignees WHERE task_id = ?', [id]);
         if (taskData) {
           const { createNotification } = require('../services/notification.service');
-          createNotification(
-            taskData.assigned_to,
-            'task_updated',
-            'Task Status Updated',
-            `Task "${taskData.title}" is now ${status}`,
-            `/dashboard/tasks`
-          ).catch(console.error);
+          for (let a of assigneesData) {
+            createNotification(
+              a.user_id,
+              'task_updated',
+              'Task Status Updated',
+              `Task "${taskData.title}" is now ${status}`,
+              `/dashboard/tasks`
+            ).catch(console.error);
+          }
         }
       } catch (e) { console.error('Notify fail:', e); }
     }

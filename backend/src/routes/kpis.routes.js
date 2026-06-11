@@ -64,7 +64,8 @@ router.get('/hr', authenticate, async (req, res) => {
         COUNT(t.id) AS total_tasks,
         ROUND(COUNT(CASE WHEN t.status = 'completed' THEN 1 END) / NULLIF(COUNT(t.id),0) * 100, 0) AS completion_rate
       FROM users u
-      LEFT JOIN tasks t ON t.assigned_to = u.id AND t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      LEFT JOIN task_assignees ta ON ta.user_id = u.id
+      LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
       LEFT JOIN ventures v ON u.venture_id = v.id
       WHERE u.is_active = TRUE AND u.access_level >= 5
     `;
@@ -140,7 +141,8 @@ router.get('/department', authenticate, async (req, res) => {
       FROM users u
       LEFT JOIN ventures v ON u.venture_id = v.id
       LEFT JOIN projects p ON p.venture_id = u.venture_id AND p.status = 'active'
-      LEFT JOIN tasks t ON t.assigned_to = u.id AND t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
+      LEFT JOIN task_assignees ta ON ta.user_id = u.id
+      LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= DATE_SUB(CURDATE(), INTERVAL 30 DAY)
       WHERE u.is_active = TRUE AND u.department IS NOT NULL AND u.department != ''
     `;
     const params = [];
