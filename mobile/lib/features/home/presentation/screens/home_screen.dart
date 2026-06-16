@@ -15,6 +15,8 @@ import '../widgets/venture_galaxy.dart';
 import '../widgets/live_activity_stream.dart';
 import '../widgets/ai_executive_assistant.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../projects/presentation/providers/projects_provider.dart';
+import '../../../documents/presentation/providers/documents_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -76,8 +78,17 @@ class HomeScreen extends ConsumerWidget {
                 critical++;
               }
             }
-            int pendingProjects = 2; // Mock for now
-            int documents = 1; // Mock for now
+            int pendingProjects = 0;
+            int runningProjects = 0;
+            ref.watch(projectListProvider).whenData((projs) {
+              runningProjects = projs.where((p) => p.isActive).length;
+              pendingProjects = projs.length; // Simplified, or just projs.where((p) => !p.isCompleted).length
+            });
+
+            int documents = 0;
+            ref.watch(documentsProvider).whenData((docs) {
+              documents = docs.length;
+            });
 
             return RefreshIndicator(
               onRefresh: () async {
@@ -101,9 +112,9 @@ class HomeScreen extends ConsumerWidget {
                       
                       NebulaHeroOrb(
                         healthPercentage: 92,
-                        activeVentures: 4,
-                        runningProjects: 38,
-                        openTasks: 146,
+                        activeVentures: data.analytics.userDistribution.isNotEmpty ? data.analytics.userDistribution.length : 4,
+                        runningProjects: runningProjects,
+                        openTasks: data.tasks.length,
                       ),
                       
                       const SizedBox(height: 32),
@@ -128,7 +139,7 @@ class HomeScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 32),
 
-                      const VentureGalaxy(),
+                      VentureGalaxy(data: data),
                       const SizedBox(height: 32),
                       
                       MissionBoard(tasks: data.tasks),
@@ -146,9 +157,36 @@ class HomeScreen extends ConsumerWidget {
             );
           },
           loading: () => const Center(child: CircularProgressIndicator(color: NebulaColors.primary)),
-          error: (error, stack) => Center(
-            child: Text('Error: $error', style: const TextStyle(color: NebulaColors.critical)),
-          ),
+          error: (error, stack) {
+            if (error.toString().contains('401')) {
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(LucideIcons.shieldAlert, size: 48, color: NebulaColors.critical),
+                    const SizedBox(height: 16),
+                    const Text('Session Expired', style: TextStyle(color: NebulaColors.textPrimary, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    const Text('Please log in again to continue.', style: TextStyle(color: NebulaColors.textSecondary)),
+                    const SizedBox(height: 24),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: NebulaColors.primary),
+                      onPressed: () {
+                        ref.read(authProvider.notifier).logout();
+                      },
+                      child: const Text('Log In Again', style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                ),
+              );
+            }
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(20.0),
+                child: Text('Error: $error', style: const TextStyle(color: NebulaColors.critical)),
+              ),
+            );
+          },
         ),
       ),
     );

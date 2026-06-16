@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/task_detail_provider.dart';
 import '../providers/task_form_provider.dart';
+import '../providers/task_list_provider.dart';
 
 class TaskDetailScreen extends ConsumerWidget {
   final int taskId;

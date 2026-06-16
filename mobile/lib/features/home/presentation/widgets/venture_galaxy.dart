@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:math' as math;
 import '../../../../core/theme/nebula_colors.dart';
+import '../../data/models/home_models.dart';
 
 class VentureGalaxy extends StatefulWidget {
-  const VentureGalaxy({Key? key}) : super(key: key);
+  final HomeData data;
+  const VentureGalaxy({Key? key, required this.data}) : super(key: key);
 
   @override
   State<VentureGalaxy> createState() => _VentureGalaxyState();
@@ -12,18 +14,31 @@ class VentureGalaxy extends StatefulWidget {
 
 class _VentureGalaxyState extends State<VentureGalaxy> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
-
-  // Mock venture data for the galaxy
-  final List<Map<String, dynamic>> ventures = [
-    {'name': 'Fenixa', 'health': 92, 'color': Colors.blue},
-    {'name': 'PerSyniX', 'health': 85, 'color': Colors.green},
-    {'name': 'Grovia', 'health': 98, 'color': Colors.orange},
-    {'name': 'DDS', 'health': 88, 'color': Colors.purple},
-  ];
+  late List<Map<String, dynamic>> ventures;
 
   @override
   void initState() {
     super.initState();
+    ventures = widget.data.analytics.userDistribution.map((v) {
+      Color c = Colors.blue;
+      try {
+        if (v.colorHex.isNotEmpty) {
+          c = Color(int.parse(v.colorHex.replaceFirst('#', '0xff')));
+        }
+      } catch (_) {}
+      return {
+        'name': v.name,
+        'health': v.value > 0 ? (v.value * 10) % 100 : 80,
+        'color': c,
+      };
+    }).toList();
+
+    if (ventures.isEmpty) {
+      ventures = [
+        {'name': 'Dropwing', 'health': 98, 'color': Colors.blue},
+      ];
+    }
+
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 40),

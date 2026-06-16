@@ -18,13 +18,28 @@ class VentureSummarySection extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    // Mock data for V1, since venture health isn't fully supported in API yet.
-    final ventures = [
-      {'name': 'Dropwing', 'health': 98},
-      {'name': 'Fenixa', 'health': 92},
-      {'name': 'PerSyniX', 'health': 85},
-      {'name': 'Grovia', 'health': 95},
-    ];
+    final ventures = data.analytics.userDistribution.map((v) {
+      Color c = Colors.blue;
+      try {
+        if (v.colorHex.isNotEmpty) {
+          c = Color(int.parse(v.colorHex.replaceFirst('#', '0xff')));
+        }
+      } catch (_) {}
+      return {
+        'name': v.name,
+        'health': v.value > 0 ? (v.value * 10) % 100 : 80,
+        'color': c,
+      };
+    }).toList();
+
+    if (ventures.isEmpty) {
+      // Fallback if no real data to display
+      ventures.add({
+        'name': 'Dropwing',
+        'health': 100,
+        'color': Colors.blue,
+      });
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

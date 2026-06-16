@@ -51,6 +51,58 @@ const getTasks = async (req, res) => {
   }
 };
 
+const getTaskById = async (req, res) => {
+  try {
+    const { id: userId, accessLevel, ventureId } = req.user;
+    const { id } = req.params;
+
+    let query = `
+      SELECT t.*, 
+        u2.full_name as assigned_by_name, u2.avatar_url as assigned_by_avatar,
+        v.name as venture_name, v.primary_color,
+        p.name as project_name,
+        pt.title as parent_task_title,
+        (
+          SELECT json_agg(json_build_object('id', u.id, 'name', u.full_name, 'avatar', u.avatar_url))
+          FROM task_assignees ta
+          JOIN users u ON ta.user_id = u.id
+          WHERE ta.task_id = t.id
+        ) as assignees
+      FROM tasks t
+      JOIN users u2 ON t.assigned_by = u2.id
+      LEFT JOIN ventures v ON t.venture_id = v.id
+      LEFT JOIN projects p ON t.project_id = p.id
+      LEFT JOIN tasks pt ON t.parent_task_id = pt.id
+      WHERE t.id = ?
+    `;
+    const params = [id];
+
+    if (accessLevel >= 3 && accessLevel <= 6) {
+      query += ` AND (t.venture_id = ? OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?))`;
+      params.push(ventureId, userId);
+    } else if (accessLevel >= 7) {
+      query += ` AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.user_id = ?) OR t.assigned_by = ?)`;
+      params.push(userId, userId);
+    }
+
+    const [tasks] = await pool.query(query, params);
+    
+    if (tasks.length === 0) {
+      return res.status(404).json({ success: false, message: 'Task not found' });
+    }
+
+    const task = {
+      ...tasks[0],
+      assignees: tasks[0].assignees || []
+    };
+    
+    return res.json({ success: true, data: task });
+  } catch (error) {
+    console.error('Error fetching task by ID:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 const createTask = async (req, res) => {
   try {
     const { title, description, assigned_to, due_date, priority, project_id, parent_task_id } = req.body;
@@ -215,4 +267,4 @@ const deleteTask = async (req, res) => {
   }
 };
 
-module.exports = { getTasks, createTask, updateTask, deleteTask };
+module.exports = { getTasks, getTaskById, createTask, updateTask, deleteTask };

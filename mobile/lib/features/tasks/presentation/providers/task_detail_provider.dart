@@ -11,11 +11,12 @@ Future<TaskModel> taskDetail(TaskDetailRef ref, int taskId) async {
   final listState = ref.read(taskListProvider);
   if (listState.hasValue) {
     final cached = listState.value!.where((t) => t.id == taskId).firstOrNull;
-    // We could return cached instantly and let the remote fetch silently,
-    // but a standard FutureProvider resolves once.
-    // For simplicity, we just fetch from remote to get full details.
+    if (cached != null) {
+      return cached;
+    }
   }
 
   final repository = ref.watch(tasksRepositoryProvider);
   return repository.getTaskById(taskId);
 }
+

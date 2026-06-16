@@ -13,11 +13,12 @@ class HomeData {
 class HomeAnalytics {
   final List<ActivityItem> recentActivity;
   final List<Announcement> announcements;
-  // Add venture summaries later
+  final List<VentureData> userDistribution;
 
   HomeAnalytics({
     this.recentActivity = const [],
     this.announcements = const [],
+    this.userDistribution = const [],
   });
 
   factory HomeAnalytics.fromJson(Map<String, dynamic> json) {
@@ -30,6 +31,26 @@ class HomeAnalytics {
               ?.map((e) => Announcement.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
+      userDistribution: (json['userDistribution'] as List<dynamic>?)
+              ?.map((e) => VentureData.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+    );
+  }
+}
+
+class VentureData {
+  final String name;
+  final int value;
+  final String colorHex;
+
+  VentureData({required this.name, required this.value, required this.colorHex});
+
+  factory VentureData.fromJson(Map<String, dynamic> json) {
+    return VentureData(
+      name: json['name'] ?? '',
+      value: int.tryParse(json['value'].toString()) ?? 0,
+      colorHex: json['color'] ?? '#000000',
     );
   }
 }

@@ -13,6 +13,7 @@ import '../../features/tasks/presentation/screens/task_form_screen.dart';
 import '../layout/main_layout_screen.dart';
 import '../../features/projects/presentation/screens/projects_screen.dart';
 import '../../features/projects/presentation/screens/project_detail_screen.dart';
+import '../../features/projects/presentation/screens/project_form_screen.dart';
 import '../../features/workspace/presentation/screens/workspace_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
@@ -158,7 +159,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'create',
-                    builder: (context, state) => const _ProjectCreatePlaceholder(),
+                    builder: (context, state) => const ProjectFormScreen(),
                   ),
                   GoRoute(
                     path: ':id',
@@ -175,7 +176,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           final id = int.tryParse(
                                   state.pathParameters['id'] ?? '0') ??
                               0;
-                          return _ProjectEditPlaceholder(projectId: id);
+                          return ProjectFormScreen(projectId: id);
                         },
                       ),
                     ],
@@ -209,29 +210,3 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
   );
 });
-
-// Placeholder screens until full form is built
-class _ProjectCreatePlaceholder extends StatelessWidget {
-  const _ProjectCreatePlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('New Project')),
-      body: const Center(child: Text('Create Project — Coming Soon')),
-    );
-  }
-}
-
-class _ProjectEditPlaceholder extends StatelessWidget {
-  final int projectId;
-  const _ProjectEditPlaceholder({required this.projectId});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Edit Project')),
-      body: Center(child: Text('Edit Project #$projectId — Coming Soon')),
-    );
-  }
-}
