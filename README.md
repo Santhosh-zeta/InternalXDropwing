@@ -120,17 +120,17 @@ InternalX leverages a modern, decoupled architecture designed for high availabil
 
 ```mermaid
 graph TD
-    Client[Web Client (Next.js 15)] -->|HTTPS / REST| API[API Server (Express.js)]
-    MobileClient[Mobile App (Flutter)] -->|HTTPS / REST| API
+    Client["Web Client (Next.js 15)"] -->|HTTPS / REST| API["API Server (Express.js)"]
+    MobileClient["Mobile App (Flutter)"] -->|HTTPS / REST| API
     
-    Client -->|WebSocket| WSS[Socket.IO Server]
+    Client -->|WebSocket| WSS["Socket.IO Server"]
     MobileClient -->|WebSocket| WSS
     
     WSS <--> API
     
-    API -->|Read/Write| DB[(MySQL Database)]
-    API -->|Read/Write| Storage[Local/Cloud Storage]
-    API -->|SMTP| Mail[Hostinger SMTP Server]
+    API -->|Read/Write| DB[("MySQL Database")]
+    API -->|Read/Write| Storage["Local/Cloud Storage"]
+    API -->|SMTP| Mail["Hostinger SMTP Server"]
     
     subgraph Infrastructure
     DB
