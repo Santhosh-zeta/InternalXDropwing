@@ -6,7 +6,7 @@
 
 A highly scalable, full-stack, multi-tenant enterprise management portal empowering seamless cross-venture collaboration with granular role-based access control.
 
-[**Documentation**](#-getting-started) • [**Features**](#-key-features) • [**API Reference**](#-api-documentation) • [**Architecture**](#-architecture) • [**Mobile App**](#-mobile-app)
+[**Visual Documentation (UI Guide)**](./VISUAL_DOCUMENTATION.md) • [**Documentation**](#-getting-started) • [**Features**](#-key-features) • [**API Reference**](#-api-documentation) • [**Architecture**](#-architecture) • [**Mobile App**](#-mobile-app)
 
 <!-- Badges -->
 ![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=nextdotjs)
@@ -32,7 +32,7 @@ A highly scalable, full-stack, multi-tenant enterprise management portal empower
 ## 📖 Table of Contents
 
 - [Project Overview](#-project-overview)
-- [Visual Documentation](./docs/VISUAL_DOCUMENTATION.md)
+- [Visual Documentation](./VISUAL_DOCUMENTATION.md)
 - [Key Features](#-key-features)
 - [Screenshots](#-screenshots)
 - [Architecture](#-architecture)
