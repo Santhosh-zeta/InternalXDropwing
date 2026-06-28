@@ -32,6 +32,7 @@ A highly scalable, full-stack, multi-tenant enterprise management portal empower
 ## 📖 Table of Contents
 
 - [Project Overview](#-project-overview)
+- [Visual Documentation](./docs/VISUAL_DOCUMENTATION.md)
 - [Key Features](#-key-features)
 - [Screenshots](#-screenshots)
 - [Architecture](#-architecture)
