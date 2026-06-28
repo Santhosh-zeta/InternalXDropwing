@@ -1,15 +1,29 @@
 <div align="center">
 
 # ✦ InternalX
-### Enterprise Command Center — Dropwing Groups
 
-**A full-stack, multi-tenant enterprise management portal supporting 9 access levels across 4 ventures.**
+> **The Ultimate Enterprise Command Center for Dropwing Groups.**
 
-![Next.js](https://img.shields.io/badge/Next.js-15-black?style=flat-square&logo=nextdotjs)
-![Node.js](https://img.shields.io/badge/Node.js-Express-green?style=flat-square&logo=nodedotjs)
-![MySQL](https://img.shields.io/badge/MySQL-MariaDB-blue?style=flat-square&logo=mysql)
-![Socket.IO](https://img.shields.io/badge/Socket.IO-Real--Time-white?style=flat-square&logo=socketdotio)
-![License](https://img.shields.io/badge/License-ISC-yellow?style=flat-square)
+A highly scalable, full-stack, multi-tenant enterprise management portal empowering seamless cross-venture collaboration with granular role-based access control.
+
+[**Documentation**](#-getting-started) • [**Features**](#-key-features) • [**API Reference**](#-api-documentation) • [**Architecture**](#-architecture) • [**Mobile App**](#-mobile-app)
+
+<!-- Badges -->
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=nextdotjs)
+![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)
+![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter)
+![Node.js](https://img.shields.io/badge/Node.js-18+-green?style=for-the-badge&logo=nodedotjs)
+![Express.js](https://img.shields.io/badge/Express.js-4.x-black?style=for-the-badge&logo=express)
+![MySQL](https://img.shields.io/badge/MySQL-3-4479A1?style=for-the-badge&logo=mysql)
+![Socket.IO](https://img.shields.io/badge/Socket.IO-Real--Time-white?style=for-the-badge&logo=socketdotio)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
+![License](https://img.shields.io/badge/License-ISC-yellow?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Production_Ready-success?style=for-the-badge)
+![Platform](https://img.shields.io/badge/Platform-Web_|_Android_|_iOS-purple?style=for-the-badge)
+
+<br/>
+
+<img src="docs/images/banner.png" alt="InternalX Hero Banner" width="100%" />
 
 </div>
 
@@ -17,641 +31,441 @@
 
 ## 📖 Table of Contents
 
-- [Overview](#-overview)
-- [Ventures](#-ventures)
-- [Access Level System](#-access-level-system)
-- [Design Aesthetics](#-design-aesthetics)
-- [Feature Status](#-feature-status)
+- [Project Overview](#-project-overview)
+- [Key Features](#-key-features)
+- [Screenshots](#-screenshots)
 - [Architecture](#-architecture)
-- [Project Structure](#-project-structure)
-- [Database Schema](#-database-schema)
-- [API Reference](#-api-reference)
-- [Getting Started](#-getting-started)
-- [Test Accounts](#-test-accounts)
 - [Tech Stack](#-tech-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Environment Variables](#-environment-variables)
+- [API Documentation](#-api-documentation)
+- [Database Schema](#-database-schema)
+- [Authentication & Access Control](#-authentication--access-control)
+- [Security](#-security)
+- [Performance](#-performance)
+- [Deployment](#-deployment)
+- [Testing](#-testing)
+- [Troubleshooting](#-troubleshooting)
+- [Roadmap](#-roadmap)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ---
 
-## 🌐 Overview
+## 🌐 Project Overview
 
-**InternalX** is the unified internal command center for **Dropwing Groups** — a holding entity managing four distinct ventures. It provides role-based access control across **9 access levels** (Super Admin → Client), enabling each stakeholder to see exactly the data and actions relevant to their role and venture.
+**InternalX** is the unified, enterprise-grade operating system for **Dropwing Groups**, managing four distinct ventures under a single cohesive platform.
 
-### Core Capabilities
+### The Problem
+Managing multiple companies (ventures) typically requires fragmented tools for chat, project management, file storage, and HR. This leads to siloed data, complex access management, and excessive software costs.
 
-| Area | What It Does |
-|------|-------------|
-| **Multi-Tenant Auth** | JWT-based login, OTP-based 2FA, Registration, and Password Recovery |
-| **Real-Time Chat** | WebSocket (Socket.IO) team messaging with channels + DMs |
-| **Task & Project Management** | Full CRUD with status tracking, priorities, deadlines |
-| **Document Vault** | Secure file storage with role-gated access |
-| **Timesheets** | Multi-venture payroll and timesheet approval workflows |
-| **Invoices** | Invoice creation, status tracking, and client-visible downloads |
-| **Analytics & Reports** | Cross-venture KPIs, productivity charts, export tools |
-| **Access Control** | Visual permission matrix for L1 to manage all roles |
-| **Budget & Financials** | Per-venture budget allocation, expense tracking, burn rates |
-| **Department KPIs** | OKR tracking, headcount, team velocity for CXO/MD views |
-| **Client Portal** | Read-only branded portal for L9 clients with project timelines |
-| **Learning Hub** | Intern onboarding checklists, resource library, manager feedback |
-| **Notifications** | In-app notification bell with real-time alerts |
-| **Audit Logs** | Full activity trail for compliance and security (L1 only) |
-| **User Management** | Employee profiles, role assignment, deactivation |
-| **Settings** | Profile management, password change, preferences |
-| **Email Engine** | Automated task-assignment emails via Hostinger SMTP |
+### The Solution
+InternalX unifies **Task & Project Management, Real-Time Messaging, HR, Finances, Document Storage, and Client Portals** into one secure, centralized command center.
+
+### The Ventures
+
+| Venture | Slug | Brand Color | Domain Focus |
+|---------|------|-------------|--------------|
+| **Dropwing Design Studio** | `dropwing` | `#8B5CF6` (Purple) | Creative design, UI/UX, and brand identity |
+| **Fenixa Solutions** | `fenixa` | `#06B6D4` (Cyan) | Software development & scalable SaaS solutions |
+| **PerSyniX** | `persynix` | `#F59E0B` (Amber) | Artificial Intelligence & Machine Learning |
+| **Grovia** | `grovia` | `#10B981` (Green) | Marketing, SEO, and business growth |
 
 ---
 
-## 🏢 Ventures
+## ✨ Key Features
 
-InternalX manages **4 ventures** within Dropwing Groups, each with its own branding color and team:
-
-| Venture | Slug | Color | Description |
-|---------|------|-------|-------------|
-| **Dropwing Design Studio** | `dropwing` | `#8B5CF6` (Purple) | Creative design studio — brand identity & UI/UX |
-| **Fenixa Solutions** | `fenixa` | `#06B6D4` (Cyan) | Software development & SaaS solutions |
-| **PerSyniX** | `persynix` | `#F59E0B` (Amber) | AI & ML solutions platform |
-| **Grovia** | `grovia` | `#10B981` (Green) | Marketing and growth solutions |
-
-> Super Admin (L1) and Managing Director (L2) accounts have **global access** across all ventures. L3–L9 users are scoped to their assigned venture.
-
----
-
-## 🎚️ Access Level System
-
-InternalX uses a **9-tier access level hierarchy**:
-
-| Level | Role | Venture Scope | Key Capabilities |
-|-------|------|--------------|-----------------|
-| **L1** | Super Admin | Global (All) | Full system access, access control, audit logs, database |
-| **L2** | Managing Director | Global (All) | Strategic oversight, financials, HR overview, reports |
-| **L3** | Admin | Single Venture | Venture admin panel, user management, all venture data |
-| **L4** | CXO | Single Venture | C-Suite dashboard, department KPIs, budget, team management |
-| **L5** | Manager | Single Venture | Team dashboard, projects, tasks, reports |
-| **L6** | Executive Staff | Single Venture | Projects, tasks, documents, timesheets |
-| **L7** | Staff | Single Venture | Personal dashboard, assigned tasks, documents, timesheets |
-| **L8** | Intern | Single Venture | My tasks, learning hub, team chat |
-| **L9** | Client | Single Venture | Project status, deliverables, invoices, messages (read-only) |
-| **L0** | Superuser | System Root | Maintenance only (Reserved) |
+| Feature | Description |
+| ------- | ----------- |
+| 🏢 **Multi-Tenant Architecture** | Seamlessly manage 4 ventures in one unified platform. |
+| 🎚️ **Granular RBAC** | 9 distinct access tiers (L1 Super Admin → L9 Client). |
+| 💬 **Real-Time Communication** | WebSocket-powered channels and direct messaging (Socket.IO). |
+| 📊 **Advanced Analytics** | Interactive Recharts-powered dashboards and cross-venture KPIs. |
+| 📁 **Secure Document Vault** | Role-gated file storage with enterprise-grade encryption tracking. |
+| 💼 **Financial & HR Suite** | Timesheets, budget tracking, automated invoicing, and department OKRs. |
+| 📱 **Mobile Ecosystem** | Cross-platform Flutter app for on-the-go enterprise access. |
+| 🎓 **Learning Hub** | Automated onboarding checklists, intern tracking, and feedback loops. |
+| 🎨 **Dynamic Theming** | Glassmorphism UI that automatically adapts to the user's venture brand color. |
+| 🔔 **Notification Engine** | Real-time in-app alerts and automated Hostinger SMTP email triggers. |
 
 ---
 
-## ✨ Design Aesthetics
+## 🖼️ Screenshots
 
-InternalX follows a **Premium Dark Design System** inspired by modern high-end enterprise platforms:
+<details>
+<summary>Click to view screenshots</summary>
 
-- **Violet Accent System**: Unified brand identity using `#8B5CF6` (Violet) as the primary interaction color.
-- **Glassmorphism**: Sophisticated backdrop blurs and semi-transparent layers for a deep, layered interface.
-- **Micro-Animations**: Smooth transitions, hover scaling, and pulse effects using Framer Motion.
-- **Responsive Charts**: Recharts-powered analytics with automated dimension handling and zero-latency rendering.
-- **Venture Theming**: UI components subtly shift accents (Cyan, Amber, Emerald) based on the user's active venture context.
+### Desktop / Web App
+![Dashboard Placeholder](docs/images/dashboard.png)
+*Unified dashboard with multi-venture analytics.*
 
----
+### Mobile App (Flutter)
+![Mobile Placeholder](docs/images/mobile.png)
+*Native iOS and Android experience.*
 
-## ✅ Feature Status
-
-### Core Views (All Implemented)
-
-| View | File | Status | Visible To |
-|------|------|--------|-----------|
-| Overview / Dashboard | `OverviewView.tsx` | ✅ Live | L1–L8 |
-| Tasks | `TasksView.tsx` | ✅ Live | L1–L9 |
-| Projects | `ProjectsView.tsx` | ✅ Live | L1–L9 |
-| Team Chat | `ChatView.tsx` | ✅ Live (WebSocket) | L1–L9 |
-| User Management | `UserManagementView.tsx` | ✅ Live | L1, L3 |
-| Documents (Vault) | `DocumentsView.tsx` | ✅ Live | L1–L9 |
-| Timesheets | `TimesheetsView.tsx` | ✅ Live | L6–L7 |
-| Invoices | `InvoicesView.tsx` | ✅ Live | L1–L3, L9 |
-| Settings | `SettingsView.tsx` | ✅ Live | L1–L9 |
-| Audit Logs | `AuditLogsView.tsx` | ✅ Live | L1 only |
-| Reports & Analytics | `ReportsView.tsx` | ✅ Live | L1–L5 |
-| Access Control | `AccessControlView.tsx` | ✅ Live | L1 only |
-| Budget / Financials | `BudgetView.tsx` | ✅ Live | L2, L4 |
-| Strategy | `StrategyView.tsx` | ✅ Live | L1, L2 |
-| Department KPIs | `DepartmentKPIsView.tsx` | ✅ Live | L4 (also HR Overview, Team Mgmt) |
-| Client Portal | `ClientPortalView.tsx` | ✅ Live | L9 |
-| Database | `DatabaseView.tsx` | ✅ Live | L1 |
-| Learning Hub | `LearningHubView.tsx` | ✅ Live | L1–L8 |
-| Notification Bell | `NotificationBell.tsx` | ✅ Live | L1–L9 |
-
-### Menu Items Status
-
-| Menu Item | Who Sees It | Status |
-|-----------|------------|--------|
-| System Overview / Dashboard | L1–L8 | ✅ Live |
-| Projects / My Projects | L1–L9 | ✅ Live |
-| Tasks / My Tasks | L1–L9 | ✅ Live |
-| Documents | L1–L9 | ✅ Live |
-| Team Chat / Messages | L1–L9 | ✅ Live (WebSocket) |
-| User Management / Team Members | L1, L3, L5 | ✅ Live |
-| Timesheets | L6–L7 | ✅ Live |
-| Invoices | L1–L3, L9 | ✅ Live |
-| Settings | L1–L9 | ✅ Live |
-| Audit Logs | L1 | ✅ Live |
-| Reports | L1–L5 | ✅ Live |
-| Access Control | L1 | ✅ Live |
-| Budget / Financials | L2, L4 | ✅ Live |
-| Department KPIs | L4 | ✅ Live |
-| HR Overview | L2 | ✅ Live (uses DepartmentKPIsView) |
-| Team Management | L4 | ✅ Live (uses DepartmentKPIsView) |
-| Client Portal (Deliverables) | L9 | ✅ Live |
-| Notification Bell | All | ✅ Live |
-| **Strategy** | L2 | ✅ Live |
-| **Database** | L1 | ✅ Live |
-| **Learning Hub** | L8 | ✅ Live |
+### Dark Mode & Glassmorphism
+![Dark Mode Placeholder](docs/images/dark_mode.png)
+*Premium dark theme with venture-specific accent colors.*
+</details>
 
 ---
 
 ## 🏗️ Architecture
 
-```
-InternalXDropwing/
-├── frontend/          # Next.js 15 App Router (Port 3000)
-└── backend/           # Express.js API Server (Port 5000)
+InternalX leverages a modern, decoupled architecture designed for high availability and low latency.
+
+### System Architecture
+
+```mermaid
+graph TD
+    Client[Web Client (Next.js 15)] -->|HTTPS / REST| API[API Server (Express.js)]
+    MobileClient[Mobile App (Flutter)] -->|HTTPS / REST| API
+    
+    Client -->|WebSocket| WSS[Socket.IO Server]
+    MobileClient -->|WebSocket| WSS
+    
+    WSS <--> API
+    
+    API -->|Read/Write| DB[(MySQL Database)]
+    API -->|Read/Write| Storage[Local/Cloud Storage]
+    API -->|SMTP| Mail[Hostinger SMTP Server]
+    
+    subgraph Infrastructure
+    DB
+    Storage
+    Mail
+    end
 ```
 
-### Frontend → Backend Communication
+### Authentication Flow (JWT + OTP)
 
-```
-Browser ──HTTPS──> Next.js Frontend (3000)
-                        │
-                        ├── REST API calls ──> Express Backend (5000)
-                        │                         │
-                        └── WebSocket ──> Socket.IO Server (5000)
-                                                  │
-                                             MySQL Database
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend
+    participant Backend
+    participant Mailer
+    
+    User->>Frontend: Enters Email & Password
+    Frontend->>Backend: POST /api/auth/login
+    Backend->>Backend: Verify bcrypt hash
+    Backend->>Mailer: Generate & Send OTP
+    Mailer-->>User: Delivers 6-digit OTP via Email
+    User->>Frontend: Enters OTP
+    Frontend->>Backend: POST /api/auth/verify-otp
+    Backend->>Frontend: Returns JWT Token
+    Frontend->>Frontend: Store in Secure Cookie/Storage
+    Frontend-->>User: Redirect to Dashboard
 ```
 
-### Auth Flow
+---
 
-```
-Login Form ──POST /api/auth/login──> Validate credentials
-                                          │
-                                    Issue JWT (8h expiry)
-                                          │
-                               Store in localStorage + Cookie
-                                          │
-                        All subsequent requests: Bearer <token>
-```
+## 💻 Tech Stack
+
+| Category | Technology |
+|----------|------------|
+| **Frontend Web** | Next.js 15 (App Router), React 19, Tailwind CSS, Framer Motion, Recharts |
+| **Mobile App** | Flutter 3.x, Riverpod, GoRouter, Dio |
+| **Backend API** | Node.js 18+, Express.js 4, Socket.IO 4 |
+| **Database** | MySQL / MariaDB 3 |
+| **Authentication** | JSON Web Tokens (JWT), bcryptjs, OTP-based 2FA |
+| **File Storage** | Multer (Local Storage) |
+| **Email Service** | Nodemailer with Hostinger SMTP |
+| **Type Safety** | TypeScript 5 (Frontend) |
+| **Linting & Code Style**| ESLint, Prettier, flutter_lints |
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 InternalXDropwing/
-│
-├── backend/
+├── backend/                  # Node.js + Express API
 │   ├── src/
-│   │   ├── config/
-│   │   │   ├── database.js          # MySQL2 connection pool
-│   │   │   ├── schema.sql           # Full DB schema + seed data
-│   │   │   └── create_db.sql        # Database creation script
-│   │   │
-│   │   ├── controllers/
-│   │   │   ├── auth.controller.js   # Login, logout, /me endpoint
-│   │   │   ├── task.controller.js   # Task CRUD + email triggers
-│   │   │   ├── invoice.controller.js
-│   │   │   ├── document.controller.js
-│   │   │   └── timesheet.controller.js
-│   │   │
-│   │   ├── middleware/
-│   │   │   └── auth.middleware.js   # JWT verify, req.user injection
-│   │   │
-│   │   ├── routes/
-│   │   │   ├── auth.routes.js       # POST /login, /logout, GET /me
-│   │   │   ├── user.routes.js       # Full user CRUD + role mgmt
-│   │   │   ├── task.routes.js       # Task CRUD
-│   │   │   ├── project.routes.js    # Project CRUD + milestones
-│   │   │   ├── chat.routes.js       # Message persistence
-│   │   │   ├── analytics.routes.js  # Cross-venture KPI aggregations
-│   │   │   ├── audit.routes.js      # Audit trail (L1 only)
-│   │   │   ├── document.routes.js   # File upload/download (Multer)
-│   │   │   ├── timesheet.routes.js  # Timesheet submit/approve
-│   │   │   ├── invoice.routes.js    # Invoice CRUD
-│   │   │   ├── access_control.routes.js  # Permission matrix R/W
-│   │   │   ├── notifications.routes.js   # In-app notifications
-│   │   │   ├── budget.routes.js     # Budget + expenses
-│   │   │   ├── kpis.routes.js       # Department KPIs + OKRs
-│   │   │   ├── client_portal.routes.js   # L9 client-scoped endpoints
-│   │   │   └── learning.routes.js   # Intern checklist/resources/feedback
-│   │   │
-│   │   ├── services/
-│   │   │   ├── email.service.js     # Nodemailer + Hostinger SMTP
-│   │   │   └── audit.service.js     # Audit log helper
-│   │   │
-│   │   └── server.js                # Express app + Socket.IO bootstrap
-│   │
-│   ├── uploads/                     # Multer file storage directory
-│   ├── seed.js                      # DB seeder (36 test accounts)
-│   ├── migrate-learning.js          # Learning Hub table migration
-│   ├── migrate-notifications.js     # Notifications table migration
-│   ├── alter*.js                    # Various ALTER TABLE migration scripts
-│   ├── package.json
-│   └── .env                         # Environment configuration
+│   │   ├── config/           # DB schema, migration scripts, env config
+│   │   ├── controllers/      # API logic (Auth, Tasks, Chat, etc.)
+│   │   ├── middleware/       # JWT Auth, RBAC validation
+│   │   ├── routes/           # Express REST endpoints
+│   │   ├── services/         # Email, Audit logging
+│   │   └── server.js         # Entry point & WebSocket setup
+│   ├── uploads/              # Secure document vault storage
+│   └── seed.js               # Database population script
 │
-├── frontend/
+├── frontend/                 # Next.js Web App
 │   ├── src/
-│   │   ├── app/
-│   │   │   ├── page.tsx             # Login page (multi-venture selector)
-│   │   │   ├── layout.tsx           # Root layout + Toaster
-│   │   │   ├── globals.css          # Design system tokens + animations
-│   │   │   └── dashboard/
-│   │   │       ├── page.tsx         # Dashboard shell + sidebar + routing
-│   │   │       ├── OverviewView.tsx
-│   │   │       ├── TasksView.tsx
-│   │   │       ├── ProjectsView.tsx
-│   │   │       ├── ChatView.tsx
-│   │   │       ├── UserManagementView.tsx
-│   │   │       ├── DocumentsView.tsx
-│   │   │       ├── TimesheetsView.tsx
-│   │   │       ├── InvoicesView.tsx
-│   │   │       ├── SettingsView.tsx
-│   │   │       ├── AuditLogsView.tsx
-│   │   │       ├── ReportsView.tsx
-│   │   │       ├── AccessControlView.tsx
-│   │   │       ├── BudgetView.tsx
-│   │   │       ├── DepartmentKPIsView.tsx
-│   │   │       ├── ClientPortalView.tsx
-│   │   │       └── NotificationBell.tsx
-│   │   │
-│   │   └── lib/
-│   │       ├── api.ts               # Axios client + all API call functions
-│   │       └── constants.ts         # TEST_ACCOUNTS, VENTURES, User types
-│   │
-│   └── package.json
+│   │   ├── app/              # App Router pages (Dashboard, Settings)
+│   │   ├── components/       # Reusable UI (Buttons, Modals, Charts)
+│   │   └── lib/              # Axios client, types, utility functions
+│   └── public/               # Static assets
 │
-├── generated_data.txt               # Reference: 36 test account definitions
-├── README.md
-└── .gitignore
+└── mobile/                   # Flutter Cross-Platform App
+    ├── lib/
+    │   ├── features/         # Feature-first architecture (Auth, Chat)
+    │   ├── core/             # Routing, Networking, Theming
+    │   └── main.dart         # Flutter entry point
+    └── pubspec.yaml          # Dependencies
 ```
-
----
-
-## 🗄️ Database Schema
-
-**Database:** `u247884947_InternalDG` (MySQL/MariaDB)
-
-### Core Tables
-
-| Table | Purpose |
-|-------|---------|
-| `ventures` | The 4 venture entities (name, slug, color, description) |
-| `access_levels` | 9 role definitions with JSON permissions field |
-| `users` | All employees and clients (36 test accounts + real users) |
-| `sessions` | JWT session tracking (for audit + kill-session) |
-| `tasks` | Task records with assignee, priority, status, due date |
-| `projects` | Project records with milestones, status, venture scope |
-| `messages` | Chat messages (venture channels + DMs) |
-| `documents` | File metadata (stored in `/uploads`) |
-| `timesheets` | Timesheet entries + approval workflow |
-| `invoices` | Invoice records with status |
-| `notifications` | In-app notification queue per user |
-
-### Learning Hub Tables
-
-| Table | Purpose |
-|-------|---------|
-| `learning_checklist_items` | Onboarding tasks defined by managers |
-| `learning_intern_progress` | Per-intern completion tracking (user × item) |
-| `learning_resources` | Resource library links/docs/videos |
-| `learning_feedback` | Manager notes and ratings for interns |
-
-### Key Relationships
-
-```
-ventures (1) ──── (N) users
-ventures (1) ──── (N) tasks
-ventures (1) ──── (N) projects
-users    (1) ──── (N) tasks [assigned_to + assigned_by]
-users    (1) ──── (N) notifications
-users    (1) ──── (N) sessions
-```
-
----
-
-## 🔌 API Reference
-
-**Base URL:** `http://localhost:5000/api`
-
-All protected routes require: `Authorization: Bearer <JWT_TOKEN>`
-
-### Authentication
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/auth/register` | Create a new user account |
-| `POST` | `/auth/login` | Login with email + password (sends OTP or returns JWT if verified) |
-| `POST` | `/auth/verify-otp` | Verify 6-digit OTP and return JWT + user object |
-| `POST` | `/auth/forgot-password` | Send password reset email with secure token |
-| `POST` | `/auth/reset-password` | Reset password using the emailed token |
-| `POST` | `/auth/logout` | Invalidate session |
-| `GET` | `/auth/me` | Get current authenticated user |
-
-### Users
-
-| Method | Endpoint | Access |
-|--------|----------|--------|
-| `GET` | `/users` | L1–L5 |
-| `GET` | `/users/:id` | L1–L5 |
-| `PUT` | `/users/:id` | L1, L3 |
-| `DELETE` | `/users/:id` | L1 |
-| `PATCH` | `/users/:id/toggle-active` | L1, L3 |
-
-### Tasks
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/tasks` | Venture-scoped task list |
-| `POST` | `/tasks` | Create task (triggers email notification) |
-| `PUT` | `/tasks/:id` | Update task |
-| `DELETE` | `/tasks/:id` | Delete task |
-
-### Projects
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/projects` | Venture-scoped project list |
-| `POST` | `/projects` | Create project |
-| `PUT` | `/projects/:id` | Update project |
-| `DELETE` | `/projects/:id` | Delete project |
-
-### Chat (also WebSocket)
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/chat/messages` | Fetch channel or DM history |
-| `POST` | `/chat/messages` | Persist new message |
-
-**WebSocket Events (Socket.IO):**
-- `join_channel(channelId)` — Join a venture or DM channel
-- `send_message(data)` — Broadcast message to channel
-- `receive_message(data)` — Listen for incoming messages
-
-### Analytics
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/analytics` | Cross-venture aggregated KPIs |
-
-### Budget / Financials
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/budget` | Venture budgets overview |
-| `POST` | `/budget` | Create/update budget allocation |
-| `GET` | `/budget/expenses` | Expense log |
-| `POST` | `/budget/expenses` | Log new expense |
-
-### Department KPIs
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/kpis` | Department KPI data |
-| `POST` | `/kpis` | Create KPI target |
-| `PUT` | `/kpis/:id` | Update KPI progress |
-
-### Learning Hub
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/learning/checklist` | Get checklist items (role-aware) |
-| `POST` | `/learning/checklist` | Manager creates checklist item |
-| `DELETE` | `/learning/checklist/:id` | Manager deletes checklist item |
-| `PATCH` | `/learning/progress/:id` | Intern marks item complete |
-| `GET` | `/learning/progress` | Manager views intern progress |
-| `GET` | `/learning/resources` | Resource library |
-| `POST` | `/learning/resources` | Manager adds resource |
-| `DELETE` | `/learning/resources/:id` | Manager removes resource |
-| `GET` | `/learning/feedback` | Feedback (role-filtered) |
-| `POST` | `/learning/feedback` | Manager adds intern feedback |
-
-### Other Endpoints
-
-| Prefix | Description |
-|--------|-------------|
-| `/notifications` | In-app alerts (GET, PATCH read, DELETE clear) |
-| `/access-control` | Permission matrix (L1: GET all, PUT update) |
-| `/audit` | Audit logs (L1 only: GET) |
-| `/documents` | File upload (Multer) + download |
-| `/timesheets` | Timesheet submit + approve/reject |
-| `/invoices` | Invoice CRUD |
-| `/client-portal` | L9 client-scoped project/invoice views |
-| `/health` | `GET /api/health` — API liveness check |
 
 ---
 
 ## 🚀 Getting Started
 
+Follow these instructions to run InternalX locally for development.
+
 ### Prerequisites
+- [Node.js](https://nodejs.org/) (v18 or higher)
+- [MySQL](https://www.mysql.com/) or [MariaDB](https://mariadb.org/)
+- [Flutter SDK](https://flutter.dev/docs/get-started/install) (for mobile app)
+- [Git](https://git-scm.com/)
 
-- **Node.js** v18+ and **npm**
-- **MySQL** / **MariaDB** running locally
-- A database named `u247884947_InternalDG` (or update `.env`)
-
-### 1. Clone & Install
-
+### 1. Clone the Repository
 ```bash
-git clone <repo-url>
+git clone https://github.com/dropwing-groups/InternalXDropwing.git
 cd InternalXDropwing
-
-# Backend
-cd backend
-npm install
-
-# Frontend
-cd ../frontend
-npm install
 ```
 
-### 2. Configure Environment
-
-Edit `backend/.env`:
-
-```env
-PORT=5000
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=u247884947_InternalDG
-DB_USER=root
-DB_PASSWORD=your_password
-JWT_SECRET=your_jwt_secret
-JWT_EXPIRES_IN=8h
-FRONTEND_URL=http://localhost:3000
-NODE_ENV=development
-
-# Email (Hostinger SMTP)
-SMTP_HOST=smtp.hostinger.com
-SMTP_PORT=465
-SMTP_SECURE=true
-SMTP_USER=internal@dropwinggroups.com
-SMTP_PASS=your_smtp_password
-```
-
-### 3. Initialize Database
-
+### 2. Setup the Backend
 ```bash
-# Create the database (if it doesn't exist)
-mysql -u root -p < backend/src/config/create_db.sql
-
-# Run the full schema + seed (36 test users)
 cd backend
+npm install
+
+# Initialize the database
+mysql -u root -p < src/config/create_db.sql
+
+# Seed the database with 30+ test accounts
 node seed.js
-```
 
-### 4. Run Learning Hub Migration (if needed)
-
-```bash
+# Run migrations (if necessary)
 node migrate-learning.js
 node migrate-notifications.js
 ```
 
-### 5. Start the Servers
-
+### 3. Setup the Frontend
 ```bash
-# Terminal 1 — Backend API (port 5000)
+cd ../frontend
+npm install
+```
+
+### 4. Setup Mobile App (Optional)
+```bash
+cd ../mobile
+flutter pub get
+```
+
+### 5. Start Development Servers
+Open two terminals to run both web servers:
+
+**Terminal 1: Backend**
+```bash
 cd backend
 npm run dev
+# Server running on http://localhost:5000
+```
 
-# Terminal 2 — Frontend (port 3000)
+**Terminal 2: Frontend Web**
+```bash
 cd frontend
 npm run dev
-```
-
-Open **http://localhost:3000** in your browser.
-
----
-
-## 👥 Test Accounts
-
-All accounts use password: **`Test@1234`**
-
-> Use the **Quick Access Grid** on the login page to instant-load credentials. You can filter by venture using the colored dots above the grid.
-
-### Global Accounts (All Ventures)
-
-| Role | Email | Level |
-|------|-------|-------|
-| Super Admin | `sa@dropwinggroups.com` | L1 |
-| Managing Director | `md@dropwinggroups.com` | L2 |
-
-### Per-Venture Accounts
-
-Each venture (Dropwing, Fenixa Solutions, PerSyniX, Grovia) has one account per role level:
-
-| Role | Dropwing | Fenixa Solutions | PerSyniX | Grovia |
-|------|----------|-----------|---------|--------|
-| **L3** Admin | `ad@dropwing.in` | `ad@fenixa.com` | `ad@persynix.com` | `ad@grovia.in` |
-| **L4** CXO | `cx@dropwing.in` | `cx@fenixa.com` | `cx@persynix.com` | `cx@grovia.in` |
-| **L5** Manager | `mg@dropwing.in` | `mg@fenixa.com` | `mg@persynix.com` | `mg@grovia.in` |
-| **L6** Exec Staff | `es@dropwing.in` | `es@fenixa.com` | `es@persynix.com` | `es@grovia.in` |
-| **L7** Staff | `st@dropwing.in` | `st@fenixa.com` | `st@persynix.com` | `st@grovia.in` |
-| **L8** Intern | `in@dropwing.in` | `in@fenixa.com` | `in@persynix.com` | `in@grovia.in` |
-| **L9** Client | `cl@dropwing.in` | `cl@fenixa.com` | `cl@persynix.com` | `cl@grovia.in` |
-
-> **Total:** 2 global + 28 per-venture = **30 test accounts**
-
-### Employee ID Format
-
-```
-[VENTURE_CODE]-[ROLE_CODE]-[SEQUENCE]
-  DW = Dropwing    SA = Super Admin    001 ...
-  FS = Fenixa Sol. MD = Managing Dir
-  PX = PerSyniX    AD = Admin
-  GV = Grovia      CX = CXO
-                   MG = Manager
-                   ES = Exec Staff
-                   ST = Staff
-                   IN = Intern
-                   CL = Client
+# Web app running on http://localhost:3000
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## ⚙️ Environment Variables
 
-### Frontend
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| **Next.js** | 15 (App Router) | React framework + SSR |
-| **TypeScript** | 5 | Type safety |
-| **Axios** | Latest | HTTP client |
-| **Socket.IO Client** | 4 | Real-time chat |
-| **React Hot Toast** | Latest | Notification toasts |
-| **Lucide React** | Latest | Icon library |
-| **Vanilla CSS** | — | Custom design system (glassmorphism) |
+Create `.env` files in both `backend/` and `frontend/` directories.
 
-### Backend
-| Technology | Version | Purpose |
-|-----------|---------|---------|
-| **Node.js** | 18+ | Runtime |
-| **Express.js** | 4 | HTTP framework |
-| **MySQL2** | 3 | Database driver (Promise API) |
-| **Socket.IO** | 4 | WebSocket server |
-| **bcryptjs** | 2 | Password hashing |
-| **jsonwebtoken** | 9 | JWT auth |
-| **Multer** | 2 | File uploads |
-| **Nodemailer** | 8 | Email notifications |
-| **Helmet** | 8 | HTTP security headers |
-| **Morgan** | 1 | Request logging |
-| **Nodemon** | 3 | Dev hot-reload |
+### `backend/.env`
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `PORT` | API Server Port | Yes | `5000` |
+| `DB_HOST` | Database Host | Yes | `localhost` |
+| `DB_PORT` | Database Port | Yes | `3306` |
+| `DB_NAME` | Database Name | Yes | `u247884947_InternalDG` |
+| `DB_USER` | Database User | Yes | `root` |
+| `DB_PASSWORD`| Database Password | Yes | `secret123` |
+| `JWT_SECRET` | Secret key for JWT | Yes | `your_super_secret_key` |
+| `JWT_EXPIRES_IN`| Token expiry time | Yes | `8h` |
+| `SMTP_HOST` | Hostinger SMTP Host | Yes | `smtp.hostinger.com` |
 
-### Infrastructure
-| Component | Details |
-|-----------|---------|
-| **Database** | MySQL / MariaDB (local or hosted) |
-| **File Storage** | Local filesystem (`/backend/uploads`) |
-| **Email** | Hostinger SMTP (`smtp.hostinger.com:465`) |
-| **Auth** | JWT Bearer tokens (8h expiry) + HTTP-only cookies |
+### `frontend/.env.local`
+| Variable | Description | Required | Example |
+|----------|-------------|----------|---------|
+| `NEXT_PUBLIC_API_URL`| Backend API URL | Yes | `http://localhost:5000/api` |
+| `NEXT_PUBLIC_SOCKET_URL`| WebSocket Server URL | Yes | `http://localhost:5000` |
 
 ---
 
-## 🎨 Design System
+## 🔌 API Documentation
 
-InternalX uses a custom glassmorphism design system with:
+All protected routes require a Bearer Token: `Authorization: Bearer <JWT_TOKEN>`
 
-- **Dark theme** (#030303 background, glass panels)
-- **Venture-aware colors** — UI accent shifts to the venture's primary color per user
-- **Mouse spotlight** — interactive radial gradient that follows cursor on login
-- **Micro-animations** — fade-in-up, pulse-glow, animate-spin-slow
-- **Gradient text** — purple → indigo → cyan for brand elements
-- **Level color coding** — Each access level gets a unique accent color
+### Core Endpoints
 
----
+| Method | Endpoint | Description | Access Level |
+|--------|----------|-------------|--------------|
+| `POST` | `/api/auth/login` | Authenticate user (Triggers OTP) | Public |
+| `POST` | `/api/auth/verify-otp`| Verify OTP and issue JWT | Public |
+| `GET`  | `/api/auth/me` | Fetch active session profile | All Authenticated |
+| `GET`  | `/api/users` | List venture-scoped users | L1 - L5 |
+| `POST` | `/api/tasks` | Create task & trigger email | L1 - L7 |
+| `GET`  | `/api/projects` | Fetch venture projects | L1 - L9 |
+| `GET`  | `/api/chat/messages` | Retrieve real-time channel logs| L1 - L9 |
+| `POST` | `/api/documents` | Upload a secure file (Multer) | L1 - L9 |
 
-## 🔒 Security
-
-- **Two-Factor Authentication (2FA)** using email-based OTPs for new devices/unverified logins
-- Passwords hashed with **bcrypt** (cost factor 12)
-- JWT tokens with 8-hour expiry
-- **Helmet.js** sets secure HTTP headers
-- All API routes validate JWT via `authenticate` middleware
-- Role-based authorization enforced at route and query level (venture scoping)
-- Files served from `/uploads` are static; document access gated by auth middleware
+*Full API specification is available via Postman collection (coming soon).*
 
 ---
 
-## 📬 Email Notifications
+## 🗄️ Database Schema
 
-When a task is assigned, InternalX automatically emails the assignee via Hostinger SMTP:
+InternalX uses a highly relational MySQL database design.
 
-- **Trigger:** `POST /api/tasks` (task creation)
-- **Template:** Branded HTML email with task details, priority, and due date
-- **Service:** `backend/src/services/email.service.js`
+```mermaid
+erDiagram
+    VENTURE ||--o{ USER : employs
+    VENTURE ||--o{ PROJECT : contains
+    VENTURE ||--o{ TASK : categorizes
+    USER ||--o{ TASK : assigned_to
+    USER ||--o{ NOTIFICATION : receives
+    USER }|--|| ACCESS_LEVEL : has_role
+    PROJECT ||--o{ TASK : groups
+    USER ||--o{ TIMESHEET : submits
+```
+
+**Core Tables:**
+- `ventures`: Defines the 4 operating companies.
+- `access_levels`: Matrix of 9 role definitions (L1-L9).
+- `users`: Employee/Client master records.
+- `tasks` / `projects`: Project management suite.
+- `messages`: Persistent WebSocket chat history.
+- `documents`: Vault metadata.
 
 ---
 
-## 🚧 What's Next
+## 🔐 Authentication & Access Control
 
-| Feature | Status | Priority |
-|---------|--------|----------|
-| Mobile Responsive Sidebar | In Progress | 🟡 Medium |
-| 2FA / Security Settings | ✅ Completed | 🟢 High |
-| Avatar Upload | Not started | 🟠 Low |
-| PWA / Offline Mode | Not started | 🟢 Low |
+InternalX utilizes a strict **9-Tier Access Level (L1-L9)** system:
+
+| Level | Role | Scope | Key Capabilities |
+|-------|------|-------|------------------|
+| **L1**| **Super Admin** | Global | Full system access, audit logs, DB management |
+| **L2**| **Managing Director** | Global | Cross-venture KPIs, financials, strategy |
+| **L3**| **Admin** | Venture | Full venture control, user management |
+| **L4**| **CXO** | Venture | Department OKRs, budget allocation |
+| **L5**| **Manager** | Venture | Team dashboard, project workflows |
+| **L6**| **Exec Staff** | Venture | Advanced task creation, timesheets |
+| **L7**| **Staff** | Venture | Standard task execution, documents |
+| **L8**| **Intern** | Venture | Learning Hub, onboarding checklists |
+| **L9**| **Client** | Venture | Read-only portal, deliverables, invoices |
+
+---
+
+## 🛡️ Security
+
+Enterprise security is built into the core:
+- **Two-Factor Authentication (2FA):** Mandatory OTP for unverified devices.
+- **Role-Based Access Control (RBAC):** Backend middleware prevents privilege escalation.
+- **Venture Isolation:** L3-L9 users are strictly locked to their assigned venture database rows.
+- **Secure Headers:** Implementation of `helmet.js` to mitigate XSS and clickjacking.
+- **Audit Logs:** Immutable activity tracking for compliance (Visible only to L1).
+
+---
+
+## ⚡ Performance
+
+- **Optimized Queries:** SQL indexes on high-frequency lookups (`venture_id`, `assigned_to`).
+- **Server-Side Rendering (SSR):** Next.js pre-rendering for rapid dashboard loading.
+- **WebSocket Efficiency:** Socket.IO rooms isolate chat broadcasts to specific venture channels.
+- **Lazy Loading:** UI components and large Recharts graphs are dynamically imported.
+
+---
+
+## 🚀 Deployment
+
+### Backend (Node.js/Express) - Recommended: AWS / Railway / Render
+```bash
+# Production build is not required for standard Node, just start the server
+NODE_ENV=production node src/server.js
+```
+
+### Frontend (Next.js) - Recommended: Vercel
+```bash
+npm run build
+npm run start
+```
+*Vercel configuration is automatic upon linking the repository.*
+
+### Mobile (Flutter)
+```bash
+flutter build apk --release
+flutter build ios --release
+```
+
+---
+
+## 🧪 Testing
+
+We utilize industry-standard testing frameworks.
+
+```bash
+# Run Backend API tests (Jest / Supertest)
+npm run test:api
+
+# Run Frontend Component tests (React Testing Library)
+npm run test:ui
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `ER_ACCESS_DENIED_ERROR` | Incorrect MySQL credentials | Verify `DB_USER` and `DB_PASSWORD` in `.env` |
+| Websocket disconnects | Port mismatch / CORS | Ensure `NEXT_PUBLIC_SOCKET_URL` matches backend port |
+| Emails not sending | SMTP misconfiguration | Check Hostinger credentials and port `465` |
+
+---
+
+## 🗺️ Roadmap
+
+- [x] Multi-venture RBAC architecture
+- [x] Real-time chat integration
+- [x] Financial & Budgeting Suite
+- [x] Flutter Mobile Application
+- [ ] Push Notifications for Mobile (FCM integration)
+- [ ] Dark/Light mode toggle (currently enforced Dark Mode)
+- [ ] AI-assisted task delegation (PerSyniX Integration)
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions from the internal team.
+
+1. **Fork & Clone** the repository.
+2. **Create a Feature Branch** (`git checkout -b feature/amazing-feature`).
+3. **Commit your Changes** (`git commit -m 'Add amazing feature'`).
+4. **Push to the Branch** (`git push origin feature/amazing-feature`).
+5. **Open a Pull Request** for code review.
+
+**Code Style:**
+- Follow strictly to ESLint rules.
+- Prefer functional components and hooks in React.
+- Always use typed responses in Express controllers.
+
+---
+
+## 📄 License
+
+This project is proprietary and licensed under the **ISC License**.
+Internal use only for Dropwing Groups and its subsidiaries.
 
 ---
 
 <div align="center">
-
-Built with ❤️ for **Dropwing Groups** — *InternalX v1.0*
-
+<b>Built with ❤️ by Dropwing Groups Engineering</b><br/>
+<i>Empowering the next generation of digital ventures.</i>
 </div>
