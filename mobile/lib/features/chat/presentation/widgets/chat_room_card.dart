@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/nebula_colors.dart';
-import '../../../core/theme/nebula_spacing.dart';
-import '../../../core/theme/nebula_typography.dart';
+import '../../../../core/theme/nebula_colors.dart';
+import '../../../../core/theme/nebula_spacing.dart';
+import '../../../../core/theme/nebula_typography.dart';
 import '../../data/models/chat_model.dart';
 
 class ChatRoomCard extends StatelessWidget {
@@ -10,10 +10,13 @@ class ChatRoomCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const ChatRoomCard({
-    Key? key,
+    super.key,
     required this.room,
     required this.onTap,
-  }) : super(key: key);
+  });
+
+  String get _initial =>
+      room.name.isEmpty ? '?' : room.name.substring(0, 1).toUpperCase();
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +55,7 @@ class ChatRoomCard extends StatelessWidget {
                       errorBuilder: (context, error, stackTrace) {
                         return Center(
                           child: Text(
-                            room.name.substring(0, 1).toUpperCase(),
+                            _initial,
                             style: NebulaTypography.body1.copyWith(
                               color: NebulaColors.textPrimary,
                             ),
@@ -62,7 +65,7 @@ class ChatRoomCard extends StatelessWidget {
                     )
                   : Center(
                       child: Text(
-                        room.name.substring(0, 1).toUpperCase(),
+                        _initial,
                         style: NebulaTypography.body1.copyWith(
                           color: NebulaColors.textPrimary,
                         ),

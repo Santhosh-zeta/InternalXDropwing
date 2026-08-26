@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../core/theme/nebula_colors.dart';
-import '../../../core/theme/nebula_spacing.dart';
-import '../../../core/theme/nebula_typography.dart';
+import '../../../../core/theme/nebula_colors.dart';
+import '../../../../core/theme/nebula_spacing.dart';
+import '../../../../core/theme/nebula_typography.dart';
 import '../../data/models/chat_model.dart';
 
 class MessageBubble extends StatelessWidget {
@@ -10,10 +10,14 @@ class MessageBubble extends StatelessWidget {
   final bool isCurrentUser;
 
   const MessageBubble({
-    Key? key,
+    super.key,
     required this.message,
     required this.isCurrentUser,
-  }) : super(key: key);
+  });
+
+  String get _initial => message.senderName.isEmpty
+      ? '?'
+      : message.senderName.substring(0, 1).toUpperCase();
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +46,7 @@ class MessageBubble extends StatelessWidget {
                         errorBuilder: (context, error, stackTrace) {
                           return Center(
                             child: Text(
-                              message.senderName.substring(0, 1).toUpperCase(),
+                              _initial,
                               style: NebulaTypography.caption.copyWith(
                                 color: NebulaColors.textPrimary,
                               ),
@@ -52,7 +56,7 @@ class MessageBubble extends StatelessWidget {
                       )
                     : Center(
                         child: Text(
-                          message.senderName.substring(0, 1).toUpperCase(),
+                          _initial,
                           style: NebulaTypography.caption.copyWith(
                             color: NebulaColors.textPrimary,
                           ),

@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 };
 
 import GoogleAuthProvider from "@/components/GoogleAuthProvider";
+import { ConfirmProvider } from "@/components/ui";
 
 export default function RootLayout({
   children,
@@ -65,7 +66,9 @@ export default function RootLayout({
           }}
         />
         <GoogleAuthProvider>
-          {children}
+          <ConfirmProvider>
+            {children}
+          </ConfirmProvider>
         </GoogleAuthProvider>
       </body>
     </html>

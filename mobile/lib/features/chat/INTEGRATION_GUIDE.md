@@ -1,69 +1,51 @@
-# Socket.IO Chat Integration Guide
+# Socket.IO Chat — Wiring Notes
 
-This guide explains how to integrate the Socket.IO real-time chat feature into your Flutter app.
+**Status: wired up.** This was an unapplied plan; the steps below are now done.
+It is kept as a description of how the feature hangs together.
 
-## Setup Steps
+## What is wired
 
-### 1. Add Router Routes
-Add these routes to your `GoRouter` configuration in `lib/core/router/app_router.dart`:
+### Routes (`lib/core/router/app_router.dart`)
+Registered alongside the other standalone (non-tab) routes, with the room as a
+nested sub-route so `pop` returns to the list:
 
 ```dart
 GoRoute(
   path: '/chat',
   builder: (context, state) => const ChatListScreen(),
-),
-GoRoute(
-  path: '/chat/:roomId',
-  builder: (context, state) {
-    final roomId = state.pathParameters['roomId']!;
-    return ChatRoomScreen(roomId: roomId);
-  },
-),
-```
-
-### 2. Initialize Socket Connection
-In your `main.dart` or app initialization code, connect to the Socket.IO server when the app starts:
-
-```dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  final container = ProviderContainer();
-  
-  // Connect to Socket.IO server
-  await container.read(socketProvider.notifier).connect();
-  
-  runApp(const MyApp());
-}
-```
-
-Alternatively, you can connect when the user authenticates by adding this to your auth provider after successful login:
-
-```dart
-Future<void> login(String email, String password) async {
-  state = const AuthState.loading();
-  try {
-    final user = await _repository.login(LoginRequest(email: email, password: password));
-    state = AuthState.authenticated(user);
-    
-    // Connect to Socket.IO after successful login
-    await ref.read(socketProvider.notifier).connect();
-  } catch (e) {
-    state = AuthState.error(e.toString().replaceAll('Exception: ', ''));
-  }
-}
-```
-
-### 3. Add Chat to Navigation
-Add a navigation item to your app's navigation menu or bottom nav bar:
-
-```dart
-ListTile(
-  leading: Icon(Icons.message),
-  title: Text('Messages'),
-  onTap: () => context.push('/chat'),
+  routes: [
+    GoRoute(
+      path: ':roomId',
+      builder: (context, state) {
+        final roomId = state.pathParameters['roomId'] ?? '';
+        return ChatRoomScreen(roomId: roomId);
+      },
+    ),
+  ],
 ),
 ```
+
+### Entry point
+A **Messages** tile in the Communication section of the Workspace tab
+(`lib/features/workspace/presentation/screens/workspace_screen.dart`) pushes
+`/chat`. Room cards push `/chat/<roomId>`.
+
+### Connection
+The connection is **not** opened in `main.dart`. `chatSocketProvider`
+(`data/datasources/chat_socket.dart`) is a `FutureProvider` that reads the JWT
+from secure storage, hands it to the Socket.IO handshake via `auth`, and
+connects lazily the first time chat is opened — so signing in is naturally a
+precondition and no work happens for users who never open chat.
+
+This is the app's only Socket.IO connection. An earlier app-wide
+`lib/core/socket/` provider was never referenced and has been deleted, so chat
+owns the connection outright.
+
+### Models
+`data/models/chat_model.dart` is plain Dart (hand-written `fromJson` / `toJson` /
+`copyWith`), not `@freezed`. The generated parts were never checked in, so the
+whole feature failed to compile as soon as anything imported it. If you
+reintroduce codegen here, commit the generated files like the rest of the app does.
 
 ## Key Components
 
@@ -71,10 +53,9 @@ ListTile(
 - **ChatMessage**: Represents a single chat message with sender info, content, and timestamp
 - **ChatRoom**: Represents a chat room (venture channel or DM) with online status and unread count
 
-### Socket Provider (`lib/core/socket/socket_provider.dart`)
-- **SocketNotifier**: Manages the Socket.IO connection and emits/receives events
-- Handles connection state management
-- Provides methods for joining rooms, sending messages, and handling typing indicators
+### Socket (`lib/features/chat/data/datasources/chat_socket.dart`)
+- **chatSocketProvider**: `FutureProvider<io.Socket>` that authenticates the
+  handshake with the stored JWT and connects on first use
 
 ### Data Source (`lib/features/chat/data/datasources/chat_data_source.dart`)
 - **ChatDataSource**: Interface for chat operations
@@ -83,7 +64,8 @@ ListTile(
 - Subscribes to real-time messages via Socket.IO
 
 ### Providers (`lib/features/chat/presentation/providers/chat_provider.dart`)
-- **chatMessagesProvider**: Manages messages for a specific room
+- **chatMessagesProvider**: Manages messages for a specific room, as an
+  `AsyncValue<List<ChatMessage>>` so the screen can render loading/error states
 - **chatRoomsProvider**: Fetches list of available chat rooms
 - **typingUsersProvider**: Tracks which users are typing
 - **unreadCountProvider**: Manages unread message counts per room

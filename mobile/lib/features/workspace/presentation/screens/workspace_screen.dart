@@ -3,6 +3,10 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/nebula_colors.dart';
 
+/// Launcher for everything that does not have its own bottom-nav tab.
+///
+/// Every tile here must point at a distinct, registered route. If a
+/// destination does not exist yet, do not add a tile for it.
 class WorkspaceScreen extends StatelessWidget {
   const WorkspaceScreen({super.key});
 
@@ -31,48 +35,54 @@ class WorkspaceScreen extends StatelessWidget {
             const SizedBox(height: 24),
             _buildSection(
               context,
-              title: 'Learning',
-              icon: LucideIcons.graduationCap,
-              color: Colors.purple,
-              items: [
+              title: 'Communication',
+              icon: Icons.forum_outlined,
+              color: Colors.cyan,
+              items: const [
                 _WorkspaceItem(
-                  title: 'Learning Hub',
-                  icon: LucideIcons.bookOpen,
-                  route: '/learning',
+                  title: 'Messages',
+                  subtitle: 'Channels & DMs',
+                  icon: Icons.chat_bubble_outline,
+                  route: '/chat',
                 ),
                 _WorkspaceItem(
-                  title: 'Resources',
-                  icon: LucideIcons.library,
-                  route: '/learning',
+                  title: 'Notifications',
+                  subtitle: 'Your alerts',
+                  icon: LucideIcons.bell,
+                  route: '/notifications',
                 ),
                 _WorkspaceItem(
-                  title: 'Checklists',
-                  icon: LucideIcons.listChecks,
-                  route: '/learning',
+                  title: 'Calendar',
+                  subtitle: 'Schedule',
+                  icon: LucideIcons.calendar,
+                  route: '/calendar',
                 ),
               ],
             ),
             const SizedBox(height: 20),
             _buildSection(
               context,
-              title: 'Documents',
-              icon: Icons.folder_open_outlined,
-              color: Colors.blue,
-              items: [
+              title: 'Knowledge',
+              icon: LucideIcons.graduationCap,
+              color: Colors.purple,
+              items: const [
                 _WorkspaceItem(
-                  title: 'All Files',
+                  title: 'Learning Hub',
+                  subtitle: 'Courses',
+                  icon: LucideIcons.bookOpen,
+                  route: '/learning',
+                ),
+                _WorkspaceItem(
+                  title: 'Documents',
+                  subtitle: 'Files',
                   icon: LucideIcons.files,
                   route: '/documents',
                 ),
                 _WorkspaceItem(
-                  title: 'Upload',
-                  icon: LucideIcons.upload,
-                  route: '/documents',
-                ),
-                _WorkspaceItem(
-                  title: 'Shared',
-                  icon: LucideIcons.share2,
-                  route: '/documents',
+                  title: 'Client Portal',
+                  subtitle: 'Shared work',
+                  icon: LucideIcons.briefcase,
+                  route: '/client-portal',
                 ),
               ],
             ),
@@ -82,57 +92,69 @@ class WorkspaceScreen extends StatelessWidget {
               title: 'Strategy',
               icon: LucideIcons.lightbulb,
               color: Colors.orange,
-              items: [
+              items: const [
                 _WorkspaceItem(
-                  title: 'OKRs',
+                  title: 'Strategy',
+                  subtitle: 'OKRs & risks',
                   icon: LucideIcons.target,
                   route: '/strategy',
-                  comingSoon: false,
                 ),
                 _WorkspaceItem(
                   title: 'KPIs',
+                  subtitle: 'Metrics',
                   icon: LucideIcons.trendingUp,
                   route: '/kpis',
-                  comingSoon: false,
                 ),
                 _WorkspaceItem(
-                  title: 'Risks',
-                  icon: LucideIcons.alertTriangle,
-                  route: '/strategy',
-                  comingSoon: false,
+                  title: 'Analytics',
+                  subtitle: 'Reports',
+                  icon: LucideIcons.barChart2,
+                  route: '/analytics',
                 ),
               ],
             ),
             const SizedBox(height: 20),
             _buildSection(
               context,
-              title: 'Analytics & Management',
+              title: 'Operations',
               icon: LucideIcons.pieChart,
               color: Colors.teal,
-              items: [
+              items: const [
                 _WorkspaceItem(
                   title: 'Timesheets',
+                  subtitle: 'Log time',
                   icon: LucideIcons.clock,
                   route: '/timesheets',
-                  comingSoon: false,
                 ),
                 _WorkspaceItem(
-                  title: 'Audit Logs',
-                  icon: LucideIcons.shield,
-                  route: '/audit',
-                  comingSoon: false,
-                ),
-                _WorkspaceItem(
-                  title: 'Team Mgmt',
-                  icon: LucideIcons.users,
-                  route: '/team',
-                  comingSoon: false,
+                  title: 'Approvals',
+                  subtitle: 'Requests',
+                  icon: LucideIcons.clipboardCheck,
+                  route: '/approvals',
                 ),
                 _WorkspaceItem(
                   title: 'Budget',
+                  subtitle: 'Spend',
                   icon: LucideIcons.wallet,
                   route: '/budget',
-                  comingSoon: false,
+                ),
+                _WorkspaceItem(
+                  title: 'Team',
+                  subtitle: 'People',
+                  icon: LucideIcons.users,
+                  route: '/team',
+                ),
+                _WorkspaceItem(
+                  title: 'Audit Logs',
+                  subtitle: 'Activity',
+                  icon: LucideIcons.shield,
+                  route: '/audit',
+                ),
+                _WorkspaceItem(
+                  title: 'Settings',
+                  subtitle: 'Preferences',
+                  icon: LucideIcons.settings,
+                  route: '/settings',
                 ),
               ],
             ),
@@ -206,64 +228,43 @@ class WorkspaceScreen extends StatelessWidget {
 
   Widget _buildItemCard(
       BuildContext context, _WorkspaceItem item, Color sectionColor) {
-    final isAvailable = item.route != null;
-
     return InkWell(
-      onTap: () {
-        if (isAvailable && item.route != null) {
-          context.push(item.route!);
-        } else if (item.comingSoon) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${item.title} — Coming Soon'),
-              behavior: SnackBarBehavior.floating,
-              backgroundColor: NebulaColors.surfaceCard,
-            ),
-          );
-        }
-      },
+      onTap: () => context.push(item.route),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         decoration: BoxDecoration(
           color: NebulaColors.background,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isAvailable
-                ? sectionColor.withOpacity(0.3)
-                : NebulaColors.surface,
-          ),
+          border: Border.all(color: sectionColor.withOpacity(0.3)),
         ),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(10),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(item.icon,
-                color: isAvailable
-                    ? sectionColor.withOpacity(0.9)
-                    : NebulaColors.textSecondary.withOpacity(0.4),
-                size: 28),
-            const SizedBox(height: 12),
+            Icon(item.icon, color: sectionColor.withOpacity(0.9), size: 26),
+            const SizedBox(height: 10),
             Text(
               item.title,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: isAvailable
-                    ? NebulaColors.textPrimary
-                    : NebulaColors.textSecondary.withOpacity(0.5),
+                color: NebulaColors.textPrimary,
               ),
             ),
-            if (item.comingSoon) ...[
-              const SizedBox(height: 4),
-              const Text(
-                'Soon',
-                style: TextStyle(
-                    fontSize: 9,
-                    color: NebulaColors.textSecondary,
-                    fontStyle: FontStyle.italic),
+            const SizedBox(height: 2),
+            Text(
+              item.subtitle,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10,
+                color: NebulaColors.textSecondary,
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -273,14 +274,16 @@ class WorkspaceScreen extends StatelessWidget {
 
 class _WorkspaceItem {
   final String title;
+  final String subtitle;
   final IconData icon;
-  final String? route;
-  final bool comingSoon;
 
-  _WorkspaceItem({
+  /// Must be a route registered in `lib/core/router/app_router.dart`.
+  final String route;
+
+  const _WorkspaceItem({
     required this.title,
+    required this.subtitle,
     required this.icon,
-    this.route,
-    this.comingSoon = false,
+    required this.route,
   });
 }

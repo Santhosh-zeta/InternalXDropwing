@@ -4,11 +4,15 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getTasks, createTask, updateTask, deleteTask, getUsers, getProjects } from '@/lib/api';
 import { User } from '@/lib/constants';
-import { 
-  Plus, LayoutGrid, Calendar as CalendarIcon, ChevronLeft, ChevronRight, 
-  ListTodo, Clock, CheckCircle2, Trash2, Folder, CornerDownRight, 
-  Clock4, Loader2, GripVertical, AlertCircle, Edit2
+import {
+  Plus, LayoutGrid, Calendar as CalendarIcon, ChevronLeft, ChevronRight,
+  ListTodo, Clock, CheckCircle2, Trash2, Folder, CornerDownRight,
+  Clock4, GripVertical, AlertCircle, Edit2
 } from 'lucide-react';
+import {
+  Badge, Button, EmptyState, Field, Input, Modal, Select, Skeleton, SkeletonCard, Textarea,
+  useConfirm, type BadgeTone,
+} from '@/components/ui';
 
 interface Task {
   id: number;
@@ -31,14 +35,36 @@ interface Task {
   parent_task_title?: string;
 }
 
-const PRIORITY_COLORS = {
-  low: '#10b981', // green
-  medium: '#0ea5e9', // blue
-  high: '#f59e0b', // orange
-  urgent: '#f43f5e', // red
+type Priority = Task['priority'];
+
+/**
+ * Priority maps to the semantic badge tones so the pills follow the theme
+ * tokens instead of the hard-coded hexes this file used to carry.
+ */
+const PRIORITY_TONES: Record<Priority, BadgeTone> = {
+  low: 'success',
+  medium: 'info',
+  high: 'warning',
+  urgent: 'danger',
 };
 
-function CustomDatePicker({ value, onChange }: { value: string, onChange: (val: string) => void }) {
+/** Same scale as the tones above, for the calendar chips which are not pills. */
+const PRIORITY_VARS: Record<Priority, string> = {
+  low: 'var(--color-emerald)',
+  medium: 'var(--color-cyan)',
+  high: 'var(--color-amber)',
+  urgent: 'var(--color-rose)',
+};
+
+const tint = (color: string, percent: number) =>
+  `color-mix(in srgb, ${color} ${percent}%, transparent)`;
+
+const FIELD_LABEL_CLASS =
+  'block text-label font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]';
+
+const TASK_FORM_ID = 'task-form';
+
+function CustomDatePicker({ value, onChange, id }: { value: string, onChange: (val: string) => void, id?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(value ? new Date(value) : new Date());
 
@@ -64,6 +90,7 @@ function CustomDatePicker({ value, onChange }: { value: string, onChange: (val: 
         key={`day-${i}`}
         type="button"
         disabled={isPast}
+        aria-pressed={isSelected}
         onClick={() => { onChange(dateStr); setIsOpen(false); }}
         className={`w-7 h-7 rounded-full flex items-center justify-center text-xs transition-colors ${isPast ? 'opacity-30 cursor-not-allowed text-[var(--color-text-muted)]' : isSelected ? 'bg-[var(--color-purple-glow)] text-white font-bold' : isToday ? 'bg-[var(--color-purple-glow)]/20 text-[var(--color-text-primary)]' : 'text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-secondary)]'}`}
       >
@@ -74,20 +101,38 @@ function CustomDatePicker({ value, onChange }: { value: string, onChange: (val: 
 
   return (
     <div className="relative">
-      <button 
-        type="button" 
+      <button
+        id={id}
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
+        aria-expanded={isOpen}
         className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] text-left flex items-center justify-between"
       >
         {value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Select Date'}
-        <CalendarIcon size={14} className="text-[var(--color-text-muted)]" />
+        <CalendarIcon size={14} className="text-[var(--color-text-muted)]" aria-hidden="true" />
       </button>
       {isOpen && (
         <div className="absolute top-full mt-1 left-0 w-[260px] bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl shadow-xl z-50 p-3">
           <div className="flex items-center justify-between mb-2">
-            <button type="button" onClick={() => setCurrentMonth(new Date(year, month - 1))} className="p-1 hover:bg-[var(--color-bg-secondary)] rounded text-[var(--color-text-secondary)]"><ChevronLeft size={16} /></button>
+            <Button
+              iconOnly
+              aria-label="Previous month"
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date(year, month - 1))}
+            >
+              <ChevronLeft size={16} aria-hidden="true" />
+            </Button>
             <div className="text-sm font-bold text-[var(--color-text-primary)]">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</div>
-            <button type="button" onClick={() => setCurrentMonth(new Date(year, month + 1))} className="p-1 hover:bg-[var(--color-bg-secondary)] rounded text-[var(--color-text-secondary)]"><ChevronRight size={16} /></button>
+            <Button
+              iconOnly
+              aria-label="Next month"
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentMonth(new Date(year, month + 1))}
+            >
+              <ChevronRight size={16} aria-hidden="true" />
+            </Button>
           </div>
           <div className="grid grid-cols-7 text-center mb-1">
             {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => (
@@ -112,9 +157,11 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [newTask, setNewTask] = useState({ title: '', description: '', priority: 'medium', assigned_to: [] as string[], due_date: '', project_id: '', parent_task_id: '' });
   const [filterProjectId, setFilterProjectId] = useState<string>('all');
-  
+
   const [viewMode, setViewMode] = useState<'kanban' | 'calendar'>('kanban');
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetchData();
@@ -134,6 +181,12 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     }
   };
 
+  const openCreateModal = () => {
+    setEditingTask(null);
+    setNewTask({ title: '', description: '', priority: 'medium', assigned_to: [], due_date: '', project_id: '', parent_task_id: '' });
+    setShowModal(true);
+  };
+
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTask.title || newTask.assigned_to.length === 0) {
@@ -146,7 +199,7 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
         project_id: newTask.project_id || undefined,
         parent_task_id: newTask.parent_task_id || undefined
       };
-      
+
       let res;
       if (editingTask) {
         res = await updateTask(editingTask.id, payload);
@@ -179,7 +232,13 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this task?')) return;
+    const confirmed = await confirm({
+      title: 'Delete this task?',
+      description: 'The task and its assignments will be permanently removed. This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     try {
       const res = await deleteTask(id);
       if (res.success) {
@@ -205,14 +264,14 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     e.preventDefault();
     const taskIdStr = e.dataTransfer.getData('taskId');
     if (!taskIdStr) return;
-    
+
     const taskId = parseInt(taskIdStr, 10);
     const task = tasks.find(t => t.id === taskId);
-    
+
     if (task && task.status !== newStatus) {
       const previousTasks = [...tasks];
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus as any } : t));
-      
+
       try {
         const res = await updateTask(taskId, { status: newStatus });
         if (res.success) {
@@ -236,9 +295,26 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
-        <p className="text-[var(--color-text-muted)] text-sm font-medium">Loading tasks...</p>
+      <div className="flex flex-col h-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">Task Management</h2>
+            <p className="text-sm text-[var(--color-text-muted)] mt-1">Organize and track your deliverables.</p>
+          </div>
+        </div>
+        <div role="status" aria-busy="true" aria-live="polite" className="flex gap-6 overflow-x-auto pb-4">
+          <span className="sr-only">Loading tasks…</span>
+          {columns.map(col => (
+            <div key={col.id} className="flex-1 min-w-[320px] flex flex-col gap-4 p-4 rounded-2xl bg-[var(--color-bg-secondary)]">
+              <div className="px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)]">
+                <Skeleton height={12} width="50%" />
+              </div>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -253,16 +329,16 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     const month = currentMonth.getMonth();
     const daysInMonth = getDaysInMonth(year, month);
     const firstDay = getFirstDayOfMonth(year, month);
-    
+
     const days = [];
     for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="min-h-[120px] border-r border-b border-[var(--color-border)] p-2 bg-[var(--color-bg-secondary)]/30" />);
     }
-    
+
     for (let i = 1; i <= daysInMonth; i++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
       const dayTasks = filteredTasks.filter(t => t.due_date && t.due_date.startsWith(dateStr));
-      
+
       const isToday = new Date().toISOString().split('T')[0] === dateStr;
 
       days.push(
@@ -272,13 +348,13 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
           </div>
           <div className="flex flex-col gap-1">
             {dayTasks.map(t => (
-              <div 
-                key={t.id} 
-                className={`text-[10px] px-1.5 py-1 rounded font-semibold truncate cursor-pointer border ${t.status === 'completed' ? 'opacity-60 line-through' : ''}`}
+              <div
+                key={t.id}
+                className={`text-[10px] px-1.5 py-1 rounded font-semibold truncate border ${t.status === 'completed' ? 'opacity-60 line-through' : ''}`}
                 style={{
-                  background: t.status === 'completed' ? 'var(--color-bg-secondary)' : `${PRIORITY_COLORS[t.priority]}15`,
-                  color: t.status === 'completed' ? 'var(--color-text-muted)' : PRIORITY_COLORS[t.priority],
-                  borderColor: t.status === 'completed' ? 'var(--color-border)' : `${PRIORITY_COLORS[t.priority]}30`,
+                  background: t.status === 'completed' ? 'var(--color-bg-secondary)' : tint(PRIORITY_VARS[t.priority], 12),
+                  color: t.status === 'completed' ? 'var(--color-text-muted)' : PRIORITY_VARS[t.priority],
+                  borderColor: t.status === 'completed' ? 'var(--color-border)' : tint(PRIORITY_VARS[t.priority], 30),
                 }}
                 title={`${t.title} (${t.status})`}
               >
@@ -289,23 +365,27 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
         </div>
       );
     }
-    
+
     return (
       <div className="bg-[var(--color-bg-card)] rounded-xl border border-[var(--color-border)] overflow-hidden shadow-sm">
         <div className="flex items-center justify-between p-4 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-          <button 
-            onClick={() => setCurrentMonth(new Date(year, month - 1))} 
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-card-hover)] text-[13px] font-medium text-[var(--color-text-primary)] transition-colors"
+          <Button
+            variant="secondary"
+            size="sm"
+            leadingIcon={<ChevronLeft size={16} aria-hidden="true" />}
+            onClick={() => setCurrentMonth(new Date(year, month - 1))}
           >
-            <ChevronLeft size={16} /> Prev
-          </button>
+            Prev
+          </Button>
           <h3 className="text-base font-bold text-[var(--color-text-primary)]">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</h3>
-          <button 
-            onClick={() => setCurrentMonth(new Date(year, month + 1))} 
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] hover:bg-[var(--color-bg-card-hover)] text-[13px] font-medium text-[var(--color-text-primary)] transition-colors"
+          <Button
+            variant="secondary"
+            size="sm"
+            trailingIcon={<ChevronRight size={16} aria-hidden="true" />}
+            onClick={() => setCurrentMonth(new Date(year, month + 1))}
           >
-            Next <ChevronRight size={16} />
-          </button>
+            Next
+          </Button>
         </div>
         <div className="grid grid-cols-7 text-center border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
@@ -326,26 +406,31 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
           <h2 className="text-2xl font-bold text-[var(--color-text-primary)] tracking-tight">Task Management</h2>
           <p className="text-sm text-[var(--color-text-muted)] mt-1">Organize and track your deliverables.</p>
         </div>
-        
+
         <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center p-1 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-border)]">
-            <button 
+            <button
+              type="button"
               onClick={() => setViewMode('kanban')}
+              aria-pressed={viewMode === 'kanban'}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition-all ${viewMode === 'kanban' ? 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm border border-[var(--color-border)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border border-transparent'}`}
             >
-              <LayoutGrid size={14} /> Kanban
+              <LayoutGrid size={14} aria-hidden="true" /> Kanban
             </button>
-            <button 
+            <button
+              type="button"
               onClick={() => setViewMode('calendar')}
+              aria-pressed={viewMode === 'calendar'}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[13px] font-semibold transition-all ${viewMode === 'calendar' ? 'bg-[var(--color-bg-primary)] text-[var(--color-text-primary)] shadow-sm border border-[var(--color-border)]' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] border border-transparent'}`}
             >
-              <CalendarIcon size={14} /> Calendar
+              <CalendarIcon size={14} aria-hidden="true" /> Calendar
             </button>
           </div>
 
-          <select 
-            value={filterProjectId} 
+          <select
+            value={filterProjectId}
             onChange={(e) => setFilterProjectId(e.target.value)}
+            aria-label="Filter tasks by project"
             className="px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
           >
             <option value="all">All Projects</option>
@@ -353,31 +438,55 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </select>
-          
-          <button
-            onClick={() => {
-              setEditingTask(null);
-              setNewTask({ title: '', description: '', priority: 'medium', assigned_to: [], due_date: '', project_id: '', parent_task_id: '' });
-              setShowModal(true);
-            }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white text-[13px] font-bold transition-colors shadow-sm"
+
+          <Button
+            variant="primary"
+            size="sm"
+            leadingIcon={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
+            onClick={openCreateModal}
           >
-            <Plus size={16} strokeWidth={2.5} /> New Task
-          </button>
+            New Task
+          </Button>
         </div>
       </div>
 
-      {viewMode === 'kanban' ? (
+      {tasks.length === 0 ? (
+        <EmptyState
+          icon={<ListTodo size={22} aria-hidden="true" />}
+          title="No tasks yet"
+          description="Tasks are how work gets assigned and tracked here. Create the first one and it will appear on the board."
+          action={
+            <Button
+              variant="primary"
+              leadingIcon={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
+              onClick={openCreateModal}
+            >
+              Create your first task
+            </Button>
+          }
+        />
+      ) : filteredTasks.length === 0 ? (
+        <EmptyState
+          icon={<Folder size={22} aria-hidden="true" />}
+          title="No tasks in this project"
+          description="Nothing has been assigned to the selected project yet. Clear the filter to see every task."
+          action={
+            <Button variant="secondary" onClick={() => setFilterProjectId('all')}>
+              Show all projects
+            </Button>
+          }
+        />
+      ) : viewMode === 'kanban' ? (
         <div className="flex gap-6 overflow-x-auto pb-4 min-h-[500px]">
           {columns.map(col => (
-            <div 
-              key={col.id} 
+            <div
+              key={col.id}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.id)}
               className="flex-1 min-w-[320px] flex flex-col gap-4 p-4 rounded-2xl bg-[var(--color-bg-secondary)] border border-transparent transition-colors hover:border-[var(--color-border)]"
             >
               <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl border bg-[var(--color-bg-card)]" style={{ borderColor: `${col.color}20` }}>
-                <col.icon size={18} style={{ color: col.color }} strokeWidth={2.5} />
+                <col.icon size={18} style={{ color: col.color }} strokeWidth={2.5} aria-hidden="true" />
                 <span className="font-bold text-[14px] tracking-wide" style={{ color: col.color }}>{col.title}</span>
                 <span className="ml-auto text-[11px] font-bold px-2.5 py-0.5 rounded-full border" style={{ background: `${col.color}10`, color: col.color, borderColor: `${col.color}30` }}>
                   {filteredTasks.filter(t => t.status === col.id).length}
@@ -388,8 +497,8 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                 {filteredTasks.filter(t => t.status === col.id).map(task => {
                   const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== 'completed';
                   return (
-                  <div 
-                    key={task.id} 
+                  <div
+                    key={task.id}
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
                     className="group bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-4 shadow-sm cursor-grab hover:border-[var(--color-text-muted)] transition-all hover:shadow-md relative overflow-hidden"
@@ -397,18 +506,20 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                     onDrag={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '0.5'; }}
                     onDragEnd={(e) => { (e.currentTarget as HTMLDivElement).style.opacity = '1'; }}
                   >
-                    {isOverdue && <div className="absolute top-0 left-0 w-1 h-full bg-rose-500" />}
-                    
+                    {isOverdue && <div aria-hidden="true" className="absolute top-0 left-0 w-1 h-full bg-rose-500" />}
+
                     <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded border" style={{ background: `${PRIORITY_COLORS[task.priority]}10`, color: PRIORITY_COLORS[task.priority], borderColor: `${PRIORITY_COLORS[task.priority]}30` }}>
-                        {task.priority}
-                      </span>
-                      
+                      <Badge tone={PRIORITY_TONES[task.priority]}>{task.priority}</Badge>
+
                       <div className="flex items-center gap-1">
-                        <GripVertical size={14} className="text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" />
+                        <GripVertical size={14} aria-hidden="true" className="text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" />
                         {(currentUser.id === task.assigned_by || currentUser.accessLevel <= 3) && (
                           <>
-                            <button 
+                            <Button
+                              iconOnly
+                              aria-label={`Edit task: ${task.title}`}
+                              variant="ghost"
+                              size="sm"
                               onClick={() => {
                                 setEditingTask(task);
                                 setNewTask({
@@ -421,43 +532,50 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                                   parent_task_id: task.parent_task_id?.toString() || ''
                                 });
                                 setShowModal(true);
-                              }} 
-                              className="text-[var(--color-text-muted)] hover:text-[var(--color-purple-glow)] transition-colors opacity-0 group-hover:opacity-100 mr-1"
+                              }}
+                              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--color-purple-glow)]"
                             >
-                              <Edit2 size={14} />
-                            </button>
-                            <button onClick={() => handleDelete(task.id)} className="text-[var(--color-text-muted)] hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100">
-                              <Trash2 size={14} />
-                            </button>
+                              <Edit2 size={14} aria-hidden="true" />
+                            </Button>
+                            <Button
+                              iconOnly
+                              aria-label={`Delete task: ${task.title}`}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDelete(task.id)}
+                              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--color-rose)]"
+                            >
+                              <Trash2 size={14} aria-hidden="true" />
+                            </Button>
                           </>
                         )}
                       </div>
                     </div>
-                    
+
                     <h4 className="text-[14px] font-semibold text-[var(--color-text-primary)] mb-2 leading-snug">
                       {task.title}
                     </h4>
-                    
+
                     {task.project_name && (
                       <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--color-purple-glow)] mb-1">
-                        <Folder size={12} /> {task.project_name.toUpperCase()}
+                        <Folder size={12} aria-hidden="true" /> {task.project_name.toUpperCase()}
                       </div>
                     )}
-                    
+
                     {task.parent_task_title && (
                       <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-text-secondary)] mb-2">
-                        <CornerDownRight size={12} /> Subtask: {task.parent_task_title}
+                        <CornerDownRight size={12} aria-hidden="true" /> Subtask: {task.parent_task_title}
                       </div>
                     )}
-                    
+
                     {task.due_date && (
                       <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-3 ${isOverdue ? 'text-rose-500' : 'text-[var(--color-text-muted)]'}`}>
-                        {isOverdue ? <AlertCircle size={12} /> : <Clock4 size={12} />}
-                        {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} 
+                        {isOverdue ? <AlertCircle size={12} aria-hidden="true" /> : <Clock4 size={12} aria-hidden="true" />}
+                        {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         {isOverdue && <span>(Overdue)</span>}
                       </div>
                     )}
-                    
+
                     <div className="flex items-center justify-between pt-3 border-t border-[var(--color-border)]">
                       <div className="flex items-center gap-2">
                         <div className="flex -space-x-2">
@@ -486,27 +604,49 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
                           <span className="text-[11px] font-medium text-[var(--color-text-muted)] italic">Unassigned</span>
                         )}
                       </div>
-                      
-                      <div className="flex gap-1 md:hidden group-hover:flex">
+
+                      <div className="flex gap-1 md:hidden group-hover:flex group-focus-within:flex">
                         {col.id !== 'pending' && (
-                          <button onClick={() => handleStatusChange(task.id, 'pending')} className="p-1 rounded bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors"><ChevronLeft size={14} /></button>
+                          <Button
+                            iconOnly
+                            aria-label={`Move "${task.title}" to Pending`}
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleStatusChange(task.id, 'pending')}
+                          >
+                            <ChevronLeft size={14} aria-hidden="true" />
+                          </Button>
                         )}
                         {col.id !== 'in-progress' && (
-                          <button onClick={() => handleStatusChange(task.id, 'in-progress')} className="p-1 rounded bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors">
-                            {col.id === 'pending' ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-                          </button>
+                          <Button
+                            iconOnly
+                            aria-label={`Move "${task.title}" to In Progress`}
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleStatusChange(task.id, 'in-progress')}
+                          >
+                            {col.id === 'pending' ? <ChevronRight size={14} aria-hidden="true" /> : <ChevronLeft size={14} aria-hidden="true" />}
+                          </Button>
                         )}
                         {col.id !== 'completed' && (
-                          <button onClick={() => handleStatusChange(task.id, 'completed')} className="p-1 rounded bg-[var(--color-bg-secondary)] hover:bg-[var(--color-border)] text-[var(--color-text-secondary)] transition-colors"><ChevronRight size={14} /></button>
+                          <Button
+                            iconOnly
+                            aria-label={`Move "${task.title}" to Completed`}
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => handleStatusChange(task.id, 'completed')}
+                          >
+                            <ChevronRight size={14} aria-hidden="true" />
+                          </Button>
                         )}
                       </div>
                     </div>
                   </div>
                 )})}
-                
+
                 {filteredTasks.filter(t => t.status === col.id).length === 0 && (
                   <div className="p-8 text-center text-[12px] font-medium text-[var(--color-text-muted)] bg-[var(--color-bg-secondary)] rounded-xl border border-dashed border-[var(--color-border)]">
-                    Drop tasks here
+                    Nothing in {col.title.toLowerCase()} — drag a card here
                   </div>
                 )}
               </div>
@@ -517,115 +657,145 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
         renderCalendar()
       )}
 
-      {/* Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] w-full max-w-[500px] rounded-2xl p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-5">{editingTask ? 'Edit Task' : 'Create New Task'}</h3>
-            <form onSubmit={handleCreateTask} className="flex flex-col gap-4">
-              <div>
-                <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Task Title</label>
-                <input 
-                  type="text" required value={newTask.title} onChange={e => setNewTask({...newTask, title: e.target.value})}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
-                  placeholder="E.g., Update landing page design"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Description</label>
-                <textarea 
-                  value={newTask.description} onChange={e => setNewTask({...newTask, description: e.target.value})}
-                  className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] min-h-[80px] resize-y"
-                  placeholder="Task details..."
-                />
-              </div>
+      <Modal
+        open={showModal}
+        onClose={() => setShowModal(false)}
+        title={editingTask ? 'Edit Task' : 'Create New Task'}
+        description={editingTask ? 'Update the details of this task.' : 'Describe the work and pick who owns it.'}
+        size="md"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setShowModal(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" form={TASK_FORM_ID}>
+              {editingTask ? 'Save Changes' : 'Create Task'}
+            </Button>
+          </>
+        }
+      >
+        <form id={TASK_FORM_ID} onSubmit={handleCreateTask} className="flex flex-col gap-4">
+          <Field label="Task Title" required>
+            {({ id, describedBy, invalid }) => (
+              <Input
+                id={id}
+                aria-describedby={describedBy}
+                aria-invalid={invalid || undefined}
+                type="text"
+                required
+                value={newTask.title}
+                onChange={e => setNewTask({...newTask, title: e.target.value})}
+                placeholder="E.g., Update landing page design"
+              />
+            )}
+          </Field>
 
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Assign To</label>
-                  <div className="w-full max-h-[120px] overflow-y-auto px-2 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] custom-scrollbar flex flex-col gap-1">
-                    {users.map(u => {
-                      const isSelected = newTask.assigned_to.includes(u.id.toString());
-                      return (
-                        <label key={u.id} className="flex items-center gap-2 text-[13px] text-[var(--color-text-primary)] cursor-pointer hover:bg-[var(--color-bg-secondary)] p-1.5 rounded transition-colors">
-                          <input 
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={(e) => {
-                              const newArr = e.target.checked 
-                                ? [...newTask.assigned_to, u.id.toString()]
-                                : newTask.assigned_to.filter(id => id !== u.id.toString());
-                              setNewTask({...newTask, assigned_to: newArr});
-                            }}
-                            className="accent-[var(--color-purple-glow)] w-3.5 h-3.5"
-                          />
-                          {u.full_name}
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-                
-                <div className="flex-1">
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Priority</label>
-                  <select 
-                    value={newTask.priority} onChange={e => setNewTask({...newTask, priority: e.target.value as any})}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                    <option value="urgent">Urgent</option>
-                  </select>
-                </div>
-              </div>
+          <Field label="Description">
+            {({ id, describedBy }) => (
+              <Textarea
+                id={id}
+                aria-describedby={describedBy}
+                rows={3}
+                value={newTask.description}
+                onChange={e => setNewTask({...newTask, description: e.target.value})}
+                placeholder="Task details..."
+              />
+            )}
+          </Field>
 
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Link to Project</label>
-                  <select 
-                    value={newTask.project_id} onChange={e => setNewTask({...newTask, project_id: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
-                  >
-                    <option value="">No Project</option>
-                    {projects.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                <div className="flex-1">
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Parent Task (Subtask of)</label>
-                  <select 
-                    value={newTask.parent_task_id} onChange={e => setNewTask({...newTask, parent_task_id: e.target.value})}
-                    className="w-full px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-primary)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
-                  >
-                    <option value="">None (Top-level)</option>
-                    {tasks.filter(t => t.project_id === Number(newTask.project_id) || !newTask.project_id).map(t => (
-                      <option key={t.id} value={t.id}>{t.title}</option>
-                    ))}
-                  </select>
-                </div>
+          <div className="flex gap-4">
+            <fieldset className="flex-1 min-w-0 border-0 p-0 m-0">
+              <legend className={`${FIELD_LABEL_CLASS} mb-2`}>
+                Assign To
+                <span className="ml-1 text-[var(--color-rose)]" aria-hidden="true">*</span>
+                <span className="sr-only"> (required)</span>
+              </legend>
+              <div className="w-full max-h-[120px] overflow-y-auto px-2 py-2 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] custom-scrollbar flex flex-col gap-1">
+                {users.map(u => {
+                  const isSelected = newTask.assigned_to.includes(u.id.toString());
+                  return (
+                    <label key={u.id} className="flex items-center gap-2 text-[13px] text-[var(--color-text-primary)] cursor-pointer hover:bg-[var(--color-bg-card-hover)] p-1.5 rounded transition-colors">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          const newArr = e.target.checked
+                            ? [...newTask.assigned_to, u.id.toString()]
+                            : newTask.assigned_to.filter(id => id !== u.id.toString());
+                          setNewTask({...newTask, assigned_to: newArr});
+                        }}
+                        className="accent-[var(--color-purple-glow)] w-3.5 h-3.5"
+                      />
+                      {u.full_name}
+                    </label>
+                  );
+                })}
+                {users.length === 0 && (
+                  <p className="p-2 text-xs text-[var(--color-text-muted)]">No teammates available to assign.</p>
+                )}
               </div>
+            </fieldset>
 
-              <div>
-                <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Due Date</label>
-                <CustomDatePicker value={newTask.due_date} onChange={val => setNewTask({...newTask, due_date: val})} />
-              </div>
-
-              <div className="flex justify-end gap-3 mt-4">
-                <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded-lg border border-[var(--color-border)] text-[13px] font-bold text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors">
-                  Cancel
-                </button>
-                <button type="submit" className="px-4 py-2 rounded-lg bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-[13px] font-bold text-white transition-colors">
-                  {editingTask ? 'Save Changes' : 'Create Task'}
-                </button>
-              </div>
-            </form>
+            <Field label="Priority" className="flex-1 min-w-0">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={newTask.priority}
+                  onChange={e => setNewTask({...newTask, priority: e.target.value as any})}
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </Select>
+              )}
+            </Field>
           </div>
-        </div>
-      )}
+
+          <div className="flex gap-4">
+            <Field label="Link to Project" className="flex-1 min-w-0">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={newTask.project_id}
+                  onChange={e => setNewTask({...newTask, project_id: e.target.value})}
+                >
+                  <option value="">No Project</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+
+            <Field label="Parent Task" hint="Makes this a subtask." className="flex-1 min-w-0">
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={newTask.parent_task_id}
+                  onChange={e => setNewTask({...newTask, parent_task_id: e.target.value})}
+                >
+                  <option value="">None (Top-level)</option>
+                  {tasks.filter(t => t.project_id === Number(newTask.project_id) || !newTask.project_id).map(t => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+          </div>
+
+          <Field label="Due Date">
+            {({ id }) => (
+              <CustomDatePicker
+                id={id}
+                value={newTask.due_date}
+                onChange={val => setNewTask({...newTask, due_date: val})}
+              />
+            )}
+          </Field>
+        </form>
+      </Modal>
     </div>
   );
 }

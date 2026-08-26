@@ -4,7 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
 import { getAccessLevels, updateLevelPermissions, get2FAConfig, update2FAConfig } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { ShieldCheck, Save, RotateCcw, Crown, Loader2, AlertCircle, Lock } from 'lucide-react';
+import { ShieldCheck, Save, RotateCcw, Crown, AlertCircle, Lock } from 'lucide-react';
+import { Button, Card, EmptyState, SkeletonCard, useConfirm } from '@/components/ui';
 
 interface AccessLevel { level_number: number; level_name: string; description: string; permissions: Record<string, boolean>; }
 
@@ -62,6 +63,7 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
   const [loading, setLoading] = useState(true);
   const [enable2FA, setEnable2FA] = useState(true);
   const [toggling2FA, setToggling2FA] = useState(false);
+  const confirm = useConfirm();
 
   const fetchLevels = useCallback(async () => {
     setLoading(true);
@@ -70,7 +72,7 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
       if (configRes.success) {
         setEnable2FA(configRes.enable2FA);
       }
-      
+
       const res = await getAccessLevels();
       if (res.success) {
         const enriched = res.data.map((l: AccessLevel) => {
@@ -80,11 +82,11 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
             PERMISSION_FEATURES.forEach(f => allPerms[f.key] = true);
             return { ...l, permissions: allPerms };
           }
-          return { 
-            ...l, 
-            permissions: Object.keys(l.permissions || {}).length > 0 
-              ? l.permissions 
-              : (DEFAULT_PERMISSIONS[l.level_number] || {}) 
+          return {
+            ...l,
+            permissions: Object.keys(l.permissions || {}).length > 0
+              ? l.permissions
+              : (DEFAULT_PERMISSIONS[l.level_number] || {})
           };
         });
         setLevels(enriched);
@@ -102,8 +104,17 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
 
   useEffect(() => { fetchLevels(); }, [fetchLevels]);
 
-  const handleSelectLevel = (n: number) => {
-    if (dirty && !confirm('You have unsaved changes. Discard?')) return;
+  const handleSelectLevel = async (n: number) => {
+    if (dirty) {
+      const discard = await confirm({
+        title: 'Discard unsaved changes?',
+        description: 'You have unsaved permission changes for this level. Switching levels will discard them.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+        tone: 'danger',
+      });
+      if (!discard) return;
+    }
     setSelectedLevel(n);
     const l = levels.find(x => x.level_number === n);
     setPerms(l?.permissions || DEFAULT_PERMISSIONS[n] || {});
@@ -146,20 +157,24 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
 
   if (currentUser.accessLevel !== 1) {
     return (
-      <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-16 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-[var(--color-purple-glow)]/10 border border-[var(--color-purple-glow)]/20 flex items-center justify-center mx-auto mb-4">
-          <Lock size={28} className="text-[var(--color-purple-glow)]" />
-        </div>
-        <h3 className="font-bold text-base text-[var(--color-text-primary)] mb-2">Super Admin Only</h3>
-        <p className="text-[var(--color-text-secondary)] text-sm font-medium">Access Control management requires Level 1 — Super Admin privileges.</p>
-      </div>
+      <EmptyState
+        icon={<Lock size={22} aria-hidden="true" />}
+        title="Super Admin only"
+        description="Access Control management requires Level 1 — Super Admin privileges. Contact a Super Admin if you need a permission changed."
+      />
     );
   }
 
   if (loading) {
     return (
-      <div className="grid grid-cols-[240px_1fr] gap-5">
-        {[1, 2].map(i => <div key={i} className="h-96 rounded-2xl bg-[var(--color-bg-secondary)] animate-pulse" />)}
+      <div role="status" aria-busy="true" aria-live="polite" className="grid grid-cols-[220px_1fr] gap-5 items-start">
+        <span className="sr-only">Loading access control settings…</span>
+        <SkeletonCard />
+        <div className="flex flex-col gap-4">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }
@@ -168,144 +183,185 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
   const levelColor = LEVEL_COLORS[selectedLevel] || '#6366f1';
   const enabledCount = Object.values(perms).filter(Boolean).length;
   const totalCount = PERMISSION_FEATURES.length;
+  const accessPct = Math.round((enabledCount / totalCount) * 100);
 
   return (
     <div className="flex flex-col gap-5 pb-10">
       {/* Header */}
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-purple-glow)]/30 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-4 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(6,182,212,0.06) 100%)' }}>
+      <Card padding="none" className="p-5 flex items-center justify-between flex-wrap gap-4 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(6,182,212,0.06) 100%)', borderColor: 'rgba(139,92,246,0.3)' }}>
         <div>
           <div className="text-[11px] font-bold text-[var(--color-purple-glow)] tracking-widest uppercase mb-1">Access Control Panel</div>
-          <div className="text-xl font-black text-[var(--color-text-primary)]">Permission Matrix</div>
-          <div className="text-[13px] font-medium text-[var(--color-text-muted)] mt-1">Configure feature access for each role level. L1 permissions are immutable.</div>
+          <h2 className="text-xl font-black text-[var(--color-text-primary)]">Permission Matrix</h2>
+          <p className="text-[13px] font-medium text-[var(--color-text-muted)] mt-1">Configure feature access for each role level. L1 permissions are immutable.</p>
         </div>
         {dirty && (
           <div className="flex gap-3">
-            <button onClick={handleReset} className="px-4 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:bg-[var(--color-bg-card)] text-[var(--color-text-secondary)] text-[13px] font-bold transition-colors flex items-center gap-2">
-              <RotateCcw size={14} /> Reset
-            </button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white text-[13px] font-bold transition-colors flex items-center gap-2 disabled:opacity-60 shadow-sm">
-              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+            <Button
+              variant="secondary"
+              size="sm"
+              leadingIcon={<RotateCcw size={14} aria-hidden="true" />}
+              onClick={handleReset}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              loading={saving}
+              leadingIcon={<Save size={14} aria-hidden="true" />}
+              onClick={handleSave}
+            >
               {saving ? 'Saving…' : 'Save Changes'}
-            </button>
+            </Button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Global 2FA Config */}
-      <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 flex items-center justify-between shadow-sm">
+      <Card padding="none" className="p-5 flex items-center justify-between shadow-sm">
         <div>
-          <div className="text-[15px] font-bold text-[var(--color-text-primary)] flex items-center gap-2">
-            <ShieldCheck size={18} className="text-[var(--color-purple-glow)]" /> Global Two-Factor Authentication
-          </div>
-          <div className="text-[13px] font-medium text-[var(--color-text-muted)] mt-1">
+          <h3 className="text-[15px] font-bold text-[var(--color-text-primary)] flex items-center gap-2">
+            <ShieldCheck size={18} className="text-[var(--color-purple-glow)]" aria-hidden="true" /> Global Two-Factor Authentication
+          </h3>
+          <p id="global-2fa-hint" className="text-[13px] font-medium text-[var(--color-text-muted)] mt-1">
             Enforce OTP verification during login for all users system-wide.
-          </div>
+          </p>
         </div>
-        <button 
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enable2FA}
+          aria-label="Global two-factor authentication"
+          aria-describedby="global-2fa-hint"
           onClick={handleToggle2FA}
           disabled={toggling2FA}
-          className={`relative w-12 h-6 rounded-full transition-colors disabled:opacity-50 ${enable2FA ? 'bg-[var(--color-purple-glow)]' : 'bg-[var(--color-border)]'}`}
+          className={`relative w-12 h-6 shrink-0 rounded-full transition-colors disabled:opacity-50 ${enable2FA ? 'bg-[var(--color-purple-glow)]' : 'bg-[var(--color-border)]'}`}
         >
-          <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${enable2FA ? 'left-[26px]' : 'left-1'}`} />
+          <span aria-hidden="true" className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${enable2FA ? 'left-[26px]' : 'left-1'}`} />
         </button>
-      </div>
+      </Card>
 
       <div className="grid grid-cols-[220px_1fr] gap-5 items-start">
         {/* Level Sidebar */}
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-3 shadow-sm sticky top-4">
-          <div className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 px-2">Access Levels</div>
+        <Card padding="none" className="p-3 shadow-sm sticky top-4">
+          <h3 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3 px-2">Access Levels</h3>
           {/* L1 — Super Admin */}
-          <button onClick={() => handleSelectLevel(1)}
-            className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-xl mb-1 transition-all border ${selectedLevel === 1 ? 'border shadow-sm' : 'border-transparent hover:bg-[var(--color-bg-secondary)]'}`}
+          <button
+            type="button"
+            onClick={() => handleSelectLevel(1)}
+            aria-pressed={selectedLevel === 1}
+            className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-[var(--radius-control)] mb-1 transition-all border ${selectedLevel === 1 ? 'shadow-sm' : 'border-transparent hover:bg-[var(--color-bg-secondary)]'}`}
             style={selectedLevel === 1 ? { background: 'rgba(139,92,246,0.12)', borderColor: 'rgba(139,92,246,0.4)' } : {}}
           >
-            <Crown size={14} className="text-[var(--color-purple-glow)] shrink-0" />
-            <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-bold text-[var(--color-purple-glow)]">L1 — Super Admin</div>
-              <div className="text-[10px] font-medium text-[var(--color-text-muted)]">Full system access</div>
-            </div>
-            {selectedLevel === 1 && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-purple-glow)]" />}
+            <Crown size={14} className="text-[var(--color-purple-glow)] shrink-0" aria-hidden="true" />
+            <span className="flex-1 min-w-0">
+              <span className="block text-[12px] font-bold text-[var(--color-purple-glow)]">L1 — Super Admin</span>
+              <span className="block text-[10px] font-medium text-[var(--color-text-muted)]">Full system access</span>
+            </span>
+            {selectedLevel === 1 && <span aria-hidden="true" className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--color-purple-glow)]" />}
           </button>
           {levels.filter(l => l.level_number > 1).map(l => {
             const c = LEVEL_COLORS[l.level_number] || '#6366f1';
             const enabled = Object.values(l.permissions || {}).filter(Boolean).length;
             const isActive = selectedLevel === l.level_number;
             return (
-              <button key={l.level_number} onClick={() => handleSelectLevel(l.level_number)}
-                className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-xl mb-1 transition-all border ${isActive ? 'border shadow-sm' : 'border-transparent hover:bg-[var(--color-bg-secondary)]'}`}
+              <button
+                key={l.level_number}
+                type="button"
+                onClick={() => handleSelectLevel(l.level_number)}
+                aria-pressed={isActive}
+                className={`flex items-center gap-2.5 w-full text-left px-3 py-2.5 rounded-[var(--radius-control)] mb-1 transition-all border ${isActive ? 'shadow-sm' : 'border-transparent hover:bg-[var(--color-bg-secondary)]'}`}
                 style={isActive ? { background: `${c}12`, borderColor: `${c}40` } : {}}
               >
-                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: c }} />
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12px] font-bold truncate" style={{ color: isActive ? c : 'var(--color-text-secondary)' }}>L{l.level_number} — {l.level_name}</div>
-                  <div className="text-[10px] font-medium text-[var(--color-text-muted)]">{enabled}/{totalCount} enabled</div>
-                </div>
+                <span aria-hidden="true" className="w-2 h-2 rounded-full shrink-0" style={{ background: c }} />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[12px] font-bold truncate" style={{ color: isActive ? c : 'var(--color-text-secondary)' }}>L{l.level_number} — {l.level_name}</span>
+                  <span className="block text-[10px] font-medium text-[var(--color-text-muted)]">{enabled}/{totalCount} enabled</span>
+                </span>
               </button>
             );
           })}
-        </div>
+        </Card>
 
         {/* Permission Matrix */}
         <div className="flex flex-col gap-4">
           {/* Level header */}
-          <div className="p-4 rounded-2xl border flex items-center justify-between shadow-sm" style={{ background: `${levelColor}10`, borderColor: `${levelColor}30` }}>
+          <div className="p-4 rounded-[var(--radius-card)] border flex items-center justify-between shadow-sm" style={{ background: `${levelColor}10`, borderColor: `${levelColor}30` }}>
             <div>
-              <div className="text-lg font-black" style={{ color: levelColor }}>L{selectedLevel} — {selectedLevelData?.level_name}</div>
-              <div className="text-[13px] font-medium text-[var(--color-text-muted)] mt-0.5">{enabledCount} of {totalCount} permissions enabled</div>
+              <h3 className="text-lg font-black" style={{ color: levelColor }}>L{selectedLevel} — {selectedLevelData?.level_name}</h3>
+              <p className="text-[13px] font-medium text-[var(--color-text-muted)] mt-0.5">{enabledCount} of {totalCount} permissions enabled</p>
             </div>
             <div className="w-28">
-              <div className="h-2 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] overflow-hidden">
+              <div
+                role="progressbar"
+                aria-valuenow={accessPct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={`${enabledCount} of ${totalCount} permissions enabled for level ${selectedLevel}`}
+                className="h-2 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] overflow-hidden"
+              >
                 <div className="h-full rounded-full transition-all duration-300" style={{ width: `${(enabledCount / totalCount) * 100}%`, background: levelColor }} />
               </div>
-              <div className="text-[10px] font-bold text-[var(--color-text-muted)] mt-1.5 text-right">{Math.round((enabledCount / totalCount) * 100)}% access</div>
+              <div className="text-[10px] font-bold text-[var(--color-text-muted)] mt-1.5 text-right">{accessPct}% access</div>
             </div>
           </div>
 
           {CATEGORIES.map(cat => {
             const catFeatures = PERMISSION_FEATURES.filter(f => f.category === cat);
             return (
-              <div key={cat} className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm">
+              <Card key={cat} padding="none" className="p-5 shadow-sm">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="h-px flex-1 bg-[var(--color-border)]" />
-                  <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">{cat}</span>
-                  <div className="h-px flex-1 bg-[var(--color-border)]" />
+                  <span aria-hidden="true" className="h-px flex-1 bg-[var(--color-border)]" />
+                  <h4 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">{cat}</h4>
+                  <span aria-hidden="true" className="h-px flex-1 bg-[var(--color-border)]" />
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
                   {catFeatures.map(feature => {
                     const isL1 = selectedLevel === 1;
                     const enabled = isL1 ? true : !!perms[feature.key];
                     return (
-                      <div key={feature.key} onClick={() => !isL1 && togglePerm(feature.key)}
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all ${isL1 ? 'cursor-default' : 'cursor-pointer'}`}
+                      <button
+                        key={feature.key}
+                        type="button"
+                        role="switch"
+                        aria-checked={enabled}
+                        disabled={isL1}
+                        onClick={() => !isL1 && togglePerm(feature.key)}
+                        className={`w-full text-left flex items-center gap-3 px-4 py-3 rounded-[var(--radius-control)] border transition-all ${isL1 ? 'cursor-default' : 'cursor-pointer'}`}
                         style={{
                           background: enabled ? `${levelColor}10` : 'var(--color-bg-secondary)',
                           borderColor: enabled ? `${levelColor}40` : 'var(--color-border)',
                         }}
                       >
-                        <div className="flex-1 text-[13px] font-semibold" style={{ color: enabled ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}>
+                        <span className="flex-1 text-[13px] font-semibold" style={{ color: enabled ? 'var(--color-text-primary)' : 'var(--color-text-muted)' }}>
                           {feature.label}
-                        </div>
+                        </span>
                         {/* Toggle */}
-                        <div className="w-9 h-5 rounded-full relative shrink-0 transition-colors" style={{ background: enabled ? levelColor : 'var(--color-border)' }}>
-                          <div className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all" style={{ left: enabled ? '18px' : '2px' }} />
-                        </div>
-                      </div>
+                        <span aria-hidden="true" className="w-9 h-5 rounded-full relative shrink-0 transition-colors block" style={{ background: enabled ? levelColor : 'var(--color-border)' }}>
+                          <span className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all block" style={{ left: enabled ? '18px' : '2px' }} />
+                        </span>
+                      </button>
                     );
                   })}
                 </div>
-              </div>
+              </Card>
             );
           })}
 
           {dirty && (
-            <div className="p-4 rounded-xl border flex items-center justify-between" style={{ background: 'rgba(139,92,246,0.1)', borderColor: 'rgba(139,92,246,0.3)' }}>
+            <div className="p-4 rounded-[var(--radius-card)] border flex items-center justify-between" style={{ background: 'rgba(139,92,246,0.1)', borderColor: 'rgba(139,92,246,0.3)' }}>
               <span className="text-[13px] font-bold text-[#a78bfa] flex items-center gap-2">
-                <AlertCircle size={15} /> Unsaved changes for L{selectedLevel} — {selectedLevelData?.level_name}
+                <AlertCircle size={15} aria-hidden="true" /> Unsaved changes for L{selectedLevel} — {selectedLevelData?.level_name}
               </span>
-              <button onClick={handleSave} disabled={saving} className="px-4 py-1.5 rounded-xl bg-[var(--color-purple-glow)] text-white text-[13px] font-bold flex items-center gap-2 disabled:opacity-60">
-                {saving ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+              <Button
+                variant="primary"
+                size="sm"
+                loading={saving}
+                leadingIcon={<Save size={13} aria-hidden="true" />}
+                onClick={handleSave}
+              >
                 {saving ? 'Saving…' : 'Save'}
-              </button>
+              </Button>
             </div>
           )}
         </div>

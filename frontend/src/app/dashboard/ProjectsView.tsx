@@ -4,22 +4,26 @@ import { useState, useEffect } from 'react';
 import { User, VENTURES } from '@/lib/constants';
 import { getProjects, getProject, createProject, updateProject, deleteProject, getUsers } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { 
-  Plus, Search, Filter, Briefcase, Calendar, 
-  MoreVertical, Clock, CheckCircle2, Circle, AlertCircle,
-  X, Check, DollarSign, LayoutList, Target, Trash2, Loader2,
-  Users as UsersIcon, UserPlus, Mail, Building2, Tag, ShieldAlert
+import {
+  Plus, Search, Briefcase, Calendar,
+  Clock, CheckCircle2, Circle, AlertCircle,
+  X, Check, DollarSign, LayoutList, Trash2,
+  UserPlus, Building2, Tag
 } from 'lucide-react';
+import {
+  Badge, Button, EmptyState, Field, Input, Modal, Select, Skeleton, SkeletonCard, Textarea,
+  TextField, useConfirm,
+} from '@/components/ui';
 
 interface ProjectsViewProps {
   currentUser: User;
 }
 
 const STATUSES = [
-  { id: 'planning', label: 'Planning', color: '#8b5cf6', icon: <Circle size={14} /> },
-  { id: 'active', label: 'Active', color: '#06b6d4', icon: <Clock size={14} /> },
-  { id: 'on-hold', label: 'On Hold', color: '#f59e0b', icon: <AlertCircle size={14} /> },
-  { id: 'completed', label: 'Completed', color: '#10b981', icon: <CheckCircle2 size={14} /> }
+  { id: 'planning', label: 'Planning', color: '#8b5cf6', icon: <Circle size={14} aria-hidden="true" /> },
+  { id: 'active', label: 'Active', color: '#06b6d4', icon: <Clock size={14} aria-hidden="true" /> },
+  { id: 'on-hold', label: 'On Hold', color: '#f59e0b', icon: <AlertCircle size={14} aria-hidden="true" /> },
+  { id: 'completed', label: 'Completed', color: '#10b981', icon: <CheckCircle2 size={14} aria-hidden="true" /> }
 ];
 
 const PRIORITIES = [
@@ -31,11 +35,14 @@ const PRIORITIES = [
 
 const CATEGORIES = ['General', 'Development', 'Marketing', 'Sales', 'Operations', 'HR', 'Finance', 'Design'];
 
+const SECTION_LABEL_CLASS =
+  'block text-label font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]';
+
 export default function ProjectsView({ currentUser }: ProjectsViewProps) {
   const [projects, setProjects] = useState<any[]>([]);
   const [availableUsers, setAvailableUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Filters
   const [search, setSearch] = useState('');
   const [ventureFilter, setVentureFilter] = useState('all');
@@ -43,7 +50,7 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<any | null>(null);
-  
+
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -62,6 +69,8 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
   });
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
+
+  const confirm = useConfirm();
 
   useEffect(() => {
     fetchProjects();
@@ -90,7 +99,7 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
   const handleOpenModal = async (project?: any) => {
     if (project) {
       setEditingProject(project);
-      
+
       // Initialize with what we have
       setForm({
         name: project.name,
@@ -147,7 +156,7 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
     if (!form.name) return toast.error('Project name is required');
     try {
       setSaving(true);
-      const res = editingProject 
+      const res = editingProject
         ? await updateProject(editingProject.id, form)
         : await createProject(form);
 
@@ -164,7 +173,13 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Permanently delete this project?')) return;
+    const confirmed = await confirm({
+      title: 'Permanently delete this project?',
+      description: 'The project, its milestones and its team assignments will be removed. This cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     try {
       const res = await deleteProject(id);
       if (res.success) {
@@ -180,14 +195,14 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
   const toggleMember = (userId: number) => {
     setForm(prev => ({
       ...prev,
-      members: prev.members.some(m => m.user_id === userId) 
+      members: prev.members.some(m => m.user_id === userId)
         ? prev.members.filter(m => m.user_id !== userId)
         : [...prev.members, { user_id: userId, role: 'Contributor' }]
     }));
   };
 
   const filteredProjects = projects.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
                           (p.description && p.description.toLowerCase().includes(search.toLowerCase()));
     const matchesVenture = ventureFilter === 'all' || p.venture_name?.toLowerCase().includes(ventureFilter.toLowerCase());
     return matchesSearch && matchesVenture;
@@ -213,29 +228,33 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
             <p className="text-[13px] text-[var(--color-text-secondary)] mt-1 tracking-wide">Orchestrating high-impact deliverables across ventures.</p>
           </div>
           {canCreate && (
-            <button
+            <Button
+              variant="primary"
+              leadingIcon={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
               onClick={() => handleOpenModal()}
-              className="px-5 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-all shadow-sm active:scale-95"
             >
-              <Plus size={16} strokeWidth={2.5} /> New Project
-            </button>
+              New Project
+            </Button>
           )}
         </div>
 
         <div className="flex gap-4 flex-wrap">
           <div className="flex-1 min-w-[280px] relative">
-            <Search size={16} className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
-            <input 
-              type="text" placeholder="Filter projects by name or owner..." 
+            <Search size={16} aria-hidden="true" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <input
+              type="search"
+              aria-label="Filter projects by name or description"
+              placeholder="Filter projects by name or owner..."
               value={search} onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] outline-none focus:border-[var(--color-purple-glow)] transition-colors"
             />
           </div>
-          
+
           {currentUser.accessLevel <= 2 && (
             <select
+              aria-label="Filter projects by venture"
               value={ventureFilter} onChange={(e) => setVentureFilter(e.target.value)}
-              className="pl-4 pr-9 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] cursor-pointer outline-none focus:border-[var(--color-purple-glow)] transition-colors appearance-none"
+              className="pl-4 pr-9 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] cursor-pointer outline-none focus:border-[var(--color-purple-glow)] transition-colors"
             >
               <option value="all">All Ventures</option>
               {VENTURES.map(v => <option key={v.slug} value={v.slug}>{v.name}</option>)}
@@ -245,14 +264,58 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
       </div>
 
       {/* Kanban Board */}
-      <div className="flex-1 flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
-        {loading ? (
-          <div className="flex flex-col w-full items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
-            <p className="text-[var(--color-text-muted)] text-sm font-medium tracking-wide">Syncing project board...</p>
-          </div>
-        ) : (
-          groupedProjects.map(group => (
+      {loading ? (
+        <div
+          role="status"
+          aria-busy="true"
+          aria-live="polite"
+          className="flex-1 flex gap-6 overflow-x-auto pb-4 custom-scrollbar"
+        >
+          <span className="sr-only">Syncing project board…</span>
+          {STATUSES.map(s => (
+            <div key={s.id} className="min-w-[340px] w-[340px] flex flex-col gap-4">
+              <div className="px-4 py-3 bg-[var(--color-bg-secondary)] rounded-xl border border-[var(--color-border)]">
+                <Skeleton height={12} width={96} />
+              </div>
+              <SkeletonCard />
+              <SkeletonCard />
+            </div>
+          ))}
+        </div>
+      ) : projects.length === 0 ? (
+        <EmptyState
+          icon={<Briefcase size={22} aria-hidden="true" />}
+          title="No projects yet"
+          description="Projects group tasks, budget, milestones and the team behind a deliverable. Start one and it will appear on this board."
+          action={
+            canCreate ? (
+              <Button
+                variant="primary"
+                leadingIcon={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
+                onClick={() => handleOpenModal()}
+              >
+                Create your first project
+              </Button>
+            ) : undefined
+          }
+        />
+      ) : filteredProjects.length === 0 ? (
+        <EmptyState
+          icon={<Search size={22} aria-hidden="true" />}
+          title="No projects match your filters"
+          description="Nothing here matches the current search or venture filter. Try widening it."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => { setSearch(''); setVentureFilter('all'); }}
+            >
+              Clear filters
+            </Button>
+          }
+        />
+      ) : (
+        <div className="flex-1 flex gap-6 overflow-x-auto pb-4 custom-scrollbar">
+          {groupedProjects.map(group => (
             <div key={group.id} className="min-w-[340px] w-[340px] flex flex-col gap-4">
               <div className="flex items-center justify-between px-4 py-3 bg-[var(--color-bg-secondary)] rounded-xl border shadow-sm" style={{ borderColor: `${group.color}30` }}>
                 <div className="flex items-center gap-2 font-bold text-[13px] uppercase tracking-wider" style={{ color: group.color }}>
@@ -268,23 +331,26 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
                   const prioColor = getPriorityColor(project.priority);
 
                   return (
-                    <div 
-                      key={project.id} onClick={() => handleOpenModal(project)}
-                      className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 cursor-pointer hover:border-[var(--color-text-muted)] transition-all group relative overflow-hidden"
+                    <div
+                      key={project.id}
+                      className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 hover:border-[var(--color-text-muted)] transition-all group relative overflow-hidden focus-within:border-[var(--color-purple-glow)]"
                       style={{ borderLeft: `4px solid ${vColor}` }}
                     >
+                      {/* Whole-card click target. Kept as a real button rather than an
+                          onClick on the card div so it is reachable by keyboard. */}
+                      <button
+                        type="button"
+                        onClick={() => handleOpenModal(project)}
+                        aria-label={`Open project ${project.name}`}
+                        className="absolute inset-0 z-10 cursor-pointer rounded-2xl outline-none"
+                      />
+
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex flex-wrap gap-2">
-                          <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded border" style={{ color: vColor, background: `${vColor}10`, borderColor: `${vColor}20` }}>
-                            {project.venture_name}
-                          </span>
-                          <span className="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded border" style={{ color: prioColor, background: `${prioColor}10`, borderColor: `${prioColor}20` }}>
-                            {project.priority}
-                          </span>
+                          <Badge color={vColor}>{project.venture_name}</Badge>
+                          <Badge color={prioColor}>{project.priority}</Badge>
                           {project.tags && (typeof project.tags === 'string' ? JSON.parse(project.tags) : project.tags).map((tag: string) => (
-                            <span key={tag} className="text-[9px] font-bold tracking-widest uppercase px-2 py-0.5 rounded border border-[var(--color-border)] bg-[var(--color-bg-secondary)] text-[var(--color-text-muted)]">
-                              {tag}
-                            </span>
+                            <Badge key={tag} tone="neutral">{tag}</Badge>
                           ))}
                         </div>
                       </div>
@@ -301,7 +367,14 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
                           <span>Execution Phase</span>
                           <span>{progress}%</span>
                         </div>
-                        <div className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden">
+                        <div
+                          className="h-1.5 bg-[var(--color-bg-secondary)] rounded-full overflow-hidden"
+                          role="progressbar"
+                          aria-valuenow={progress}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          aria-label={`${project.name} execution progress`}
+                        >
                           <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${progress}%`, background: `linear-gradient(90deg, ${vColor}, #06b6d4)` }} />
                         </div>
                       </div>
@@ -319,18 +392,18 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
                             </div>
                           )}
                           {(!project.members || project.members.length === 0) && (
-                            <div className="w-6 h-6 rounded-full bg-[var(--color-bg-secondary)] border-2 border-[var(--color-bg-card)] flex items-center justify-center text-[var(--color-text-muted)]">
-                              <UserPlus size={10} />
+                            <div className="w-6 h-6 rounded-full bg-[var(--color-bg-secondary)] border-2 border-[var(--color-bg-card)] flex items-center justify-center text-[var(--color-text-muted)]" title="No members assigned">
+                              <UserPlus size={10} aria-hidden="true" />
                             </div>
                           )}
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1 text-[11px] font-medium text-[var(--color-text-muted)]">
-                            <LayoutList size={12} /> {project.completed_task_count}/{project.task_count}
+                            <LayoutList size={12} aria-hidden="true" /> {project.completed_task_count}/{project.task_count}
                           </div>
                           {project.end_date && (
                              <div className={`flex items-center gap-1 text-[11px] font-bold ${new Date(project.end_date) < new Date() ? 'text-rose-500' : 'text-[var(--color-text-secondary)]'}`}>
-                               <Calendar size={12} /> {new Date(project.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+                               <Calendar size={12} aria-hidden="true" /> {new Date(project.end_date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
                              </div>
                           )}
                         </div>
@@ -338,62 +411,94 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
                     </div>
                   );
                 })}
+
+                {group.items.length === 0 && (
+                  <div className="p-6 border border-dashed border-[var(--color-border)] rounded-xl text-center">
+                    <p className="text-[11px] text-[var(--color-text-muted)] font-medium uppercase tracking-widest">
+                      Nothing in {group.label}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Enhanced Slide Panel */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex justify-end">
-          <div className="w-full max-w-[600px] h-full bg-[var(--color-bg-primary)] border-l border-[var(--color-border)] flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
-            <div className="p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-secondary)]">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--color-purple-glow)]/10 border border-[var(--color-purple-glow)]/20 flex items-center justify-center text-[var(--color-purple-glow)] shadow-inner">
-                  <Target size={24} strokeWidth={2.5} />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-[var(--color-text-primary)]">
-                    {editingProject ? 'Project Infrastructure' : 'New Project Architecture'}
-                  </h3>
-                  <p className="text-[11px] text-[var(--color-text-muted)] font-bold uppercase tracking-widest mt-1">Global Workspace Node</p>
-                </div>
-              </div>
-              <button onClick={() => setIsModalOpen(false)} className="w-10 h-10 rounded-xl hover:bg-rose-500/10 hover:text-rose-500 text-[var(--color-text-muted)] flex items-center justify-center transition-all">
-                <X size={20} />
-              </button>
-            </div>
+      <Modal
+        open={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        variant="drawer"
+        title={editingProject ? 'Project Infrastructure' : 'New Project Architecture'}
+        description="Global Workspace Node"
+        footer={
+          <>
+            {canCreate && editingProject && (
+              <Button
+                variant="danger"
+                leadingIcon={<Trash2 size={16} aria-hidden="true" />}
+                onClick={() => handleDelete(editingProject.id)}
+                className="mr-auto"
+              >
+                Purge
+              </Button>
+            )}
+            <Button variant="secondary" onClick={() => setIsModalOpen(false)}>Dismiss</Button>
+            {canCreate && (
+              <Button
+                variant="primary"
+                loading={saving}
+                leadingIcon={<Check size={16} strokeWidth={3} aria-hidden="true" />}
+                onClick={handleSave}
+              >
+                {saving ? 'Syncing...' : editingProject ? 'Update Architecture' : 'Initialize Project'}
+              </Button>
+            )}
+          </>
+        }
+      >
+        <div className="flex flex-col gap-8">
+          {/* Primary Info */}
+          <section className="space-y-6">
+            <TextField
+              label="Identification"
+              required
+              value={form.name}
+              onChange={e => setForm({...form, name: e.target.value})}
+              placeholder="Enter project title..."
+              disabled={!canCreate}
+            />
 
-            <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-8 custom-scrollbar bg-[var(--color-bg-primary)]">
-              {/* Primary Info */}
-              <section className="space-y-6">
-                <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-2 uppercase tracking-widest">Identification</label>
-                  <input 
-                    type="text" value={form.name} onChange={e => setForm({...form, name: e.target.value})}
-                    placeholder="Enter project title..." disabled={!canCreate}
-                    className="w-full px-5 py-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[15px] font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-all shadow-sm"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-2 uppercase tracking-widest">Project Tags</label>
-                  <div className="flex flex-wrap gap-2 mb-3">
-                    {form.tags.map(tag => (
-                      <span key={tag} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--color-purple-glow)]/10 border border-[var(--color-purple-glow)]/20 text-[var(--color-purple-glow)] text-[11px] font-bold uppercase tracking-wider">
-                        {tag}
-                        <button onClick={() => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))} className="hover:text-rose-500 transition-colors">
-                          <X size={10} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
+            <Field label="Project Tags" hint="Type a tag and press Enter to add it.">
+              {({ id, describedBy }) => (
+                <>
+                  {form.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {form.tags.map(tag => (
+                        <span key={tag} className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[var(--color-purple-glow)]/10 border border-[var(--color-purple-glow)]/20 text-[var(--color-purple-glow)] text-[11px] font-bold uppercase tracking-wider">
+                          {tag}
+                          <button
+                            type="button"
+                            aria-label={`Remove tag ${tag}`}
+                            onClick={() => setForm(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }))}
+                            className="hover:text-[var(--color-rose)] transition-colors"
+                          >
+                            <X size={10} aria-hidden="true" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   <div className="relative">
-                    <Tag size={14} className="absolute left-4 top-3.5 text-[var(--color-text-muted)]" />
-                    <input 
-                      type="text" placeholder="Add tag and press Enter..." 
-                      value={tagInput} onChange={e => setTagInput(e.target.value)}
+                    <Tag size={14} aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]" />
+                    <Input
+                      id={id}
+                      aria-describedby={describedBy}
+                      type="text"
+                      placeholder="Add tag and press Enter..."
+                      value={tagInput}
+                      onChange={e => setTagInput(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && tagInput.trim()) {
                           e.preventDefault();
@@ -403,225 +508,270 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
                           setTagInput('');
                         }
                       }}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
+                      className="pl-10"
                     />
                   </div>
-                </div>
+                </>
+              )}
+            </Field>
 
-                <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-2 uppercase tracking-widest">Operational Directive</label>
-                  <textarea 
-                    value={form.description} onChange={e => setForm({...form, description: e.target.value})}
-                    rows={3} placeholder="Define project scope and objectives..." disabled={!canCreate}
-                    className="w-full px-5 py-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] transition-all resize-none shadow-sm"
-                  />
-                </div>
-              </section>
+            <Field label="Operational Directive">
+              {({ id }) => (
+                <Textarea
+                  id={id}
+                  value={form.description}
+                  onChange={e => setForm({...form, description: e.target.value})}
+                  rows={3}
+                  placeholder="Define project scope and objectives..."
+                  disabled={!canCreate}
+                />
+              )}
+            </Field>
+          </section>
 
-              {/* Classification Grid */}
-              <section className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-2 uppercase tracking-widest">Phase</label>
-                  <div className="relative">
-                    <select 
-                      value={form.status} onChange={e => setForm({...form, status: e.target.value})} disabled={!canCreate}
-                      className="w-full px-5 py-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] appearance-none shadow-sm"
-                    >
-                      {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                    </select>
-                    <Clock size={16} className="absolute right-4 top-3.5 text-[var(--color-text-muted)] pointer-events-none" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-[var(--color-text-muted)] mb-2 uppercase tracking-widest">Criticality</label>
-                  <div className="relative">
-                    <select 
-                      value={form.priority} onChange={e => setForm({...form, priority: e.target.value})} disabled={!canCreate}
-                      className="w-full px-5 py-3 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] font-semibold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)] appearance-none shadow-sm"
-                    >
-                      {PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
-                    </select>
-                    <ShieldAlert size={16} className="absolute right-4 top-3.5 text-[var(--color-text-muted)] pointer-events-none" />
-                  </div>
-                </div>
-              </section>
+          {/* Classification Grid */}
+          <section className="grid grid-cols-2 gap-6">
+            <Field label="Phase">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={form.status}
+                  onChange={e => setForm({...form, status: e.target.value})}
+                  disabled={!canCreate}
+                >
+                  {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </Select>
+              )}
+            </Field>
+            <Field label="Criticality">
+              {({ id }) => (
+                <Select
+                  id={id}
+                  value={form.priority}
+                  onChange={e => setForm({...form, priority: e.target.value})}
+                  disabled={!canCreate}
+                >
+                  {PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+                </Select>
+              )}
+            </Field>
+          </section>
 
-              {/* Team Allocation */}
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">Human Capital Allocation</label>
-                  <span className="text-[10px] font-bold text-[var(--color-purple-glow)] bg-[var(--color-purple-glow)]/10 px-2 py-0.5 rounded-full">{form.members.length} Assigned</span>
-                </div>
-                <div className="p-4 rounded-2xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] max-h-[220px] overflow-y-auto custom-scrollbar space-y-2 shadow-inner">
-                  {availableUsers.map(user => {
-                    const isAssigned = form.members.some(m => m.user_id === user.id);
-                    const memberData = form.members.find(m => m.user_id === user.id);
-                    
-                    return (
-                      <div 
-                        key={user.id} 
-                        className={`flex flex-col gap-2 p-2.5 rounded-xl transition-all ${isAssigned ? 'bg-[var(--color-purple-glow)]/10 border-[var(--color-purple-glow)]/30 border' : 'hover:bg-[var(--color-bg-card)] border border-transparent'}`}
-                      >
-                        <div className="flex items-center justify-between cursor-pointer" onClick={() => canCreate && toggleMember(user.id)}>
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[var(--color-bg-card)] border border-[var(--color-border)] flex items-center justify-center text-xs font-bold text-[var(--color-text-primary)]">
-                              {user.full_name?.charAt(0)}
-                            </div>
-                            <div>
-                              <div className="text-[13px] font-bold text-[var(--color-text-primary)]">{user.full_name}</div>
-                              <div className="text-[10px] text-[var(--color-text-muted)]">{user.designation || 'Specialist'}</div>
-                            </div>
-                          </div>
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${isAssigned ? 'bg-[var(--color-purple-glow)] border-[var(--color-purple-glow)] text-white' : 'border-[var(--color-border)]'}`}>
-                            {isAssigned && <Check size={12} strokeWidth={3} />}
-                          </div>
-                        </div>
+          {/* Team Allocation */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <span id="project-team-label" className={SECTION_LABEL_CLASS}>Human Capital Allocation</span>
+              <span className="text-[10px] font-bold text-[var(--color-purple-glow)] bg-[var(--color-purple-glow)]/10 px-2 py-0.5 rounded-full">{form.members.length} Assigned</span>
+            </div>
+            <div
+              role="group"
+              aria-labelledby="project-team-label"
+              className="p-4 rounded-2xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] max-h-[220px] overflow-y-auto custom-scrollbar space-y-2 shadow-inner"
+            >
+              {availableUsers.map(user => {
+                const isAssigned = form.members.some(m => m.user_id === user.id);
+                const memberData = form.members.find(m => m.user_id === user.id);
 
-                        {isAssigned && (
-                          <div className="pl-11 pr-2 pb-1">
-                            <select 
-                              value={memberData?.role || 'Contributor'}
-                              onChange={e => {
-                                setForm(prev => ({
-                                  ...prev,
-                                  members: prev.members.map(m => m.user_id === user.id ? { ...m, role: e.target.value } : m)
-                                }));
-                              }}
-                              className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] font-bold text-[var(--color-purple-glow)] outline-none"
-                            >
-                              <option value="Lead">Project Lead</option>
-                              <option value="Contributor">Contributor</option>
-                              <option value="Reviewer">Reviewer</option>
-                              <option value="Architect">Architect</option>
-                              <option value="Stakeholder">Stakeholder</option>
-                            </select>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              {/* Timeline & Budget */}
-              <section className="grid grid-cols-2 gap-6 p-6 rounded-2xl bg-[var(--color-bg-secondary)]/50 border border-[var(--color-border)] border-dashed">
-                 <div className="col-span-2 flex items-center gap-2 mb-2">
-                    <Calendar size={14} className="text-[var(--color-purple-glow)]" />
-                    <span className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">Chronology & Capital</span>
-                 </div>
-                 <div>
-                   <label className="block text-[11px] text-[var(--color-text-muted)] mb-1.5 font-bold uppercase">Deployment</label>
-                   <input type="date" min={new Date().toISOString().split('T')[0]} value={form.start_date} onChange={e => setForm({...form, start_date: e.target.value})} disabled={!canCreate} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)] [color-scheme:dark]" />
-                 </div>
-                 <div>
-                   <label className="block text-[11px] text-[var(--color-text-muted)] mb-1.5 font-bold uppercase">Termination</label>
-                   <input type="date" min={new Date().toISOString().split('T')[0]} value={form.end_date} onChange={e => setForm({...form, end_date: e.target.value})} disabled={!canCreate} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)] [color-scheme:dark]" />
-                 </div>
-                 <div className="col-span-2">
-                   <label className="block text-[11px] text-[var(--color-text-muted)] mb-1.5 font-bold uppercase">Budgetary Allocation (USD)</label>
-                   <div className="relative">
-                     <DollarSign size={14} className="absolute left-4 top-3.5 text-emerald-500" />
-                     <input type="number" value={form.budget} onChange={e => setForm({...form, budget: parseFloat(e.target.value)})} disabled={!canCreate} className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[14px] font-bold text-emerald-500 shadow-inner" />
-                   </div>
-                 </div>
-              </section>
-
-              {/* External stakeholders */}
-              <section className="space-y-4">
-                 <label className="block text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest flex items-center gap-2">
-                    <Building2 size={14} className="text-[var(--color-text-muted)]" /> Client Intelligence
-                 </label>
-                 <div className="grid grid-cols-2 gap-4">
-                    <input type="text" placeholder="Stakeholder Entity / Name" value={form.client_name} onChange={e => setForm({...form, client_name: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)]" />
-                    <input type="email" placeholder="Contact Protocol (Email)" value={form.client_email} onChange={e => setForm({...form, client_email: e.target.value})} className="w-full px-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[13px] text-[var(--color-text-primary)]" />
-                 </div>
-              </section>
-
-              {/* Milestones */}
-              <section>
-                <div className="flex items-center justify-between mb-3">
-                  <label className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-widest">Project Milestones</label>
-                  <button 
-                    onClick={() => setForm(prev => ({ ...prev, milestones: [...prev.milestones, { title: '', description: '', due_date: '', status: 'pending' }] }))}
-                    className="flex items-center gap-1.5 text-[10px] font-bold text-[var(--color-purple-glow)] hover:underline"
+                return (
+                  <div
+                    key={user.id}
+                    className={`flex flex-col gap-2 p-2.5 rounded-xl transition-all ${isAssigned ? 'bg-[var(--color-purple-glow)]/10 border-[var(--color-purple-glow)]/30 border' : 'hover:bg-[var(--color-bg-card)] border border-transparent'}`}
                   >
-                    <Plus size={12} /> Add Milestone
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {form.milestones.map((m, idx) => (
-                    <div key={idx} className="p-4 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] space-y-3 relative">
-                      <button 
-                        onClick={() => setForm(prev => ({ ...prev, milestones: prev.milestones.filter((_, i) => i !== idx) }))}
-                        className="absolute top-2 right-2 text-[var(--color-text-muted)] hover:text-rose-500 transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
-                      <input 
-                        type="text" placeholder="Milestone Title" 
-                        value={m.title} onChange={e => {
-                          const newM = [...form.milestones];
-                          newM[idx].title = e.target.value;
-                          setForm({...form, milestones: newM});
-                        }}
-                        className="w-full bg-transparent border-b border-[var(--color-border)] py-1 text-[13px] font-bold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
-                      />
-                      <div className="grid grid-cols-2 gap-3">
-                        <input 
-                          type="date" min={new Date().toISOString().split('T')[0]} value={m.due_date ? m.due_date.split('T')[0] : ''} 
+                    <button
+                      type="button"
+                      aria-pressed={isAssigned}
+                      disabled={!canCreate}
+                      onClick={() => canCreate && toggleMember(user.id)}
+                      className="flex w-full items-center justify-between text-left disabled:cursor-not-allowed"
+                    >
+                      <span className="flex items-center gap-3">
+                        <span className="w-8 h-8 rounded-full bg-[var(--color-bg-card)] border border-[var(--color-border)] flex items-center justify-center text-xs font-bold text-[var(--color-text-primary)]">
+                          {user.full_name?.charAt(0)}
+                        </span>
+                        <span className="block">
+                          <span className="block text-[13px] font-bold text-[var(--color-text-primary)]">{user.full_name}</span>
+                          <span className="block text-[10px] text-[var(--color-text-muted)]">{user.designation || 'Specialist'}</span>
+                        </span>
+                      </span>
+                      <span aria-hidden="true" className={`w-5 h-5 shrink-0 rounded-full flex items-center justify-center border transition-all ${isAssigned ? 'bg-[var(--color-purple-glow)] border-[var(--color-purple-glow)] text-white' : 'border-[var(--color-border)]'}`}>
+                        {isAssigned && <Check size={12} strokeWidth={3} />}
+                      </span>
+                    </button>
+
+                    {isAssigned && (
+                      <div className="pl-11 pr-2 pb-1">
+                        <select
+                          aria-label={`Project role for ${user.full_name}`}
+                          value={memberData?.role || 'Contributor'}
                           onChange={e => {
-                            const newM = [...form.milestones];
-                            newM[idx].due_date = e.target.value;
-                            setForm({...form, milestones: newM});
+                            setForm(prev => ({
+                              ...prev,
+                              members: prev.members.map(m => m.user_id === user.id ? { ...m, role: e.target.value } : m)
+                            }));
                           }}
-                          className="bg-transparent border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] text-[var(--color-text-primary)] [color-scheme:dark]"
-                        />
-                        <select 
-                          value={m.status} 
-                          onChange={e => {
-                            const newM = [...form.milestones];
-                            newM[idx].status = e.target.value;
-                            setForm({...form, milestones: newM});
-                          }}
-                          className="bg-transparent border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] text-[var(--color-text-primary)]"
+                          className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] font-bold text-[var(--color-purple-glow)] outline-none"
                         >
-                          <option value="pending">Pending</option>
-                          <option value="completed">Completed</option>
+                          <option value="Lead">Project Lead</option>
+                          <option value="Contributor">Contributor</option>
+                          <option value="Reviewer">Reviewer</option>
+                          <option value="Architect">Architect</option>
+                          <option value="Stakeholder">Stakeholder</option>
                         </select>
                       </div>
-                    </div>
-                  ))}
-                  {form.milestones.length === 0 && (
-                    <div className="p-8 border border-dashed border-[var(--color-border)] rounded-xl text-center">
-                      <p className="text-[11px] text-[var(--color-text-muted)] font-medium uppercase tracking-widest">No milestones defined.</p>
-                    </div>
-                  )}
-                </div>
-              </section>
-            </div>
-
-            <div className="p-6 border-t border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-secondary)]">
-              {canCreate && editingProject && (
-                 <button onClick={() => handleDelete(editingProject.id)} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-500 font-bold text-[13px] transition-all">
-                  <Trash2 size={16} /> Purge
-                </button>
+                    )}
+                  </div>
+                );
+              })}
+              {availableUsers.length === 0 && (
+                <p className="py-4 text-center text-xs text-[var(--color-text-muted)]">
+                  No teammates available to assign yet.
+                </p>
               )}
-              <div className="flex gap-3 ml-auto">
-                <button onClick={() => setIsModalOpen(false)} className="px-6 py-2.5 rounded-xl border border-[var(--color-border)] text-[var(--color-text-primary)] font-bold text-[13px] hover:bg-[var(--color-bg-card)] transition-all">Dismiss</button>
-                {canCreate && (
-                  <button 
-                    onClick={handleSave} disabled={saving}
-                    className="px-8 py-2.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white font-bold text-[13px] flex items-center gap-2 transition-all shadow-lg shadow-purple-500/20 active:scale-95 disabled:opacity-50"
-                  >
-                    {saving ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} strokeWidth={3} />}
-                    {saving ? 'Syncing...' : editingProject ? 'Update Architecture' : 'Initialize Project'}
-                  </button>
-                )}
-              </div>
             </div>
-          </div>
+          </section>
+
+          {/* Timeline & Budget */}
+          <section className="grid grid-cols-2 gap-6 p-6 rounded-2xl bg-[var(--color-bg-secondary)]/50 border border-[var(--color-border)] border-dashed">
+             <div className="col-span-2 flex items-center gap-2 mb-2">
+                <Calendar size={14} aria-hidden="true" className="text-[var(--color-purple-glow)]" />
+                <span className={SECTION_LABEL_CLASS}>Chronology &amp; Capital</span>
+             </div>
+             <Field label="Deployment">
+               {({ id }) => (
+                 <Input
+                   id={id}
+                   type="date"
+                   min={new Date().toISOString().split('T')[0]}
+                   value={form.start_date}
+                   onChange={e => setForm({...form, start_date: e.target.value})}
+                   disabled={!canCreate}
+                 />
+               )}
+             </Field>
+             <Field label="Termination">
+               {({ id }) => (
+                 <Input
+                   id={id}
+                   type="date"
+                   min={new Date().toISOString().split('T')[0]}
+                   value={form.end_date}
+                   onChange={e => setForm({...form, end_date: e.target.value})}
+                   disabled={!canCreate}
+                 />
+               )}
+             </Field>
+             <Field label="Budgetary Allocation (USD)" className="col-span-2">
+               {({ id }) => (
+                 <div className="relative">
+                   <DollarSign size={14} aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 text-emerald-500" />
+                   <Input
+                     id={id}
+                     type="number"
+                     value={form.budget}
+                     onChange={e => setForm({...form, budget: parseFloat(e.target.value)})}
+                     disabled={!canCreate}
+                     className="pl-10 font-bold text-emerald-500"
+                   />
+                 </div>
+               )}
+             </Field>
+          </section>
+
+          {/* External stakeholders */}
+          <section className="space-y-4">
+             <p className={`${SECTION_LABEL_CLASS} flex items-center gap-2`}>
+                <Building2 size={14} aria-hidden="true" /> Client Intelligence
+             </p>
+             <div className="grid grid-cols-2 gap-4">
+                <TextField
+                  label="Stakeholder Entity"
+                  value={form.client_name}
+                  onChange={e => setForm({...form, client_name: e.target.value})}
+                  placeholder="Client or company name"
+                />
+                <TextField
+                  label="Contact Email"
+                  type="email"
+                  value={form.client_email}
+                  onChange={e => setForm({...form, client_email: e.target.value})}
+                  placeholder="name@company.com"
+                />
+             </div>
+          </section>
+
+          {/* Milestones */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <span className={SECTION_LABEL_CLASS}>Project Milestones</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                leadingIcon={<Plus size={12} aria-hidden="true" />}
+                onClick={() => setForm(prev => ({ ...prev, milestones: [...prev.milestones, { title: '', description: '', due_date: '', status: 'pending' }] }))}
+                className="text-[var(--color-purple-glow)]"
+              >
+                Add Milestone
+              </Button>
+            </div>
+            <div className="space-y-3">
+              {form.milestones.map((m, idx) => (
+                <div key={idx} className="p-4 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] space-y-3 relative">
+                  <Button
+                    iconOnly
+                    aria-label={`Remove milestone ${idx + 1}`}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setForm(prev => ({ ...prev, milestones: prev.milestones.filter((_, i) => i !== idx) }))}
+                    className="absolute top-2 right-2 hover:text-[var(--color-rose)]"
+                  >
+                    <X size={14} aria-hidden="true" />
+                  </Button>
+                  <input
+                    type="text" placeholder="Milestone Title"
+                    aria-label={`Milestone ${idx + 1} title`}
+                    value={m.title} onChange={e => {
+                      const newM = [...form.milestones];
+                      newM[idx].title = e.target.value;
+                      setForm({...form, milestones: newM});
+                    }}
+                    className="w-full bg-transparent border-b border-[var(--color-border)] py-1 pr-10 text-[13px] font-bold text-[var(--color-text-primary)] outline-none focus:border-[var(--color-purple-glow)]"
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="date" min={new Date().toISOString().split('T')[0]} value={m.due_date ? m.due_date.split('T')[0] : ''}
+                      aria-label={`Milestone ${idx + 1} due date`}
+                      onChange={e => {
+                        const newM = [...form.milestones];
+                        newM[idx].due_date = e.target.value;
+                        setForm({...form, milestones: newM});
+                      }}
+                      className="bg-transparent border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] text-[var(--color-text-primary)]"
+                    />
+                    <select
+                      value={m.status}
+                      aria-label={`Milestone ${idx + 1} status`}
+                      onChange={e => {
+                        const newM = [...form.milestones];
+                        newM[idx].status = e.target.value;
+                        setForm({...form, milestones: newM});
+                      }}
+                      className="bg-transparent border border-[var(--color-border)] rounded-md px-2 py-1 text-[11px] text-[var(--color-text-primary)]"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="completed">Completed</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+              {form.milestones.length === 0 && (
+                <div className="p-8 border border-dashed border-[var(--color-border)] rounded-xl text-center">
+                  <p className="text-[11px] text-[var(--color-text-muted)] font-medium uppercase tracking-widest">No milestones defined.</p>
+                </div>
+              )}
+            </div>
+          </section>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

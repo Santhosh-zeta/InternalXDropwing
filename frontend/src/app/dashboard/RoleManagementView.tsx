@@ -4,7 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
 import { getRoles, getRoleVentures, createRole, updateRole, deleteRole, getRoleAssignableUsers, assignRoleToUser, removeRoleFromUser } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { Users, Plus, Edit2, Trash2, Save, X, Loader2, ShieldCheck, AlertCircle, Lock, Crown, Building2, UserCircle2, CheckSquare } from 'lucide-react';
+import { Users, Plus, Edit2, Trash2, Save, ShieldCheck, Lock, Crown, Building2, UserCircle2, Check } from 'lucide-react';
+import {
+  Badge, Button, EmptyState, Field, Modal, Select, SkeletonCard, SkeletonText, Textarea,
+  TextField, useConfirm,
+} from '@/components/ui';
 
 interface Role {
   id: number;
@@ -89,6 +93,8 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
     permissions: {} as Record<string, boolean>
   });
 
+  const confirm = useConfirm();
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -143,13 +149,12 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
 
   if (![1, 2, 4].includes(currentUser.accessLevel)) {
     return (
-      <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-16 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-[var(--color-purple-glow)]/10 border border-[var(--color-purple-glow)]/20 flex items-center justify-center mx-auto mb-4">
-          <Lock size={28} className="text-[var(--color-purple-glow)]" />
-        </div>
-        <h3 className="font-bold text-base text-[var(--color-text-primary)] mb-2">Restricted Access</h3>
-        <p className="text-[var(--color-text-secondary)] text-sm font-medium">Role management requires CXO, Managing Director, or Super Admin privileges.</p>
-      </div>
+      <EmptyState
+        tone="error"
+        icon={<Lock size={22} aria-hidden="true" />}
+        title="Restricted Access"
+        description="Role management requires CXO, Managing Director, or Super Admin privileges."
+      />
     );
   }
 
@@ -211,7 +216,7 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
       toast.error('Role name and key are required');
       return;
     }
-    
+
     setSubmitting(true);
     try {
       if (editingRole) {
@@ -241,7 +246,13 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to permanently delete the role "${name}"? This action cannot be undone.`)) return;
+    const confirmed = await confirm({
+      title: `Delete the role "${name}"?`,
+      description: 'Every member holding this role loses its permissions immediately. This action cannot be undone.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!confirmed) return;
     try {
       const res = await deleteRole(id);
       if (res.success) {
@@ -257,8 +268,14 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)]" />
+      <div
+        role="status"
+        aria-busy="true"
+        aria-live="polite"
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
+        <span className="sr-only">Loading roles…</span>
+        {[0, 1, 2, 3, 4, 5].map(i => <SkeletonCard key={i} />)}
       </div>
     );
   }
@@ -271,52 +288,62 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
     rolesByVenture[key].push(role);
   });
 
+  const assigningRoleName = roles.find(r => r.id === assigningRole)?.role_name;
+
   return (
     <div className="flex flex-col gap-5 pb-10">
       {/* Header */}
       <div className="bg-[var(--color-bg-card)] border border-[var(--color-purple-glow)]/30 rounded-2xl p-5 flex items-center justify-between flex-wrap gap-4 shadow-sm" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(6,182,212,0.06) 100%)' }}>
         <div>
           <div className="text-[11px] font-bold text-[var(--color-purple-glow)] tracking-widest uppercase mb-1">Custom Roles</div>
-          <div className="text-xl font-black text-[var(--color-text-primary)]">Role Management</div>
-          <div className="text-[13px] font-medium text-[var(--color-text-muted)] mt-1">Create and configure custom roles with granular permissions for your ventures.</div>
+          <h2 className="text-xl font-black text-[var(--color-text-primary)]">Role Management</h2>
+          <p className="text-[13px] font-medium text-[var(--color-text-muted)] mt-1">Create and configure custom roles with granular permissions for your ventures.</p>
         </div>
-        <button onClick={() => openModal()} className="px-4 py-2 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white text-[13px] font-bold transition-colors flex items-center gap-2 shadow-sm">
-          <Plus size={14} strokeWidth={3} /> Create Role
-        </button>
+        <Button
+          variant="primary"
+          leadingIcon={<Plus size={14} strokeWidth={3} aria-hidden="true" />}
+          onClick={() => openModal()}
+        >
+          Create Role
+        </Button>
       </div>
 
       {roles.length === 0 ? (
-        <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] flex items-center justify-center mx-auto mb-4">
-            <ShieldCheck size={24} className="text-[var(--color-text-muted)]" />
-          </div>
-          <h3 className="font-bold text-base text-[var(--color-text-primary)] mb-2">No Custom Roles Found</h3>
-          <p className="text-[var(--color-text-secondary)] text-sm font-medium mb-4 max-w-sm mx-auto">You haven't defined any custom roles yet. Create one to assign specific permissions to users.</p>
-          <button onClick={() => openModal()} className="px-4 py-2 rounded-lg bg-[var(--color-purple-glow)] text-white text-sm font-semibold transition-colors">
-            Create First Role
-          </button>
-        </div>
+        <EmptyState
+          icon={<ShieldCheck size={22} aria-hidden="true" />}
+          title="No custom roles yet"
+          description="Custom roles let you grant a precise set of permissions instead of relying on access levels alone. Create one and assign it to your team."
+          action={
+            <Button
+              variant="primary"
+              leadingIcon={<Plus size={16} strokeWidth={3} aria-hidden="true" />}
+              onClick={() => openModal()}
+            >
+              Create your first role
+            </Button>
+          }
+        />
       ) : (
         <div className="space-y-8">
           {Object.entries(rolesByVenture).map(([ventureName, ventureRoles]) => (
             <div key={ventureName} className="space-y-3">
               <div className="flex items-center gap-2">
                 {ventureName === 'Global Roles' ? (
-                  <Crown size={16} className="text-yellow-500" />
+                  <Crown size={16} aria-hidden="true" className="text-yellow-500" />
                 ) : (
-                  <Building2 size={16} className="text-[var(--color-purple-glow)]" />
+                  <Building2 size={16} aria-hidden="true" className="text-[var(--color-purple-glow)]" />
                 )}
                 <h3 className="text-sm font-bold text-[var(--color-text-secondary)] uppercase tracking-wider">{ventureName}</h3>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {ventureRoles.map(role => (
                   <div key={role.id} className="bg-[var(--color-bg-card)] border border-[var(--color-border)] hover:border-[var(--color-text-muted)] rounded-2xl p-5 shadow-sm transition-all group relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-24 h-24 rounded-bl-full opacity-10 transition-all group-hover:scale-110" style={{ background: role.color }} />
-                    
+                    <div aria-hidden="true" className="absolute top-0 right-0 w-24 h-24 rounded-bl-full opacity-10 transition-all group-hover:scale-110" style={{ background: role.color }} />
+
                     <div className="flex items-start justify-between mb-4 relative z-10">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-white/10 shadow-sm" style={{ background: role.color, color: '#fff' }}>
+                        <div aria-hidden="true" className="w-10 h-10 rounded-xl flex items-center justify-center text-lg border border-white/10 shadow-sm shrink-0" style={{ background: role.color, color: '#fff' }}>
                           {role.icon}
                         </div>
                         <div>
@@ -324,30 +351,47 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
                           <div className="text-[11px] font-medium text-[var(--color-text-muted)] font-mono">{role.role_key}</div>
                         </div>
                       </div>
-                      
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => setAssigningRole(role.id)} title="Assign Members" className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-purple-glow)] hover:bg-[var(--color-bg-secondary)] transition-colors">
-                          <Users size={14} />
-                        </button>
-                        <button onClick={() => openModal(role)} className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors">
-                          <Edit2 size={14} />
-                        </button>
-                        <button onClick={() => handleDelete(role.id, role.role_name)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-500 hover:bg-rose-500/10 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
+
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <Button
+                          iconOnly
+                          aria-label={`Assign members to ${role.role_name}`}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAssigningRole(role.id)}
+                        >
+                          <Users size={14} aria-hidden="true" />
+                        </Button>
+                        <Button
+                          iconOnly
+                          aria-label={`Edit role ${role.role_name}`}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openModal(role)}
+                        >
+                          <Edit2 size={14} aria-hidden="true" />
+                        </Button>
+                        <Button
+                          iconOnly
+                          aria-label={`Delete role ${role.role_name}`}
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete(role.id, role.role_name)}
+                          className="text-[var(--color-rose)] hover:text-[var(--color-rose)] hover:bg-[var(--color-rose)]/10"
+                        >
+                          <Trash2 size={14} aria-hidden="true" />
+                        </Button>
                       </div>
                     </div>
-                    
+
                     <p className="text-[13px] text-[var(--color-text-secondary)] mb-4 line-clamp-2 h-10 relative z-10">
                       {role.description || 'No description provided.'}
                     </p>
-                    
+
                     <div className="flex items-center justify-between pt-4 border-t border-[var(--color-border)] relative z-10">
-                      <div className="text-[11px] font-semibold px-2 py-1 rounded-md bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] border border-[var(--color-border)]">
-                        Base Level {role.base_level}
-                      </div>
+                      <Badge tone="neutral">Base Level {role.base_level}</Badge>
                       <div className="text-[11px] font-semibold text-[var(--color-text-muted)] flex items-center gap-1">
-                        <ShieldCheck size={12} />
+                        <ShieldCheck size={12} aria-hidden="true" />
                         {Object.values(role.permissions || {}).filter(Boolean).length} Permissions
                       </div>
                     </div>
@@ -360,242 +404,254 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
       )}
 
       {/* Assign Members Modal */}
-      {assigningRole !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
-            <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-bg-secondary)]">
-              <div className="flex items-center gap-3">
-                <Users size={18} className="text-[var(--color-purple-glow)]" />
-                <div>
-                  <h3 className="font-bold text-base text-[var(--color-text-primary)]">Assign Members</h3>
-                  <p className="text-[11px] text-[var(--color-text-muted)] font-medium">
-                    {roles.find(r => r.id === assigningRole)?.role_name}
-                  </p>
-                </div>
+      <Modal
+        open={assigningRole !== null}
+        onClose={() => setAssigningRole(null)}
+        title="Assign Members"
+        description={assigningRoleName}
+        size="md"
+        footer={
+          <Button variant="secondary" onClick={() => setAssigningRole(null)}>
+            Close
+          </Button>
+        }
+      >
+        {loadingUsers ? (
+          <div role="status" aria-busy="true" aria-live="polite" className="flex flex-col gap-2">
+            <span className="sr-only">Loading team members…</span>
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
+                <SkeletonText lines={2} />
               </div>
-              <button onClick={() => setAssigningRole(null)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors p-1">
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              {loadingUsers ? (
-                <div className="flex items-center justify-center py-12 gap-2 text-[var(--color-text-muted)]">
-                  <Loader2 size={18} className="animate-spin" />
-                  <span className="text-sm font-medium">Loading team members...</span>
-                </div>
-              ) : assignableUsers.length === 0 ? (
-                <div className="text-center py-12 text-[var(--color-text-muted)]">
-                  <UserCircle2 size={36} className="mx-auto mb-3 opacity-40" />
-                  <p className="text-sm font-medium">No assignable team members found.</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {assignableUsers.map((user: any) => {
-                    const hasRole = Array.isArray(user.roles) && user.roles.some((r: any) => r.id === assigningRole);
-                    return (
-                      <div key={user.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)] transition-colors">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[var(--color-purple-glow)]/20 border border-[var(--color-purple-glow)]/30 flex items-center justify-center text-sm font-bold text-[var(--color-purple-glow)]">
-                            {(user.full_name || user.name || '?')[0].toUpperCase()}
-                          </div>
-                          <div>
-                            <div className="text-[13px] font-bold text-[var(--color-text-primary)]">{user.full_name || user.name}</div>
-                            <div className="text-[11px] font-medium text-[var(--color-text-muted)]">{user.email}</div>
-                          </div>
-                        </div>
-                        {hasRole ? (
-                          <button
-                            onClick={() => handleRemoveRole(assigningRole, user.id)}
-                            className="px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[12px] font-bold transition-colors"
-                          >
-                            Remove
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleAssignRole(assigningRole, user.id)}
-                            className="px-3 py-1.5 rounded-lg border border-[var(--color-purple-glow)]/30 bg-[var(--color-purple-glow)]/10 text-[var(--color-purple-glow)] hover:bg-[var(--color-purple-glow)]/20 text-[12px] font-bold transition-colors"
-                          >
-                            Assign
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="px-6 py-4 border-t border-[var(--color-border)] flex justify-end bg-[var(--color-bg-secondary)]">
-              <button onClick={() => setAssigningRole(null)} className="px-5 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text-secondary)] text-[13px] font-bold transition-colors hover:bg-[var(--color-bg-secondary)]">
-                Close
-              </button>
-            </div>
+            ))}
           </div>
-        </div>
-      )}
+        ) : assignableUsers.length === 0 ? (
+          <EmptyState
+            icon={<UserCircle2 size={22} aria-hidden="true" />}
+            title="No assignable team members"
+            description="Everyone in scope either already holds this role or sits outside the ventures you manage."
+          />
+        ) : (
+          <div className="flex flex-col gap-2">
+            {assignableUsers.map((user: any) => {
+              const hasRole = Array.isArray(user.roles) && user.roles.some((r: any) => r.id === assigningRole);
+              const displayName = user.full_name || user.name;
+              return (
+                <div key={user.id} className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)] transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div aria-hidden="true" className="w-8 h-8 shrink-0 rounded-full bg-[var(--color-purple-glow)]/20 border border-[var(--color-purple-glow)]/30 flex items-center justify-center text-sm font-bold text-[var(--color-purple-glow)]">
+                      {(user.full_name || user.name || '?')[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-bold text-[var(--color-text-primary)] truncate">{displayName}</div>
+                      <div className="text-[11px] font-medium text-[var(--color-text-muted)] truncate">{user.email}</div>
+                    </div>
+                  </div>
+                  {hasRole ? (
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      aria-label={`Remove ${assigningRoleName ?? 'role'} from ${displayName}`}
+                      onClick={() => assigningRole !== null && handleRemoveRole(assigningRole, user.id)}
+                    >
+                      Remove
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="subtle"
+                      size="sm"
+                      aria-label={`Assign ${assigningRoleName ?? 'role'} to ${displayName}`}
+                      onClick={() => assigningRole !== null && handleAssignRole(assigningRole, user.id)}
+                    >
+                      Assign
+                    </Button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </Modal>
 
       {/* Create / Edit Modal */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
-            
-            <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-bg-secondary)]">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: formData.color, color: '#fff' }}>
-                  {formData.icon}
-                </div>
-                <div>
-                  <h3 className="font-bold text-base text-[var(--color-text-primary)]">{editingRole ? 'Edit Role' : 'Create Custom Role'}</h3>
-                  <p className="text-[11px] text-[var(--color-text-muted)] font-medium">Configure role details and permissions</p>
-                </div>
-              </div>
-              <button onClick={closeModal} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors p-1">
-                <X size={20} />
-              </button>
-            </div>
+      <Modal
+        open={isModalOpen}
+        onClose={closeModal}
+        size="lg"
+        title={
+          <span className="flex items-center gap-3">
+            <span
+              aria-hidden="true"
+              className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center text-base"
+              style={{ background: formData.color, color: '#fff' }}
+            >
+              {formData.icon}
+            </span>
+            {editingRole ? 'Edit Role' : 'Create Custom Role'}
+          </span>
+        }
+        description="Configure role details and permissions"
+        footer={
+          <>
+            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button
+              variant="primary"
+              loading={submitting}
+              leadingIcon={<Save size={14} aria-hidden="true" />}
+              onClick={(e) => handleSubmit(e)}
+            >
+              {submitting ? 'Saving...' : (editingRole ? 'Update Role' : 'Create Role')}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-8">
 
-            <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-[1fr_1.5fr] gap-8">
-              
-              {/* Left Column - Details */}
-              <div className="space-y-5">
-                <h4 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2">Role Details</h4>
-                
-                <div>
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Role Name</label>
-                  <input
-                    type="text"
-                    value={formData.role_name}
-                    onChange={(e) => generateKey(e.target.value)}
-                    className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-primary)] focus:border-[var(--color-purple-glow)] focus:ring-1 focus:ring-[var(--color-purple-glow)]/30 outline-none transition-all"
-                    placeholder="e.g. Content Writer"
-                    required
-                  />
-                </div>
+          {/* Left Column - Details */}
+          <div className="space-y-5">
+            <h4 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2">Role Details</h4>
 
-                <div>
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Role Key (Identifier)</label>
-                  <input
-                    type="text"
-                    value={formData.role_key}
-                    onChange={(e) => setFormData({ ...formData, role_key: e.target.value })}
-                    className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-primary)] font-mono focus:border-[var(--color-purple-glow)] outline-none"
-                    placeholder="e.g. content_writer"
-                    required
-                  />
-                </div>
+            <TextField
+              label="Role Name"
+              required
+              value={formData.role_name}
+              onChange={(e) => generateKey(e.target.value)}
+              placeholder="e.g. Content Writer"
+            />
 
-                <div>
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-primary)] focus:border-[var(--color-purple-glow)] outline-none resize-none h-20"
-                    placeholder="Brief description of this role's responsibilities"
-                  />
-                </div>
+            <TextField
+              label="Role Key (Identifier)"
+              required
+              hint="Used internally by permission checks."
+              value={formData.role_key}
+              onChange={(e) => setFormData({ ...formData, role_key: e.target.value })}
+              placeholder="e.g. content_writer"
+              className="[&_input]:font-mono"
+            />
 
-                {currentUser.accessLevel <= 2 && (
-                  <div>
-                    <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Assign to Venture</label>
-                    <select
-                      value={formData.venture_id || ''}
-                      onChange={(e) => setFormData({ ...formData, venture_id: e.target.value ? parseInt(e.target.value) : null })}
-                      className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-primary)] focus:border-[var(--color-purple-glow)] outline-none"
-                    >
-                      <option value="">Global Role (Across all ventures)</option>
-                      {ventures.map(v => (
-                        <option key={v.id} value={v.id}>{v.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+            <Field label="Description">
+              {({ id }) => (
+                <Textarea
+                  id={id}
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Brief description of this role's responsibilities"
+                />
+              )}
+            </Field>
 
-                <div>
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-1.5">Base Access Level</label>
-                  <select
-                    value={formData.base_level}
-                    onChange={(e) => setFormData({ ...formData, base_level: parseInt(e.target.value) })}
-                    className="w-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl px-3 py-2 text-[13px] text-[var(--color-text-primary)] focus:border-[var(--color-purple-glow)] outline-none"
+            {currentUser.accessLevel <= 2 && (
+              <Field label="Assign to Venture">
+                {({ id }) => (
+                  <Select
+                    id={id}
+                    value={formData.venture_id || ''}
+                    onChange={(e) => setFormData({ ...formData, venture_id: e.target.value ? parseInt(e.target.value) : null })}
                   >
-                    {BASE_LEVELS.map(l => (
-                      <option key={l.value} value={l.value}>{l.label}</option>
+                    <option value="">Global Role (Across all ventures)</option>
+                    {ventures.map(v => (
+                      <option key={v.id} value={v.id}>{v.name}</option>
                     ))}
-                  </select>
-                  <p className="text-[10px] text-[var(--color-text-muted)] mt-1">Determines UI structure and default hierarchy.</p>
+                  </Select>
+                )}
+              </Field>
+            )}
+
+            <Field label="Base Access Level" hint="Determines UI structure and default hierarchy.">
+              {({ id, describedBy }) => (
+                <Select
+                  id={id}
+                  aria-describedby={describedBy}
+                  value={formData.base_level}
+                  onChange={(e) => setFormData({ ...formData, base_level: parseInt(e.target.value) })}
+                >
+                  {BASE_LEVELS.map(l => (
+                    <option key={l.value} value={l.value}>{l.label}</option>
+                  ))}
+                </Select>
+              )}
+            </Field>
+
+            <div>
+              <p id="role-style-label" className="block text-label font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)] mb-2">
+                Style (Color &amp; Icon)
+              </p>
+              <div role="group" aria-labelledby="role-style-label">
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {PRESET_COLORS.map(c => (
+                    <button
+                      type="button"
+                      key={c}
+                      aria-label={`Use colour ${c}`}
+                      aria-pressed={formData.color === c}
+                      onClick={() => setFormData({ ...formData, color: c })}
+                      className={`w-6 h-6 rounded-full transition-transform ${formData.color === c ? 'scale-110 ring-2 ring-white ring-offset-1 ring-offset-[var(--color-bg-card)]' : 'hover:scale-110'}`}
+                      style={{ background: c }}
+                    />
+                  ))}
                 </div>
-
-                <div>
-                  <label className="block text-[12px] font-semibold text-[var(--color-text-secondary)] mb-2">Style (Color & Icon)</label>
-                  <div className="flex flex-wrap gap-1.5 mb-2">
-                    {PRESET_COLORS.map(c => (
-                      <button type="button" key={c} onClick={() => setFormData({ ...formData, color: c })} className={`w-6 h-6 rounded-full transition-transform ${formData.color === c ? 'scale-110 ring-2 ring-white ring-offset-1 ring-offset-[var(--color-bg-card)]' : 'hover:scale-110'}`} style={{ background: c }} />
-                    ))}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {PRESET_ICONS.map(i => (
-                      <button type="button" key={i} onClick={() => setFormData({ ...formData, icon: i })} className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-colors border ${formData.icon === i ? 'bg-[var(--color-bg-secondary)] border-[var(--color-border)]' : 'border-transparent hover:bg-[var(--color-bg-secondary)]'}`}>
-                        {i}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-              </div>
-
-              {/* Right Column - Permissions */}
-              <div className="space-y-5">
-                <h4 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2 flex items-center justify-between">
-                  <span>Custom Permissions</span>
-                  <span className="text-[var(--color-purple-glow)]">{Object.values(formData.permissions).filter(Boolean).length} Enabled</span>
-                </h4>
-                
-                <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                  {CATEGORIES.map(cat => {
-                    const catFeatures = PERMISSION_FEATURES.filter(f => f.category === cat);
-                    return (
-                      <div key={cat} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl p-4">
-                        <div className="text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-3">{cat} Features</div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {catFeatures.map(feature => {
-                            const isEnabled = !!formData.permissions[feature.key];
-                            return (
-                              <button
-                                key={feature.key}
-                                type="button"
-                                onClick={() => togglePermission(feature.key)}
-                                className={`flex items-center justify-between p-2.5 rounded-lg border text-left transition-all ${isEnabled ? 'bg-[var(--color-bg-card)] border-[var(--color-purple-glow)]/40' : 'bg-transparent border-transparent hover:bg-[var(--color-bg-card)]'}`}
-                              >
-                                <span className={`text-[12px] font-semibold ${isEnabled ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}>
-                                  {feature.label}
-                                </span>
-                                <div className={`w-3.5 h-3.5 rounded flex items-center justify-center transition-colors ${isEnabled ? 'bg-[var(--color-purple-glow)]' : 'border border-[var(--color-text-muted)]'}`}>
-                                  {isEnabled && <CheckSquare size={10} className="text-white" />}
-                                </div>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-wrap gap-1">
+                  {PRESET_ICONS.map(i => (
+                    <button
+                      type="button"
+                      key={i}
+                      aria-label={`Use icon ${i}`}
+                      aria-pressed={formData.icon === i}
+                      onClick={() => setFormData({ ...formData, icon: i })}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm transition-colors border ${formData.icon === i ? 'bg-[var(--color-bg-secondary)] border-[var(--color-border)]' : 'border-transparent hover:bg-[var(--color-bg-secondary)]'}`}
+                    >
+                      <span aria-hidden="true">{i}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
-            </div>
-
-            <div className="px-6 py-4 border-t border-[var(--color-border)] flex items-center justify-end gap-3 bg-[var(--color-bg-secondary)]">
-              <button onClick={closeModal} className="px-5 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-card-hover)] text-[var(--color-text-secondary)] text-[13px] font-bold transition-colors">
-                Cancel
-              </button>
-              <button onClick={handleSubmit} disabled={submitting} className="px-5 py-2 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white text-[13px] font-bold transition-colors flex items-center gap-2 disabled:opacity-60 shadow-sm">
-                {submitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                {submitting ? 'Saving...' : (editingRole ? 'Update Role' : 'Create Role')}
-              </button>
             </div>
 
           </div>
+
+          {/* Right Column - Permissions */}
+          <div className="space-y-5">
+            <h4 className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider border-b border-[var(--color-border)] pb-2 flex items-center justify-between">
+              <span>Custom Permissions</span>
+              <span className="text-[var(--color-purple-glow)]">{Object.values(formData.permissions).filter(Boolean).length} Enabled</span>
+            </h4>
+
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2 custom-scrollbar">
+              {CATEGORIES.map(cat => {
+                const catFeatures = PERMISSION_FEATURES.filter(f => f.category === cat);
+                const groupId = `perm-group-${cat.toLowerCase()}`;
+                return (
+                  <div key={cat} className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl p-4">
+                    <div id={groupId} className="text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-3">{cat} Features</div>
+                    <div role="group" aria-labelledby={groupId} className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {catFeatures.map(feature => {
+                        const isEnabled = !!formData.permissions[feature.key];
+                        return (
+                          <button
+                            key={feature.key}
+                            type="button"
+                            aria-pressed={isEnabled}
+                            onClick={() => togglePermission(feature.key)}
+                            className={`flex items-center justify-between gap-2 p-2.5 rounded-lg border text-left transition-all ${isEnabled ? 'bg-[var(--color-bg-card)] border-[var(--color-purple-glow)]/40' : 'bg-transparent border-transparent hover:bg-[var(--color-bg-card)]'}`}
+                          >
+                            <span className={`text-[12px] font-semibold ${isEnabled ? 'text-[var(--color-text-primary)]' : 'text-[var(--color-text-muted)]'}`}>
+                              {feature.label}
+                            </span>
+                            <span aria-hidden="true" className={`w-4 h-4 shrink-0 rounded flex items-center justify-center transition-colors ${isEnabled ? 'bg-[var(--color-purple-glow)]' : 'border border-[var(--color-text-muted)]'}`}>
+                              {isEnabled && <Check size={11} strokeWidth={3} className="text-white" />}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
-      )}
+      </Modal>
 
     </div>
   );

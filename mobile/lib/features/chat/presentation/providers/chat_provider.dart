@@ -1,53 +1,77 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/datasources/chat_data_source.dart';
-import '../../data/models/chat_model.dart';
-import '../../../core/api/api_client.dart';
-import '../../../core/socket/socket_provider.dart';
 
-// Chat data source provider
-final chatDataSourceProvider = Provider<ChatDataSource>((ref) {
+import '../../../../core/api/api_client.dart';
+import '../../data/datasources/chat_data_source.dart';
+import '../../data/datasources/chat_socket.dart';
+import '../../data/models/chat_model.dart';
+
+/// Chat data source. Async because the Socket.IO handshake needs the JWT,
+/// which only comes back from secure storage asynchronously.
+final chatDataSourceProvider = FutureProvider<ChatDataSource>((ref) async {
   final dio = ref.watch(dioProvider);
-  final socketNotifier = ref.watch(socketProvider.notifier);
-  return ChatDataSourceImpl(dio: dio, socket: socketNotifier.socket);
+  final socket = await ref.watch(chatSocketProvider.future);
+  return ChatDataSourceImpl(dio: dio, socket: socket);
 });
 
-// Chat messages provider (family pattern for room-specific messages)
-final chatMessagesProvider =
-    StateNotifierProvider.family<ChatMessagesNotifier, List<ChatMessage>, String>(
-  (ref, roomId) {
-    return ChatMessagesNotifier(ref, roomId);
-  },
+/// Messages for a single room, keyed by room id.
+final chatMessagesProvider = StateNotifierProvider.family<ChatMessagesNotifier,
+    AsyncValue<List<ChatMessage>>, String>(
+  (ref, roomId) => ChatMessagesNotifier(ref, roomId),
 );
 
-class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
-  final Ref ref;
+class ChatMessagesNotifier
+    extends StateNotifier<AsyncValue<List<ChatMessage>>> {
+  final Ref _ref;
   final String roomId;
 
-  ChatMessagesNotifier(this.ref, this.roomId) : super([]) {
+  ChatDataSource? _dataSource;
+  bool _disposed = false;
+
+  ChatMessagesNotifier(this._ref, this.roomId)
+      : super(const AsyncValue<List<ChatMessage>>.loading()) {
     _initialize();
   }
 
+  List<ChatMessage> get _current =>
+      state.valueOrNull ?? const <ChatMessage>[];
+
   Future<void> _initialize() async {
     try {
-      final dataSource = ref.watch(chatDataSourceProvider);
+      final dataSource = await _ref.read(chatDataSourceProvider.future);
+      if (_disposed) return;
+      _dataSource = dataSource;
 
-      // Load message history
       final messages = await dataSource.getMessageHistory(roomId);
-      state = messages;
+      if (_disposed) return;
+      state = AsyncValue<List<ChatMessage>>.data(messages);
 
-      // Subscribe to real-time messages
       dataSource.subscribeToMessages(roomId, (message) {
-        state = [...state, message];
+        if (_disposed) return;
+        final current = _current;
+        // The sender already added this optimistically.
+        if (current.any((m) => m.id == message.id)) return;
+        state = AsyncValue<List<ChatMessage>>.data(
+          <ChatMessage>[...current, message],
+        );
       });
 
-      // Join the room
       dataSource.joinRoom(roomId);
-    } catch (e) {
-      // Handle error
+    } catch (error, stackTrace) {
+      if (_disposed) return;
+      state = AsyncValue<List<ChatMessage>>.error(error, stackTrace);
     }
   }
 
-  void sendMessage({
+  /// Retry after a failed load.
+  Future<void> refresh() async {
+    if (_disposed) return;
+    state = const AsyncValue<List<ChatMessage>>.loading();
+    await _initialize();
+  }
+
+  /// Returns `false` when the socket is not ready yet, so the UI can say so
+  /// instead of silently dropping the message.
+  bool sendMessage({
     required String content,
     required int senderId,
     required String senderName,
@@ -55,6 +79,9 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
     int? receiverId,
     int? ventureId,
   }) {
+    final dataSource = _dataSource;
+    if (dataSource == null) return false;
+
     final message = ChatMessage(
       id: DateTime.now().millisecondsSinceEpoch,
       senderId: senderId,
@@ -67,34 +94,33 @@ class ChatMessagesNotifier extends StateNotifier<List<ChatMessage>> {
       ventureId: ventureId,
     );
 
-    // Optimistic update
-    state = [...state, message];
+    // Optimistic update.
+    state = AsyncValue<List<ChatMessage>>.data(
+      <ChatMessage>[..._current, message],
+    );
 
-    // Send via socket
-    final dataSource = ref.watch(chatDataSourceProvider);
     dataSource.sendMessage(message);
+    return true;
   }
 
   @override
   void dispose() {
-    final dataSource = ref.watch(chatDataSourceProvider);
-    dataSource.leaveRoom(roomId);
+    _disposed = true;
     super.dispose();
   }
 }
 
-// Chat rooms provider
-final chatRoomsProvider = FutureProvider.autoDispose<List<ChatRoom>>((ref) async {
-  final dataSource = ref.watch(chatDataSourceProvider);
+/// List of rooms available to the signed-in user.
+final chatRoomsProvider =
+    FutureProvider.autoDispose<List<ChatRoom>>((ref) async {
+  final dataSource = await ref.watch(chatDataSourceProvider.future);
   return dataSource.getChatRooms();
 });
 
-// Typing indicator provider
-final typingUsersProvider = StateProvider.family<Set<int>, String>((ref, roomId) {
-  return {};
-});
+/// Users currently typing in a room.
+final typingUsersProvider =
+    StateProvider.family<Set<int>, String>((ref, roomId) => <int>{});
 
-// Unread count provider
-final unreadCountProvider = StateProvider.family<int, String>((ref, roomId) {
-  return 0;
-});
+/// Unread message count for a room.
+final unreadCountProvider =
+    StateProvider.family<int, String>((ref, roomId) => 0);

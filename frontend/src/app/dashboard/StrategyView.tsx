@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
 import { getStrategyData } from '@/lib/api';

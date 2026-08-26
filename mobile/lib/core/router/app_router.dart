@@ -31,6 +31,8 @@ import '../../features/approvals/presentation/screens/approvals_screen.dart';
 import '../../features/calendar/presentation/screens/calendar_screen.dart';
 import '../../features/client_portal/presentation/screens/client_portal_screen.dart';
 import '../../features/profile/presentation/screens/settings_screen.dart';
+import '../../features/chat/presentation/screens/chat_list_screen.dart';
+import '../../features/chat/presentation/screens/chat_room_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -138,6 +140,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         builder: (context, state) => const SettingsScreen(),
+      ),
+      GoRoute(
+        path: '/chat',
+        builder: (context, state) => const ChatListScreen(),
+        routes: [
+          GoRoute(
+            path: ':roomId',
+            builder: (context, state) {
+              final roomId = state.pathParameters['roomId'] ?? '';
+              return ChatRoomScreen(roomId: roomId);
+            },
+          ),
+        ],
       ),
 
       // ── Bottom Navigation Shell ───────────────────────────────────────────

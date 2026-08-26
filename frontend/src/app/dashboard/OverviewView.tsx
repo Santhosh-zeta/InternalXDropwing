@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { User, VENTURES } from '@/lib/constants';
 import { getTasks, getUsers, getAnalytics } from '@/lib/api';

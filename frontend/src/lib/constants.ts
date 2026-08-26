@@ -30,7 +30,18 @@ export interface TestAccount {
   color: string;
 }
 
-export const TEST_ACCOUNTS: TestAccount[] = [
+/**
+ * Seeded demo logins.
+ *
+ * These are REAL credentials for REAL accounts on whatever database the API
+ * points at — including an L1 Super Admin. They are only safe while the seed
+ * has not been run against production. Do not add accounts here that exist
+ * anywhere you would mind a stranger logging into.
+ *
+ * Exported below behind a build-time guard so the passwords cannot reach a
+ * production bundle even if tree-shaking fails to eliminate them.
+ */
+const DEMO_ACCOUNTS: TestAccount[] = [
   {
     label: 'Super Admin',
     sublabel: 'Full System Access',
@@ -362,6 +373,14 @@ export const TEST_ACCOUNTS: TestAccount[] = [
     color: '#10b981',
   },
 ];
+
+/**
+ * Empty in production builds. Next inlines `process.env.NODE_ENV` at build
+ * time, so the ternary folds and `DEMO_ACCOUNTS` becomes unreachable.
+ * The login page additionally gates the quick-login tiles on NODE_ENV.
+ */
+export const TEST_ACCOUNTS: TestAccount[] =
+  process.env.NODE_ENV === 'production' ? [] : DEMO_ACCOUNTS;
 
 export const VENTURES = [
   { name: 'Dropwing Design Studio', slug: 'dropwing', color: '#8b5cf6', emoji: '🎨' },

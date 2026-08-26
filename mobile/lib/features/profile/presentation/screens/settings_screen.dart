@@ -1,10 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:hive/hive.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/nebula_colors.dart';
+import '../../../../core/theme/theme_mode_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
+
+/// Preference keys in the `user_prefs` Hive box (opened in `main.dart`, and
+/// named by `kUserPrefsBoxName` in `theme_mode_provider.dart`). The theme mode
+/// lives under `kThemeModeKey` and is owned by `ThemeModeNotifier`, not here.
+const String kPrefPushNotifications = 'push_notifications';
+const String kPrefSoundEnabled = 'sound_enabled';
+const String kPrefVibrationEnabled = 'vibration_enabled';
+const String kPrefQuietHoursEnabled = 'quiet_hours_enabled';
+const String kPrefQuietHoursStart = 'quiet_hours_start'; // minutes past midnight
+const String kPrefQuietHoursEnd = 'quiet_hours_end'; // minutes past midnight
+
+/// INTEGRATION POINT — flip to `true` once notification delivery honours the
+/// stored preferences. `core/notifications/firebase_notif_handler.dart`
+/// currently only logs foreground messages, so these are stored but unused.
+const bool kNotificationPrefsApplied = false;
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -17,26 +33,80 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotifications = true;
   bool _soundEnabled = true;
   bool _vibrationEnabled = true;
-  String _themeMode = 'system'; // 'light', 'dark', 'system'
   TimeOfDay _quietHoursStart = const TimeOfDay(hour: 21, minute: 0);
   TimeOfDay _quietHoursEnd = const TimeOfDay(hour: 9, minute: 0);
   bool _quietHoursEnabled = false;
 
+  /// `null` when the `user_prefs` box could not be reached, in which case
+  /// nothing can be stored and the UI says so instead of pretending.
+  Box<dynamic>? _prefsBox;
+
   @override
   void initState() {
     super.initState();
-    // Load saved preferences from shared preferences or local storage
     _loadSettings();
   }
 
+  /// Reads the persisted preferences. Called from `initState`, so it mutates
+  /// the fields directly rather than going through `setState`.
   void _loadSettings() {
-    // TODO: Load from secure storage or shared preferences
+    try {
+      if (!Hive.isBoxOpen(kUserPrefsBoxName)) return;
+      final box = Hive.box(kUserPrefsBoxName);
+      _prefsBox = box;
+
+      _pushNotifications =
+          _readBool(box, kPrefPushNotifications, _pushNotifications);
+      _soundEnabled = _readBool(box, kPrefSoundEnabled, _soundEnabled);
+      _vibrationEnabled =
+          _readBool(box, kPrefVibrationEnabled, _vibrationEnabled);
+      _quietHoursEnabled =
+          _readBool(box, kPrefQuietHoursEnabled, _quietHoursEnabled);
+      _quietHoursStart =
+          _readTime(box, kPrefQuietHoursStart, _quietHoursStart);
+      _quietHoursEnd = _readTime(box, kPrefQuietHoursEnd, _quietHoursEnd);
+    } catch (_) {
+      // Hive unavailable — keep the defaults and disable persistence.
+      _prefsBox = null;
+    }
   }
 
-  void _saveSettings() {
-    // TODO: Save to secure storage or shared preferences
+  bool _readBool(Box<dynamic> box, String key, bool fallback) {
+    final value = box.get(key);
+    return value is bool ? value : fallback;
+  }
+
+  TimeOfDay _readTime(Box<dynamic> box, String key, TimeOfDay fallback) {
+    final value = box.get(key);
+    if (value is int && value >= 0 && value < 24 * 60) {
+      return TimeOfDay(hour: value ~/ 60, minute: value % 60);
+    }
+    return fallback;
+  }
+
+  int _timeToMinutes(TimeOfDay time) => time.hour * 60 + time.minute;
+
+  /// Writes a single preference. Surfaces a message only when the write
+  /// actually fails — a successful write is silent.
+  Future<void> _persist(String key, Object? value) async {
+    final box = _prefsBox;
+    if (box == null) {
+      _reportSaveFailure();
+      return;
+    }
+    try {
+      await box.put(key, value);
+    } catch (_) {
+      _reportSaveFailure();
+    }
+  }
+
+  void _reportSaveFailure() {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved successfully')),
+      const SnackBar(
+        content: Text('Could not save that preference on this device.'),
+      ),
     );
   }
 
@@ -60,6 +130,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         child: Column(
           children: [
             const SizedBox(height: 16),
+
+            if (_prefsBox == null)
+              _buildNote(
+                'Local storage is unavailable, so changes here will not be '
+                'remembered. Restart the app to try again.',
+                isWarning: true,
+              ),
 
             // Account Section
             _buildSectionHeader('Account'),
@@ -100,12 +177,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
             // Notifications Section
             _buildSectionHeader('Notifications'),
+            if (!kNotificationPrefsApplied)
+              _buildNote(
+                'These preferences are saved on this device. Notification '
+                'delivery does not read them yet.',
+              ),
             _buildToggleSetting(
               title: 'Push Notifications',
               subtitle: 'Receive push notifications',
               value: _pushNotifications,
               onChanged: (value) {
                 setState(() => _pushNotifications = value);
+                _persist(kPrefPushNotifications, value);
               },
             ),
             _buildToggleSetting(
@@ -114,6 +197,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: _soundEnabled,
               onChanged: (value) {
                 setState(() => _soundEnabled = value);
+                _persist(kPrefSoundEnabled, value);
               },
             ),
             _buildToggleSetting(
@@ -122,6 +206,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: _vibrationEnabled,
               onChanged: (value) {
                 setState(() => _vibrationEnabled = value);
+                _persist(kPrefVibrationEnabled, value);
               },
             ),
             _buildToggleSetting(
@@ -130,6 +215,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               value: _quietHoursEnabled,
               onChanged: (value) {
                 setState(() => _quietHoursEnabled = value);
+                _persist(kPrefQuietHoursEnabled, value);
               },
             ),
             if (_quietHoursEnabled) ...[
@@ -152,6 +238,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             );
                             if (time != null) {
                               setState(() => _quietHoursStart = time);
+                              _persist(
+                                kPrefQuietHoursStart,
+                                _timeToMinutes(time),
+                              );
                             }
                           },
                           child: Container(
@@ -187,6 +277,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             );
                             if (time != null) {
                               setState(() => _quietHoursEnd = time);
+                              _persist(
+                                kPrefQuietHoursEnd,
+                                _timeToMinutes(time),
+                              );
                             }
                           },
                           child: Container(
@@ -528,6 +622,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _buildThemeDropdown() {
+    final themeMode = ref.watch(themeModeStringProvider);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
@@ -536,7 +632,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         border: Border.all(color: NebulaColors.textSecondary.withOpacity(0.3)),
       ),
       child: DropdownButton<String>(
-        value: _themeMode,
+        // Owned by ThemeModeNotifier, which both applies the mode via
+        // MaterialApp.themeMode and persists it to the `user_prefs` box.
+        value: themeMode,
         isExpanded: true,
         underline: const SizedBox(),
         dropdownColor: NebulaColors.surfaceCard,
@@ -546,7 +644,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Text(
               'Light',
               style: TextStyle(
-                color: _themeMode == 'light' ? NebulaColors.primary : NebulaColors.textSecondary,
+                color: themeMode == 'light'
+                    ? NebulaColors.primary
+                    : NebulaColors.textSecondary,
               ),
             ),
           ),
@@ -555,7 +655,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Text(
               'Dark',
               style: TextStyle(
-                color: _themeMode == 'dark' ? NebulaColors.primary : NebulaColors.textSecondary,
+                color: themeMode == 'dark'
+                    ? NebulaColors.primary
+                    : NebulaColors.textSecondary,
               ),
             ),
           ),
@@ -564,16 +666,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             child: Text(
               'System',
               style: TextStyle(
-                color: _themeMode == 'system' ? NebulaColors.primary : NebulaColors.textSecondary,
+                color: themeMode == 'system'
+                    ? NebulaColors.primary
+                    : NebulaColors.textSecondary,
               ),
             ),
           ),
         ],
         onChanged: (value) {
-          if (value != null) {
-            setState(() => _themeMode = value);
-          }
+          if (value == null) return;
+          ref.read(themeModeProvider.notifier).setFromString(value);
         },
+      ),
+    );
+  }
+
+  /// Small inline explanation used where a control is stored but not yet
+  /// acted on, or where storage itself is unavailable.
+  Widget _buildNote(String text, {bool isWarning = false}) {
+    final color = isWarning ? NebulaColors.warning : NebulaColors.textSecondary;
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withOpacity(0.25)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isWarning ? LucideIcons.alertTriangle : LucideIcons.info,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(fontSize: 12, color: color),
+            ),
+          ),
+        ],
       ),
     );
   }

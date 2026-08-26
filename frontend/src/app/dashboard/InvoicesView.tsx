@@ -1,3 +1,5 @@
+'use client';
+
 import { useState, useEffect } from 'react';
 import { User } from '@/lib/constants';
 import toast from 'react-hot-toast';
