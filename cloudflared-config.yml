@@ -1,0 +1,44 @@
+# Cloudflare Tunnel Configuration for InternalX
+# Copy this to ~/.cloudflared/config.yml after replacing <UUID> with your tunnel UUID
+
+tunnel: internalx-tunnel
+credentials-file: /home/santhosh/.cloudflared/<TUNNEL_UUID>.json
+
+# Ingress rules - Order matters! First match wins
+ingress:
+  # === BACKEND API ROUTES ===
+  # Match any /api/* requests
+  - hostname: internalx.santhoshv.xyz
+    path: ^/api/.*
+    service: http://localhost:5001
+    originRequest:
+      httpHostHeader: localhost:5001
+      connectTimeout: 30s
+
+  # === WEBSOCKET ROUTES ===
+  # Match Socket.IO connections
+  - hostname: internalx.santhoshv.xyz
+    path: ^/socket.io/.*
+    service: http://localhost:5001
+    originRequest:
+      httpHostHeader: localhost:5001
+      connectTimeout: 30s
+
+  # === UPLOADS (Static Files) ===
+  - hostname: internalx.santhoshv.xyz
+    path: ^/uploads/.*
+    service: http://localhost:5001
+    originRequest:
+      httpHostHeader: localhost:5001
+      connectTimeout: 30s
+
+  # === FRONTEND (Next.js) ===
+  # Catch-all for remaining routes
+  - hostname: internalx.santhoshv.xyz
+    service: http://localhost:3001
+    originRequest:
+      httpHostHeader: localhost:3001
+      connectTimeout: 30s
+
+  # === CATCH-ALL (Returns 404) ===
+  - service: http_status:404
