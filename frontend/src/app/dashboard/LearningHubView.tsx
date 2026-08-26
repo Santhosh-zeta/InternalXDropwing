@@ -27,6 +27,13 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
 
   useEffect(() => { fetchData(activeTab); }, [activeTab]);
 
+  // Always load progressSummary on mount so the Feedback tab intern dropdown is populated
+  // regardless of which tab the user starts on.
+  useEffect(() => {
+    if (isManager) fetchData('progress');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const apiHeaders = () => ({ 'Authorization': `Bearer ${localStorage.getItem('internalx_token')}` });
 
   const fetchData = async (tab: string) => {

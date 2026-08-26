@@ -84,7 +84,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
 
   if (selectedInvoice) {
     return (
-      <div className="fade-in print-container" style={{ position: 'relative' }}>
+      <div className="print-container" style={{ position: 'relative' }}>
         {/* Actions - hidden when printing */}
         <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24 }}>
           <button 
@@ -122,9 +122,8 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
                 <div style={{ width: 40, height: 40, background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20 }}>✦</div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#111827' }}>InternalX</div>
               </div>
-              <div style={{ fontSize: 13, color: '#4b5563' }}>Dropwing Groups LLC</div>
-              <div style={{ fontSize: 13, color: '#4b5563' }}>123 Innovation Drive</div>
-              <div style={{ fontSize: 13, color: '#4b5563' }}>Tech City, TX 75001</div>
+              <div style={{ fontSize: 13, color: '#4b5563' }}>Dropwing Groups</div>
+              <div style={{ fontSize: 13, color: '#4b5563' }}>Dropwing Groups, India</div>
             </div>
           </div>
 
@@ -215,7 +214,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
   }
 
   return (
-    <div className="fade-in">
+    <div>
       <div style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-text-primary)' }}>
           Billing & Invoices
@@ -225,7 +224,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
         </p>
       </div>
 
-      <div className="glass" style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+      <div className="bg-white/5 backdrop-blur-sm border border-white/10" style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
         {loading ? (
           <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading invoices...</div>
         ) : invoices.length === 0 ? (
@@ -248,7 +247,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
             </thead>
             <tbody>
               {invoices.map(inv => (
-                <tr key={inv.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }} className="hover-bg-tertiary">
+                <tr key={inv.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }} className="hover:bg-white/5">
                   <td style={{ padding: '16px' }}>
                     <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--color-text-primary)' }}>{inv.invoice_number}</div>
                     <div style={{ fontSize: 11, color: 'var(--color-text-muted)' }}>Issued: {inv.issue_date}</div>
@@ -268,12 +267,21 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
                     {formatCurrency(inv.total_amount)}
                   </td>
                   <td style={{ padding: '16px' }}>
-                    <span style={{
-                      padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                      background: 'rgba(245,158,11,0.15)', color: '#f59e0b'
-                    }}>
-                      {inv.status.toUpperCase()}
-                    </span>
+                    {(() => {
+                      const statusColor: Record<string, { bg: string; color: string }> = {
+                        paid:      { bg: 'rgba(16,185,129,0.15)',  color: '#10b981' },
+                        pending:   { bg: 'rgba(245,158,11,0.15)',  color: '#f59e0b' },
+                        overdue:   { bg: 'rgba(239,68,68,0.15)',   color: '#ef4444' },
+                        cancelled: { bg: 'rgba(107,114,128,0.15)', color: '#9ca3af' },
+                      };
+                      const s = (inv.status || 'pending').toLowerCase();
+                      const style = statusColor[s] || statusColor.pending;
+                      return (
+                        <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: style.bg, color: style.color }}>
+                          {inv.status?.toUpperCase()}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td style={{ padding: '16px', textAlign: 'right' }}>
                     <button

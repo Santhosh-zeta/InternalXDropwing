@@ -53,14 +53,16 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
 
   const color = currentUser.venture?.primaryColor || '#8b5cf6';
 
+  const rangeInDays = range === '90 Days' ? 90 : range === '30 Days' ? 30 : 7;
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    try { const res = await getAnalytics(); if (res.success) setData(res.data); }
+    try { const res = await getAnalytics(rangeInDays); if (res.success) setData(res.data); }
     catch (e) { console.error(e); }
     finally { setLoading(false); }
-  }, []);
+  }, [rangeInDays]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchData(); }, [fetchData, rangeInDays]);
 
   const vel = data?.taskVelocity?.length ? data.taskVelocity : FALLBACK_VEL;
   const totalVel = vel.reduce((s, d) => s + d.completed, 0);
@@ -170,7 +172,7 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
           {tab === 'tasks' && (
             <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-7 shadow-sm">
               <div className="font-bold text-[16px] text-[var(--color-text-primary)] mb-1">Task Completion Velocity</div>
-              <div className="text-[13px] font-medium text-[var(--color-text-muted)] mb-6">{totalVel} tasks completed — last 7 days</div>
+              <div className="text-[13px] font-medium text-[var(--color-text-muted)] mb-6">{totalVel} tasks completed — last {rangeInDays} days</div>
               <ResponsiveContainer width="100%" height={280} minHeight={280} minWidth={0}>
                 <BarChart data={vel} barSize={38}>
                   <defs>

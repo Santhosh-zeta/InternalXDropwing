@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
+import '../../../core/theme/nebula_colors.dart';
+import '../../../core/theme/nebula_animations.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -13,8 +17,19 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'admin@internalx.com');
-  final _passwordController = TextEditingController(text: 'password123');
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(
+      text: kDebugMode ? 'admin@internalx.com' : '',
+    );
+    _passwordController = TextEditingController(
+      text: kDebugMode ? 'password123' : '',
+    );
+  }
 
   @override
   void dispose() {
@@ -35,13 +50,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final isSmallScreen = MediaQuery.of(context).size.height < 700;
 
     // Listen for errors
     ref.listen<AuthState>(authProvider, (previous, next) {
       next.maybeWhen(
         error: (message) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(message),
+              backgroundColor: NebulaColors.critical,
+              behavior: SnackBarBehavior.floating,
+            ),
           );
         },
         orElse: () {},
@@ -54,108 +74,351 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
 
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Icon(Icons.business, size: 80, color: Colors.blue),
-                const SizedBox(height: 32),
-                Text(
-                  'DGOS Mobile',
-                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFF080C14), // Dark navy
+              Color(0xFF12103A), // Deep purple
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(20.0),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Top Logo Section
+                    if (!isSmallScreen)
+                      Column(
+                        children: [
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: NebulaColors.primary,
+                              boxShadow: [
+                                BoxShadow(
+                                  color:
+                                      NebulaColors.primary.withOpacity(0.6),
+                                  blurRadius: 15,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.hexagon_outlined,
+                              color: Colors.white,
+                              size: 28,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'InternalX',
+                            style: GoogleFonts.inter(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: NebulaColors.textPrimary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                        ],
                       ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Email is required';
-                    if (!value.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _passwordController,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
-                  ),
-                  obscureText: true,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) return 'Password is required';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () => context.push('/forgot-password'),
-                    child: const Text('Forgot Password?'),
-                  ),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: isLoading ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                  child: isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Login', style: TextStyle(fontSize: 16)),
-                ),
-                const SizedBox(height: 32),
-                const Divider(),
-                const SizedBox(height: 16),
-                const Text(
-                  'QUICK ACCESS LOGINS',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  height: 40,
-                  child: ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _buildTestChip('Super Admin', 'sa@dropwinggroups.com', Icons.shield, Colors.purple),
-                      const SizedBox(width: 8),
-                      _buildTestChip('Managing Director', 'md@dropwinggroups.com', Icons.account_balance, Colors.purple),
-                      const SizedBox(width: 8),
-                      _buildTestChip('Dropwing Admin', 'ad@dropwing.in', Icons.settings, Colors.blue),
-                      const SizedBox(width: 8),
-                      _buildTestChip('Fenixa Admin', 'ad@fenixa.com', Icons.settings, Colors.cyan),
-                      const SizedBox(width: 8),
-                      _buildTestChip('PerSyniX Admin', 'ad@persynix.com', Icons.settings, Colors.orange),
-                      const SizedBox(width: 8),
-                      _buildTestChip('Grovia Admin', 'ad@grovia.in', Icons.settings, Colors.green),
-                      const SizedBox(width: 8),
-                      _buildTestChip('Dropwing Staff', 'st@dropwing.in', Icons.person, Colors.blue),
-                      const SizedBox(width: 8),
-                      _buildTestChip('Fenixa Staff', 'st@fenixa.com', Icons.person, Colors.cyan),
+                    // Form Container with Glassmorphism
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.05),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.1),
+                          width: 1,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.3),
+                            blurRadius: 20,
+                            offset: const Offset(0, 8),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Text(
+                            'Sign In',
+                            style: GoogleFonts.inter(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: NebulaColors.textPrimary,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 24),
+                          // Email Field
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: InputDecoration(
+                              labelText: 'Email Address',
+                              labelStyle: GoogleFonts.inter(
+                                color: NebulaColors.textSecondary,
+                                fontSize: 14,
+                              ),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.05),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.1),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.1),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: NebulaColors.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.email_outlined,
+                                color: NebulaColors.textSecondary,
+                                size: 20,
+                              ),
+                              errorStyle: GoogleFonts.inter(
+                                color: NebulaColors.critical,
+                                fontSize: 12,
+                              ),
+                            ),
+                            style: GoogleFonts.inter(
+                              color: NebulaColors.textPrimary,
+                              fontSize: 14,
+                            ),
+                            keyboardType: TextInputType.emailAddress,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Email is required';
+                              }
+                              if (!value.contains('@')) {
+                                return 'Enter a valid email';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          // Password Field
+                          TextFormField(
+                            controller: _passwordController,
+                            decoration: InputDecoration(
+                              labelText: 'Password',
+                              labelStyle: GoogleFonts.inter(
+                                color: NebulaColors.textSecondary,
+                                fontSize: 14,
+                              ),
+                              filled: true,
+                              fillColor: Colors.white.withOpacity(0.05),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.1),
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.white.withOpacity(0.1),
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: const BorderSide(
+                                  color: NebulaColors.primary,
+                                  width: 2,
+                                ),
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.lock_outlined,
+                                color: NebulaColors.textSecondary,
+                                size: 20,
+                              ),
+                              errorStyle: GoogleFonts.inter(
+                                color: NebulaColors.critical,
+                                fontSize: 12,
+                              ),
+                            ),
+                            style: GoogleFonts.inter(
+                              color: NebulaColors.textPrimary,
+                              fontSize: 14,
+                            ),
+                            obscureText: true,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Password is required';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          // Forgot Password Link
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () => context.push('/forgot-password'),
+                              style: TextButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 8, vertical: 4),
+                              ),
+                              child: Text(
+                                'Forgot Password?',
+                                style: GoogleFonts.inter(
+                                  color: NebulaColors.primary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+                          // Sign In Button
+                          ElevatedButton(
+                            onPressed: isLoading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: NebulaColors.primary,
+                              foregroundColor: Colors.white,
+                              disabledBackgroundColor:
+                                  NebulaColors.primary.withOpacity(0.5),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: isLoading
+                                ? SizedBox(
+                                    height: 20,
+                                    width: 20,
+                                    child: CircularProgressIndicator(
+                                      valueColor:
+                                          const AlwaysStoppedAnimation<Color>(
+                                              Colors.white),
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : Text(
+                                    'Sign In',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Sign Up Link
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Don't have an account? ",
+                                style: GoogleFonts.inter(
+                                  color: NebulaColors.textSecondary,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              TextButton(
+                                onPressed: () => context.push('/signup'),
+                                style: TextButton.styleFrom(
+                                  padding: EdgeInsets.zero,
+                                ),
+                                child: Text(
+                                  'Sign Up',
+                                  style: GoogleFonts.inter(
+                                    color: NebulaColors.primary,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 32),
+                    // Powered by text
+                    Text(
+                      'Powered by Dropwing Groups',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: NebulaColors.textSecondary.withOpacity(0.7),
+                        fontWeight: FontWeight.w400,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    // Quick Access (Debug Mode Only)
+                    if (kDebugMode) ...[
+                      const SizedBox(height: 24),
+                      Text(
+                        'QUICK ACCESS LOGINS',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: NebulaColors.textSecondary,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        height: 40,
+                        child: ListView(
+                          scrollDirection: Axis.horizontal,
+                          children: [
+                            _buildTestChip('Super Admin',
+                                'sa@dropwinggroups.com', Icons.shield),
+                            const SizedBox(width: 8),
+                            _buildTestChip('MD', 'md@dropwinggroups.com',
+                                Icons.account_balance),
+                            const SizedBox(width: 8),
+                            _buildTestChip(
+                                'Dropwing Admin', 'ad@dropwing.in', Icons.settings),
+                            const SizedBox(width: 8),
+                            _buildTestChip('Fenixa Admin', 'ad@fenixa.com',
+                                Icons.settings),
+                            const SizedBox(width: 8),
+                            _buildTestChip('PerSyniX Admin',
+                                'ad@persynix.com', Icons.settings),
+                            const SizedBox(width: 8),
+                            _buildTestChip(
+                                'Grovia Admin', 'ad@grovia.in', Icons.settings),
+                            const SizedBox(width: 8),
+                            _buildTestChip('Dropwing Staff', 'st@dropwing.in',
+                                Icons.person),
+                            const SizedBox(width: 8),
+                            _buildTestChip('Fenixa Staff', 'st@fenixa.com',
+                                Icons.person),
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -163,10 +426,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  Widget _buildTestChip(String label, String email, IconData icon, Color color) {
+  Widget _buildTestChip(String label, String email, IconData icon) {
     return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 12)),
-      avatar: Icon(icon, size: 16, color: color),
+      label: Text(
+        label,
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          color: NebulaColors.textPrimary,
+        ),
+      ),
+      avatar: Icon(
+        icon,
+        size: 16,
+        color: NebulaColors.primary,
+      ),
+      backgroundColor: Colors.white.withOpacity(0.05),
+      side: BorderSide(
+        color: Colors.white.withOpacity(0.1),
+      ),
       onPressed: () {
         _emailController.text = email;
         _passwordController.text = 'Test@1234';

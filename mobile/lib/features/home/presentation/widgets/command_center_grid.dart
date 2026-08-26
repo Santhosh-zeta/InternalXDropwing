@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:ui';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/nebula_colors.dart';
 
@@ -27,11 +28,27 @@ class CommandCenterGrid extends StatelessWidget {
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
           childAspectRatio: 1.2,
-          children: const [
-            _CommandTile(title: 'Create Task', icon: LucideIcons.plusCircle),
-            _CommandTile(title: 'Projects', icon: LucideIcons.folder),
-            _CommandTile(title: 'Learning', icon: LucideIcons.graduationCap),
-            _CommandTile(title: 'Documents', icon: LucideIcons.fileText),
+          children: [
+            _CommandTile(
+              title: 'Create Task',
+              icon: LucideIcons.plusCircle,
+              onTap: () => context.go('/tasks/create'),
+            ),
+            _CommandTile(
+              title: 'Projects',
+              icon: LucideIcons.folder,
+              onTap: () => context.go('/projects'),
+            ),
+            _CommandTile(
+              title: 'Learning',
+              icon: LucideIcons.graduationCap,
+              onTap: () => context.go('/learning'),
+            ),
+            _CommandTile(
+              title: 'Documents',
+              icon: LucideIcons.fileText,
+              onTap: () => context.go('/documents'),
+            ),
           ],
         ),
       ],
@@ -42,10 +59,12 @@ class CommandCenterGrid extends StatelessWidget {
 class _CommandTile extends StatefulWidget {
   final String title;
   final IconData icon;
+  final VoidCallback? onTap;
 
   const _CommandTile({
     required this.title,
     required this.icon,
+    this.onTap,
   });
 
   @override
@@ -81,7 +100,7 @@ class _CommandTileState extends State<_CommandTile> with SingleTickerProviderSta
 
   void _onTapUp(TapUpDetails details) {
     _controller.reverse();
-    // Navigate or trigger action based on widget.title here later
+    widget.onTap?.call();
   }
 
   void _onTapCancel() {

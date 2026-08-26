@@ -18,6 +18,26 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// Response interceptor — handle expired sessions
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear stored session data
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('internalx_token');
+        localStorage.removeItem('internalx_user');
+        // Clear cookies
+        document.cookie = 'internalx_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'internalx_user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        // Redirect to login
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Auth
 export const loginUser = async (email: string, password: string) => {
   const res = await api.post('/auth/login', { email, password });
@@ -134,8 +154,9 @@ export const sendChatMessage = async (data: { content: string, ventureId?: strin
 };
 
 // Analytics
-export const getAnalytics = async () => {
-  const res = await api.get('/platform-metrics');
+export const getAnalytics = async (days?: number) => {
+  const query = days ? `?days=${days}` : '';
+  const res = await api.get(`/platform-metrics${query}`);
   return res.data;
 };
 

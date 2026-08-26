@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { logoutUser } from '@/lib/api';
+import api from '@/lib/api';
 import Cookies from 'js-cookie';
 import { User, VENTURES } from '@/lib/constants';
 import TasksView from './TasksView';
@@ -95,6 +96,7 @@ export default function DashboardPage() {
   const [activeMenu, setActiveMenu] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [searchResults, setSearchResults] = useState<{ type: string; title: string; subtitle?: string; action: () => void; icon: React.ElementType }[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -141,32 +143,47 @@ export default function DashboardPage() {
   const menus = ACCESS_MENUS[user.accessLevel] || ACCESS_MENUS[7];
   const ventureColor = user.venture?.primaryColor || color;
 
-  const getSearchResults = () => {
-    const q = searchQuery.toLowerCase();
-    if (!q) return [];
-    
-    const results: { type: string, title: string, subtitle?: string, action: () => void, icon: React.ElementType }[] = [];
-    
+  const handleSearch = useCallback(async (query: string) => {
+    const q = query.toLowerCase().trim();
+    if (!q) {
+      setSearchResults([]);
+      return;
+    }
+
+    const results: { type: string; title: string; subtitle?: string; action: () => void; icon: React.ElementType }[] = [];
+
+    // Module matching (instant, no API needed)
     menus.forEach((item, index) => {
       if (item.toLowerCase().includes(q)) {
         results.push({ type: 'module', title: item, subtitle: 'Go to module', action: () => setActiveMenu(index), icon: MENU_ICONS[item] || LayoutDashboard });
       }
     });
 
-    if ('marketing campaign'.includes(q)) {
-      results.push({ type: 'task', title: 'Q3 Marketing Campaign', subtitle: 'Task in Dropwing Design', action: () => { setActiveMenu(menus.indexOf('Tasks') !== -1 ? menus.indexOf('Tasks') : 0); }, icon: CheckSquare });
-    }
-    if ('invoice'.includes(q) || 'payment'.includes(q)) {
-      results.push({ type: 'document', title: 'Invoice #INV-2026', subtitle: 'Document / Financials', action: () => { setActiveMenu(menus.indexOf('Invoices') !== -1 ? menus.indexOf('Invoices') : 0); }, icon: FileText });
-    }
-    if ('john doe'.includes(q) || 'user'.includes(q)) {
-      results.push({ type: 'user', title: 'John Doe', subtitle: 'Level 5 Developer', action: () => { setActiveMenu(menus.indexOf('User Management') !== -1 ? menus.indexOf('User Management') : 0); }, icon: UserIcon });
+    // API search across tasks and team members
+    try {
+      const [tasksRes, usersRes] = await Promise.allSettled([
+        api.get(`/tasks?search=${encodeURIComponent(query)}&limit=5`),
+        api.get(`/team-members?search=${encodeURIComponent(query)}&limit=5`),
+      ]);
+
+      if (tasksRes.status === 'fulfilled') {
+        const tasks = tasksRes.value.data?.data || tasksRes.value.data || [];
+        (Array.isArray(tasks) ? tasks : []).slice(0, 5).forEach((t: any) => {
+          results.push({ type: 'task', title: t.title, subtitle: t.status, action: () => { const idx = menus.indexOf('Tasks') !== -1 ? menus.indexOf('Tasks') : menus.indexOf('My Tasks'); if (idx !== -1) setActiveMenu(idx); }, icon: CheckSquare });
+        });
+      }
+      if (usersRes.status === 'fulfilled') {
+        const users = usersRes.value.data?.data || usersRes.value.data || [];
+        (Array.isArray(users) ? users : []).slice(0, 5).forEach((u: any) => {
+          results.push({ type: 'user', title: u.full_name || u.fullName, subtitle: u.email, action: () => { const idx = menus.indexOf('User Management') !== -1 ? menus.indexOf('User Management') : menus.indexOf('Team Members'); if (idx !== -1) setActiveMenu(idx); }, icon: UserIcon });
+        });
+      }
+    } catch {
+      // API search failed — module results still shown
     }
 
-    return results;
-  };
-
-  const searchResults = getSearchResults();
+    setSearchResults(results);
+  }, [menus]);
 
   return (
     <SocketProvider user={user}>
@@ -286,7 +303,7 @@ export default function DashboardPage() {
                     type="text" 
                     placeholder="Search globally... (Ctrl+K)" 
                     value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
+                    onChange={(e) => { setSearchQuery(e.target.value); handleSearch(e.target.value); }}
                     onFocus={() => setIsSearchFocused(true)}
                     onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
                     className="bg-transparent border-none outline-none text-[13px] text-[var(--color-text-primary)] w-full placeholder:text-[var(--color-text-muted)]"
@@ -398,7 +415,9 @@ export default function DashboardPage() {
 
           {/* Content Area */}
           <div className="min-h-[400px]">
-            {['System Overview', 'Executive Dashboard', 'Admin Panel', 'C-Suite Overview', 'Team Dashboard', 'My Dashboard'].includes(menus[activeMenu]) ? (
+            {user.accessLevel === 9 && menus[activeMenu] !== 'Settings' ? (
+              <ClientPortalView currentUser={user} />
+            ) : ['System Overview', 'Executive Dashboard', 'Admin Panel', 'C-Suite Overview', 'Team Dashboard', 'My Dashboard'].includes(menus[activeMenu]) ? (
               <OverviewView currentUser={user} />
             ) : menus[activeMenu] === 'Tasks' || menus[activeMenu] === 'My Tasks' ? (
               <TasksView currentUser={user} />
@@ -420,8 +439,6 @@ export default function DashboardPage() {
               <BudgetView currentUser={user} />
             ) : menus[activeMenu] === 'Department KPIs' || menus[activeMenu] === 'HR Overview' || menus[activeMenu] === 'Team Management' ? (
               <DepartmentKPIsView currentUser={user} />
-            ) : ['Project Status', 'Deliverables', 'Messages'].includes(menus[activeMenu]) && user.accessLevel === 9 ? (
-              <ClientPortalView currentUser={user} />
             ) : menus[activeMenu] === 'Invoices' ? (
               <InvoicesView currentUser={user} />
             ) : menus[activeMenu] === 'Settings' ? (

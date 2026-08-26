@@ -54,9 +54,9 @@ export default function OverviewView({ currentUser }: { currentUser: User }) {
 function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any[], analytics: any }) {
   const totalUsers = users.length;
   const totalTasks = tasks.length;
-  const completedTasks = tasks.filter(t => t.status === 'Completed').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'In Progress').length;
-  const pendingTasks = tasks.filter(t => t.status === 'To Do').length;
+  const completedTasks = tasks.filter(t => t.status === 'completed').length;
+  const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
+  const pendingTasks = tasks.filter(t => t.status === 'pending').length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -64,7 +64,7 @@ function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any
         <StatCard title="Total Employees" value={totalUsers} icon={Users} color="#8b5cf6" />
         <StatCard title="Active Tasks" value={inProgressTasks} icon={Clock} color="#06b6d4" />
         <StatCard title="Completed Tasks" value={completedTasks} icon={CheckCircle} color="#10b981" />
-        <StatCard title="System Health" value={`${(99 + Math.random()).toFixed(1)}%`} icon={Activity} color="#f59e0b" />
+        <StatCard title="System Health" value="99.8%" icon={Activity} color="#f59e0b" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -160,8 +160,8 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
   const ventureUsers = users.filter(u => u.ventureId === ventureSlug || u.venture?.slug === ventureSlug);
   const ventureTasks = tasks.filter(t => t.ventureId === ventureSlug);
   
-  const inProgress = ventureTasks.filter(t => t.status === 'In Progress').length;
-  const completed = ventureTasks.filter(t => t.status === 'Completed').length;
+  const inProgress = ventureTasks.filter(t => t.status === 'in-progress').length;
+  const completed = ventureTasks.filter(t => t.status === 'completed').length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -176,7 +176,7 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Team Members" value={ventureUsers.length || Math.floor(Math.random() * 15) + 5} icon={Users} color={ventureColor} />
+        <StatCard title="Team Members" value={ventureUsers.length || 0} icon={Users} color={ventureColor} />
         <StatCard title="Active Projects" value={inProgress} icon={Activity} color="#f59e0b" />
         <StatCard title="Tasks Completed" value={completed} icon={CheckCircle} color="#10b981" />
       </div>
@@ -203,7 +203,7 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
         <div className="lg:col-span-2 bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-xl p-6 shadow-sm">
           <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-6 tracking-wide">Team Members</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(ventureUsers.length ? ventureUsers.slice(0, 6) : [{ fullName: 'John Doe', designation: 'Developer' }, { fullName: 'Jane Smith', designation: 'Designer' }]).map((u, i) => (
+            {(ventureUsers.length ? ventureUsers.slice(0, 6) : []).map((u, i) => (
               <div key={i} className="flex items-center gap-3 p-3 rounded-lg border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)] transition-colors">
                 <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 border border-[var(--color-border)]" style={{ background: `${ventureColor}15`, color: ventureColor }}>
                   {u.fullName?.charAt(0) || 'U'}
@@ -244,8 +244,8 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
 
 function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: User, tasks: any[], analytics: any }) {
   const myTasks = tasks.filter(t => t.assignedToId === currentUser.id || t.assignedTo?.id === currentUser.id);
-  const inProgress = myTasks.filter(t => t.status === 'In Progress');
-  const todo = myTasks.filter(t => t.status === 'To Do');
+  const inProgress = myTasks.filter(t => t.status === 'in-progress');
+  const todo = myTasks.filter(t => t.status === 'pending');
 
   const color = '#8b5cf6'; // Default primary color
 

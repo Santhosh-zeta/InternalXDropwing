@@ -38,7 +38,12 @@ final dioProvider = Provider<Dio>((ref) {
       },
       onError: (DioException e, handler) {
         logger.e('Error: ${e.message} - ${e.response?.statusCode}');
-        // You could trigger logout here via a global event bus or ref.read if ref passed dynamically
+        // Handle 401 auto-logout
+        if (e.response?.statusCode == 401) {
+          secureStorage.delete(key: 'jwt_token').then((_) {
+            logger.i('Token cleared on 401 Unauthorized');
+          });
+        }
         return handler.next(e);
       },
     ),

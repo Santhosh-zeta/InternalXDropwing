@@ -22,7 +22,11 @@ router.get('/overview', authenticate, async (req, res) => {
     let projects = [];
     if (ventureId) {
       const [pRows] = await pool.query(`
-        SELECT p.id, p.title, p.description, p.status, p.progress,
+        SELECT p.id, p.name AS title, p.description, p.status,
+          COALESCE(ROUND((
+            (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'completed')::numeric /
+            NULLIF((SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id), 0)
+          ) * 100), 0) AS progress,
           p.start_date, p.end_date, p.budget,
           u.full_name AS manager_name
         FROM projects p
@@ -71,8 +75,8 @@ router.get('/overview', authenticate, async (req, res) => {
     let documents = [];
     if (ventureId) {
       const [docRows] = await pool.query(`
-        SELECT d.id, d.file_name, d.file_size, d.file_type, d.created_at,
-          u.full_name AS uploaded_by, d.category
+        SELECT d.id, d.file_name, d.size AS file_size, d.mime_type AS file_type, d.created_at,
+          u.full_name AS uploaded_by, 'general' AS category
         FROM documents d
         JOIN users u ON d.uploaded_by = u.id
         WHERE d.venture_id = ?

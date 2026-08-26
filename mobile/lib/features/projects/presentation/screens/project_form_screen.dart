@@ -127,6 +127,42 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     }
   }
 
+  void _deleteProject() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: NebulaColors.surfaceCard,
+        title: const Text('Delete Project', style: TextStyle(color: NebulaColors.textPrimary)),
+        content: const Text('Are you sure you want to delete this project? This action cannot be undone.', style: TextStyle(color: NebulaColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: NebulaColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: NebulaColors.critical)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed ?? false) {
+      try {
+        await ref.read(projectFormControllerProvider.notifier).deleteProject(widget.projectId!);
+        if (mounted) {
+          context.go('/projects');
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete project: $e')),
+          );
+        }
+      }
+    }
+  }
+
   void _addTag() {
     final text = _tagController.text.trim();
     if (text.isNotEmpty && !_tags.contains(text)) {
@@ -754,9 +790,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                             child: Padding(
                               padding: const EdgeInsets.only(right: 12.0),
                               child: ElevatedButton(
-                                onPressed: () {
-                                  // Implementation of delete...
-                                },
+                                onPressed: _deleteProject,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: NebulaColors.critical.withValues(alpha: 0.1),
                                   foregroundColor: NebulaColors.critical,

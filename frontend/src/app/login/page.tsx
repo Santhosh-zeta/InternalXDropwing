@@ -343,9 +343,8 @@ export default function LoginPage() {
             </motion.div>
           )}
 
-          {/* 2FA Temporarily Disabled
           {step === 2 && (
-            <motion.div 
+            <motion.div
               key="step2"
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -373,9 +372,9 @@ export default function LoginPage() {
                       onChange={e => setOtp(e.target.value.replace(/[^0-9]/g, ''))}
                       placeholder="123456"
                       className="w-full rounded-lg py-2.5 pl-10 pr-4 text-center tracking-[0.5em] font-semibold text-lg outline-none transition-all focus:ring-2 focus:ring-offset-0"
-                      style={{ 
-                        background: 'var(--color-bg-primary)', 
-                        border: '1px solid var(--color-border)', 
+                      style={{
+                        background: 'var(--color-bg-primary)',
+                        border: '1px solid var(--color-border)',
                         color: 'var(--color-text-primary)',
                         '--tw-ring-color': 'var(--color-purple-glow)'
                       } as React.CSSProperties}
@@ -387,8 +386,8 @@ export default function LoginPage() {
                   type="submit"
                   disabled={loading || otp.length !== 6}
                   className="w-full py-2.5 mt-4 rounded-lg font-medium text-sm flex items-center justify-center gap-2 transition-all disabled:opacity-70 group"
-                  style={{ 
-                    background: 'var(--color-text-primary)', 
+                  style={{
+                    background: 'var(--color-text-primary)',
                     color: 'var(--color-bg-primary)'
                   }}
                 >
@@ -408,7 +407,7 @@ export default function LoginPage() {
                 </button>
 
                 <div className="text-center mt-4">
-                  <button 
+                  <button
                     type="button"
                     onClick={() => { setStep(1); setOtp(''); }}
                     className="text-xs hover:underline"
@@ -420,9 +419,8 @@ export default function LoginPage() {
               </form>
             </motion.div>
           )}
-          */}
 
-          {step === 1 && (
+          {step === 1 && process.env.NODE_ENV === 'development' && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

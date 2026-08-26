@@ -92,6 +92,7 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
         if (firstSelected) setPerms(firstSelected.permissions);
       }
     } catch {
+      toast.error('Failed to load access control settings. Showing defaults.');
       const mock = [2, 3, 4, 5, 6, 7, 8, 9].map(n => ({
         level_number: n, level_name: ['Managing Director', 'Admin', 'CXO', 'Manager', 'Executive Staff', 'Staff', 'Intern', 'Client'][n - 2], description: '', permissions: DEFAULT_PERMISSIONS[n] || {},
       }));
@@ -134,10 +135,10 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
     setSaving(true);
     try {
       await updateLevelPermissions(selectedLevel, perms);
-      toast.success(`L${selectedLevel} permissions saved`);
+      toast.success('Access control settings saved.');
       setDirty(false);
       setLevels(prev => prev.map(l => l.level_number === selectedLevel ? { ...l, permissions: perms } : l));
-    } catch { toast.error('Failed to save — check backend'); }
+    } catch { toast.error('Failed to save settings. Please try again.'); }
     finally { setSaving(false); }
   };
 

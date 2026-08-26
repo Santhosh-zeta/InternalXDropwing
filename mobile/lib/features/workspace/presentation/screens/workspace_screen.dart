@@ -128,6 +128,12 @@ class WorkspaceScreen extends StatelessWidget {
                   route: '/team',
                   comingSoon: false,
                 ),
+                _WorkspaceItem(
+                  title: 'Budget',
+                  icon: LucideIcons.wallet,
+                  route: '/budget',
+                  comingSoon: false,
+                ),
               ],
             ),
             const SizedBox(height: 32),

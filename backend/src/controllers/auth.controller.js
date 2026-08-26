@@ -86,17 +86,10 @@ const login = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    // TEMPORARY: Bypass 2FA for all users
-    // if (user.is_verified) {
-      await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
-      return generateAuthResponse(user, res, 'Login successful');
-    // }
-
-    /*
-    // Otherwise, generate OTP
+    // Generate OTP and send via email (2FA)
     const otp = generateOTP();
-    // 5 minutes expiry
-    const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
+    // 10 minutes expiry
+    const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await pool.query(
       'UPDATE users SET otp = ?, otp_expires_at = ? WHERE id = ?',
@@ -108,12 +101,12 @@ const login = async (req, res) => {
 
     return res.json({
       success: true,
+      requiresOTP: true,
       message: 'OTP sent to your email address',
       data: {
-        email: user.email // Return email so frontend knows which email to verify
+        email: user.email
       }
     });
-    */
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json({ success: false, message: 'Server error during login' });
@@ -315,6 +308,15 @@ const register = async (req, res) => {
 
   if (password.length < 8) {
     return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
+  }
+
+  const allowedDomains = ['dropwinggroups.com', 'dropwing.in', 'fenixa.com', 'persynix.com', 'grovia.in'];
+  const emailDomain = email.split('@')[1]?.toLowerCase();
+  if (!allowedDomains.includes(emailDomain)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Registration is restricted to Dropwing Groups team members. Please contact your admin.'
+    });
   }
 
   try {

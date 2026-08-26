@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../notifications/firebase_notif_handler.dart';
 import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
+import '../../features/analytics/presentation/screens/analytics_screen.dart';
 import '../../features/tasks/presentation/screens/task_list_screen.dart';
 import '../../features/tasks/presentation/screens/task_detail_screen.dart';
 import '../../features/tasks/presentation/screens/task_form_screen.dart';
@@ -24,11 +26,20 @@ import '../../features/audit/presentation/screens/audit_screen.dart';
 import '../../features/team/presentation/screens/team_screen.dart';
 import '../../features/documents/presentation/screens/documents_screen.dart';
 import '../../features/learning_hub/presentation/screens/learning_hub_screen.dart';
+import '../../features/budget/presentation/screens/budget_screen.dart';
+import '../../features/approvals/presentation/screens/approvals_screen.dart';
+import '../../features/calendar/presentation/screens/calendar_screen.dart';
+import '../../features/client_portal/presentation/screens/client_portal_screen.dart';
+import '../../features/profile/presentation/screens/settings_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
 
+  // Create a global navigator key for Firebase notifications
+  navigatorKey ??= GlobalKey<NavigatorState>();
+
   return GoRouter(
+    navigatorKey: navigatorKey,
     initialLocation: '/home',
     redirect: (context, state) {
       final isLoggingIn = state.matchedLocation == '/login' ||
@@ -56,6 +67,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     routes: [
       GoRoute(
         path: '/',
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: '/splash',
         builder: (context, state) => const SplashScreen(),
       ),
       GoRoute(
@@ -99,6 +114,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/learning',
         builder: (context, state) => const LearningHubScreen(),
+      ),
+      GoRoute(
+        path: '/budget',
+        builder: (context, state) => const BudgetScreen(),
+      ),
+      GoRoute(
+        path: '/analytics',
+        builder: (context, state) => const AnalyticsScreen(),
+      ),
+      GoRoute(
+        path: '/approvals',
+        builder: (context, state) => const ApprovalsScreen(),
+      ),
+      GoRoute(
+        path: '/calendar',
+        builder: (context, state) => const CalendarScreen(),
+      ),
+      GoRoute(
+        path: '/client-portal',
+        builder: (context, state) => const ClientPortalScreen(),
+      ),
+      GoRoute(
+        path: '/settings',
+        builder: (context, state) => const SettingsScreen(),
       ),
 
       // ── Bottom Navigation Shell ───────────────────────────────────────────

@@ -51,4 +51,37 @@ class NebulaTypography {
       ),
     );
   }
+
+  // Convenient shortcuts for common text styles
+  static TextStyle get heading1 => GoogleFonts.inter(
+        fontSize: 32,
+        fontWeight: FontWeight.bold,
+        color: NebulaColors.textPrimary,
+        letterSpacing: -0.5,
+      );
+
+  static TextStyle get heading2 => GoogleFonts.inter(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: NebulaColors.textPrimary,
+        letterSpacing: -0.5,
+      );
+
+  static TextStyle get body1 => GoogleFonts.inter(
+        fontSize: 16,
+        fontWeight: FontWeight.normal,
+        color: NebulaColors.textPrimary,
+      );
+
+  static TextStyle get body2 => GoogleFonts.inter(
+        fontSize: 14,
+        fontWeight: FontWeight.normal,
+        color: NebulaColors.textPrimary,
+      );
+
+  static TextStyle get caption => GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.normal,
+        color: NebulaColors.textSecondary,
+      );
 }

@@ -200,7 +200,7 @@ class _NotificationBell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return IconButton(
       icon: const Icon(LucideIcons.bell, color: NebulaColors.textPrimary),
-      onPressed: () {},
+      onPressed: () => context.push('/notifications'),
     );
   }
 }

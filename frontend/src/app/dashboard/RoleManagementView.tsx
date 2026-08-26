@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
-import { getRoles, getRoleVentures, createRole, updateRole, deleteRole } from '@/lib/api';
+import { getRoles, getRoleVentures, createRole, updateRole, deleteRole, getRoleAssignableUsers, assignRoleToUser, removeRoleFromUser } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { Users, Plus, Edit2, Trash2, Save, X, Loader2, ShieldCheck, AlertCircle, Lock, Crown, Building2, UserCircle2, CheckSquare } from 'lucide-react';
 
@@ -72,6 +72,11 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Role assignment state
+  const [assigningRole, setAssigningRole] = useState<number | null>(null);
+  const [assignableUsers, setAssignableUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
   // Form State
   const [formData, setFormData] = useState({
     role_name: '',
@@ -105,6 +110,36 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
       fetchData();
     }
   }, [currentUser, fetchData]);
+
+  // Fetch assignable users when the assignment modal opens
+  useEffect(() => {
+    if (assigningRole === null) return;
+    setLoadingUsers(true);
+    getRoleAssignableUsers()
+      .then(res => { if (res.success) setAssignableUsers(res.data); })
+      .catch(() => toast.error('Failed to load team members'))
+      .finally(() => setLoadingUsers(false));
+  }, [assigningRole]);
+
+  const handleAssignRole = async (roleId: number, userId: number) => {
+    try {
+      await assignRoleToUser(userId, roleId);
+      toast.success('Role assigned successfully');
+      fetchData();
+    } catch {
+      toast.error('Failed to assign role');
+    }
+  };
+
+  const handleRemoveRole = async (roleId: number, userId: number) => {
+    try {
+      await removeRoleFromUser(userId, roleId);
+      toast.success('Role removed');
+      fetchData();
+    } catch {
+      toast.error('Failed to remove role');
+    }
+  };
 
   if (![1, 2, 4].includes(currentUser.accessLevel)) {
     return (
@@ -206,11 +241,11 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
   };
 
   const handleDelete = async (id: number, name: string) => {
-    if (!confirm(`Are you sure you want to deactivate the role "${name}"?`)) return;
+    if (!confirm(`Are you sure you want to permanently delete the role "${name}"? This action cannot be undone.`)) return;
     try {
       const res = await deleteRole(id);
       if (res.success) {
-        toast.success('Role deactivated');
+        toast.success('Role deleted');
         fetchData();
       } else {
         toast.error(res.message || 'Failed to delete role');
@@ -291,6 +326,9 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
                       </div>
                       
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => setAssigningRole(role.id)} title="Assign Members" className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-purple-glow)] hover:bg-[var(--color-bg-secondary)] transition-colors">
+                          <Users size={14} />
+                        </button>
                         <button onClick={() => openModal(role)} className="p-1.5 rounded-lg text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-secondary)] transition-colors">
                           <Edit2 size={14} />
                         </button>
@@ -318,6 +356,82 @@ export default function RoleManagementView({ currentUser }: { currentUser: User 
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Assign Members Modal */}
+      {assigningRole !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col overflow-hidden">
+            <div className="px-6 py-4 border-b border-[var(--color-border)] flex items-center justify-between bg-[var(--color-bg-secondary)]">
+              <div className="flex items-center gap-3">
+                <Users size={18} className="text-[var(--color-purple-glow)]" />
+                <div>
+                  <h3 className="font-bold text-base text-[var(--color-text-primary)]">Assign Members</h3>
+                  <p className="text-[11px] text-[var(--color-text-muted)] font-medium">
+                    {roles.find(r => r.id === assigningRole)?.role_name}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setAssigningRole(null)} className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors p-1">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {loadingUsers ? (
+                <div className="flex items-center justify-center py-12 gap-2 text-[var(--color-text-muted)]">
+                  <Loader2 size={18} className="animate-spin" />
+                  <span className="text-sm font-medium">Loading team members...</span>
+                </div>
+              ) : assignableUsers.length === 0 ? (
+                <div className="text-center py-12 text-[var(--color-text-muted)]">
+                  <UserCircle2 size={36} className="mx-auto mb-3 opacity-40" />
+                  <p className="text-sm font-medium">No assignable team members found.</p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {assignableUsers.map((user: any) => {
+                    const hasRole = Array.isArray(user.roles) && user.roles.some((r: any) => r.id === assigningRole);
+                    return (
+                      <div key={user.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)] transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[var(--color-purple-glow)]/20 border border-[var(--color-purple-glow)]/30 flex items-center justify-center text-sm font-bold text-[var(--color-purple-glow)]">
+                            {(user.full_name || user.name || '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="text-[13px] font-bold text-[var(--color-text-primary)]">{user.full_name || user.name}</div>
+                            <div className="text-[11px] font-medium text-[var(--color-text-muted)]">{user.email}</div>
+                          </div>
+                        </div>
+                        {hasRole ? (
+                          <button
+                            onClick={() => handleRemoveRole(assigningRole, user.id)}
+                            className="px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 text-[12px] font-bold transition-colors"
+                          >
+                            Remove
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleAssignRole(assigningRole, user.id)}
+                            className="px-3 py-1.5 rounded-lg border border-[var(--color-purple-glow)]/30 bg-[var(--color-purple-glow)]/10 text-[var(--color-purple-glow)] hover:bg-[var(--color-purple-glow)]/20 text-[12px] font-bold transition-colors"
+                          >
+                            Assign
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-[var(--color-border)] flex justify-end bg-[var(--color-bg-secondary)]">
+              <button onClick={() => setAssigningRole(null)} className="px-5 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-text-secondary)] text-[13px] font-bold transition-colors hover:bg-[var(--color-bg-secondary)]">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

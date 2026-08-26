@@ -79,11 +79,12 @@ class MainLayoutScreen extends ConsumerWidget {
                 selectedIcon: Icon(LucideIcons.briefcase,
                     color: NebulaColors.primary),
                 label: 'Workspace'),
-            NavigationDestination(
-                icon: _NotificationIcon(count: unreadCount, selected: false),
+            const NavigationDestination(
+                icon: Icon(LucideIcons.user,
+                    color: NebulaColors.textSecondary),
                 selectedIcon:
-                    _NotificationIcon(count: unreadCount, selected: true),
-                label: 'Alerts'),
+                    Icon(LucideIcons.user, color: NebulaColors.primary),
+                label: 'Profile'),
           ],
         ),
       ),
@@ -332,7 +333,7 @@ class _DGOSDrawer extends ConsumerWidget {
                   _DrawerTile(
                       title: 'Calendar',
                       icon: LucideIcons.calendar,
-                      onTap: () {}),
+                      onTap: () => context.push('/calendar')),
 
                 _buildSectionHeader('Execution'),
                 if (_canSee('tasks'))
@@ -349,12 +350,17 @@ class _DGOSDrawer extends ConsumerWidget {
                   _DrawerTile(
                       title: 'Approvals',
                       icon: LucideIcons.clipboardCheck,
-                      onTap: () {}),
+                      onTap: () => context.push('/approvals')),
                 if (_canSee('timesheets'))
                   _DrawerTile(
                       title: 'Timesheets',
                       icon: LucideIcons.clock,
                       onTap: () {}),
+                if (user.accessLevel == 9)
+                  _DrawerTile(
+                      title: 'Client Portal',
+                      icon: LucideIcons.globe,
+                      onTap: () => context.push('/client-portal')),
 
                 _buildSectionHeader('Knowledge'),
                 if (_canSee('learning hub'))
@@ -429,7 +435,7 @@ class _DGOSDrawer extends ConsumerWidget {
                   _DrawerTile(
                       title: 'Settings',
                       icon: LucideIcons.settings,
-                      onTap: () {}),
+                      onTap: () => context.push('/settings')),
                 if (_canSee('help'))
                   _DrawerTile(
                       title: 'Help',

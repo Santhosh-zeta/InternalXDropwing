@@ -105,7 +105,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
   const formatCurrency = (num: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
 
   return (
-    <div className="fade-in">
+    <div>
       <div style={{ marginBottom: 32 }}>
         <h2 style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-text-primary)' }}>
           {isExecutive ? 'Timesheets & Approvals' : 'My Timesheets'}
@@ -117,16 +117,16 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
 
       {isExecutive && financials && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 16, marginBottom: 32 }}>
-          <div className="glass" style={{ padding: 24, borderRadius: 16, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(16,185,129,0.15) 100%)' }}>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10" style={{ padding: 24, borderRadius: 16, border: '1px solid rgba(16,185,129,0.3)', background: 'linear-gradient(135deg, rgba(16,185,129,0.05) 0%, rgba(16,185,129,0.15) 100%)' }}>
             <div style={{ fontSize: 12, color: '#10b981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Total Billable Hours</div>
             <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--color-text-primary)' }}>{financials.global.totalHours.toFixed(1)}h</div>
           </div>
-          <div className="glass" style={{ padding: 24, borderRadius: 16, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(135deg, rgba(139,92,246,0.05) 0%, rgba(139,92,246,0.15) 100%)' }}>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10" style={{ padding: 24, borderRadius: 16, border: '1px solid rgba(139,92,246,0.3)', background: 'linear-gradient(135deg, rgba(139,92,246,0.05) 0%, rgba(139,92,246,0.15) 100%)' }}>
             <div style={{ fontSize: 12, color: '#8b5cf6', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Total Labor Cost</div>
             <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--color-text-primary)' }}>{formatCurrency(financials.global.totalCost)}</div>
           </div>
           {financials.byVenture.map(v => (
-            <div key={v.name} className="glass" style={{ padding: 24, borderRadius: 16, border: '1px solid var(--color-border)' }}>
+            <div key={v.name} className="bg-white/5 backdrop-blur-sm border border-white/10" style={{ padding: 24, borderRadius: 16, border: '1px solid var(--color-border)' }}>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>{v.name}</div>
               <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--color-text-primary)' }}>{formatCurrency(v.cost)}</div>
               <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>{v.hours.toFixed(1)} hours</div>
@@ -139,7 +139,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
         
         {/* Log Hours Form (Left side for staff) */}
         {!isExecutive && (
-          <div className="glass" style={{ padding: 24, borderRadius: 16, border: '1px solid var(--color-border)', width: 320, flexShrink: 0, position: 'sticky', top: 24 }}>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10" style={{ padding: 24, borderRadius: 16, border: '1px solid var(--color-border)', width: 320, flexShrink: 0, position: 'sticky', top: 24 }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)', marginBottom: 20 }}>Log Activity</h3>
             <form onSubmit={handleLogHours} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
@@ -194,7 +194,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
 
         {/* Timesheets List */}
         <div style={{ flex: 1, width: '100%' }}>
-          <div className="glass" style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
+          <div className="bg-white/5 backdrop-blur-sm border border-white/10" style={{ borderRadius: 16, overflow: 'hidden', border: '1px solid var(--color-border)' }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-border)', background: 'var(--color-bg-secondary)' }}>
               <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--color-text-primary)' }}>
                 {isExecutive ? 'Recent Timesheets' : 'Your History'}
@@ -202,7 +202,12 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
             </div>
             
             {loading ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'var(--color-text-muted)' }}>Loading records...</div>
+              <div style={{ padding: 40, textAlign: 'center' }}>
+                <div className="flex items-center justify-center gap-2 text-gray-400">
+                  <div className="w-4 h-4 border-2 border-gray-600 border-t-gray-300 rounded-full animate-spin" />
+                  <span>Loading records...</span>
+                </div>
+              </div>
             ) : timesheets.length === 0 ? (
               <div style={{ padding: 60, textAlign: 'center', color: 'var(--color-text-muted)' }}>
                 <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>⏱️</div>
@@ -223,7 +228,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
                 </thead>
                 <tbody>
                   {timesheets.map(t => (
-                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }} className="hover-bg-tertiary">
+                    <tr key={t.id} style={{ borderBottom: '1px solid var(--color-border)', transition: 'background 0.2s' }} className="hover:bg-white/5">
                       <td style={{ padding: '16px', fontSize: 13, color: 'var(--color-text-primary)' }}>
                         {new Date(t.activity_date).toLocaleDateString()}
                       </td>

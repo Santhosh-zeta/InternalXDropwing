@@ -117,10 +117,27 @@ const http = require('http');
 const { Server } = require('socket.io');
 const server = http.createServer(app);
 
+const jwt = require('jsonwebtoken');
+const { pgPool } = require('./config/database.pg');
+
 const io = new Server(server, {
   cors: {
     origin: process.env.FRONTEND_URL || 'http://localhost:3000',
     credentials: true,
+  }
+});
+
+// JWT authentication middleware for Socket.IO
+io.use((socket, next) => {
+  try {
+    const token = socket.handshake.auth?.token ||
+                  socket.handshake.headers?.authorization?.replace('Bearer ', '');
+    if (!token) return next(new Error('Authentication required'));
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.user = decoded;
+    next();
+  } catch (err) {
+    next(new Error('Invalid token'));
   }
 });
 
@@ -129,16 +146,29 @@ io.on('connection', (socket) => {
     socket.join(channelId);
   });
 
-  socket.on('send_message', (data) => {
+  socket.on('send_message', async (data) => {
+    const senderId = socket.user.id;
+    const payload = { ...data, sender_id: senderId };
+
     // If it's a venture message, send to the venture room
     if (data.ventureId) {
       const room = data.ventureId === 'global' ? 'global' : `venture_${data.ventureId}`;
-      io.to(room).emit('receive_message', data);
-    } 
+      io.to(room).emit('receive_message', payload);
+    }
     // If it's a DM, send to both the sender and receiver's rooms
     else if (data.receiverId) {
-      io.to(`dm_${data.receiverId}`).emit('receive_message', data);
-      io.to(`dm_${data.sender_id}`).emit('receive_message', data);
+      io.to(`dm_${data.receiverId}`).emit('receive_message', payload);
+      io.to(`dm_${senderId}`).emit('receive_message', payload);
+    }
+
+    // Persist message to database
+    try {
+      await pgPool.query(
+        'INSERT INTO messages (sender_id, content, venture_id, receiver_id, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)',
+        [senderId, data.content, data.ventureId || null, data.receiverId || null]
+      );
+    } catch (dbErr) {
+      console.error('Failed to persist message:', dbErr.message);
     }
   });
 
