@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Database, Zap, Table, Loader2, AlertCircle } from 'lucide-react';
+import { Button, EmptyState, useConfirm } from '@/components/ui';
 
 export default function DatabaseView() {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<'tables' | 'query'>('tables');
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
@@ -43,8 +45,19 @@ export default function DatabaseView() {
     finally { setLoadingTableData(false); }
   };
 
+  const DESTRUCTIVE_RE = /\b(DROP|DELETE|TRUNCATE|ALTER|UPDATE)\b/i;
+
   const runQuery = async () => {
     if (!query.trim()) return;
+    if (DESTRUCTIVE_RE.test(query)) {
+      const ok = await confirm({
+        title: 'Run destructive query?',
+        description: 'This SQL may modify or permanently delete data. This action cannot be undone.',
+        confirmLabel: 'Run anyway',
+        tone: 'danger',
+      });
+      if (!ok) return;
+    }
     setLoadingQuery(true); setQueryError(null); setQueryResult(null);
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/database/query`, {
@@ -63,13 +76,14 @@ export default function DatabaseView() {
     { id: 'query' as const, label: 'SQL Console', icon: <Zap size={15} /> },
   ];
 
-  const TableGrid = ({ columns, rows }: { columns: any[]; rows: any[] }) => (
-    <div className="overflow-auto">
+  const TableGrid = ({ columns, rows, caption }: { columns: any[]; rows: any[]; caption: string }) => (
+    <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left text-[13px]">
+        <caption className="sr-only">{caption}</caption>
         <thead>
           <tr className="bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
             {columns.map(c => (
-              <th key={c.Field || c} className="px-4 py-3 font-bold text-[var(--color-text-primary)] whitespace-nowrap">
+              <th key={c.Field || c} scope="col" className="px-4 py-3 font-bold text-[var(--color-text-primary)] whitespace-nowrap">
                 {c.Field || c}
                 {c.Type && <span className="text-[11px] font-normal text-[var(--color-text-muted)] ml-1.5">({c.Type})</span>}
               </th>
@@ -133,7 +147,15 @@ export default function DatabaseView() {
           {/* Table Data */}
           <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl flex-1 flex flex-col shadow-sm h-full overflow-hidden">
             {!selectedTable
-              ? <div className="flex-1 flex items-center justify-center text-[var(--color-text-muted)] font-medium text-sm"><Database size={36} className="mr-3 opacity-40" /> Select a table from the sidebar</div>
+              ? (
+                <div className="flex flex-1 items-center justify-center p-10">
+                  <EmptyState
+                    icon={<Database size={24} />}
+                    title="No table selected"
+                    description="Choose a table from the sidebar to browse its rows and schema."
+                  />
+                </div>
+              )
               : <>
                 <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] flex justify-between items-center">
                   <h3 className="font-bold text-[15px] text-[var(--color-text-primary)] flex items-center gap-2"><Table size={15} className="text-[var(--color-purple-glow)]" /> {selectedTable}</h3>
@@ -143,7 +165,7 @@ export default function DatabaseView() {
                   {loadingTableData
                     ? <div className="flex-1 flex items-center justify-center py-16"><Loader2 className="animate-spin text-[var(--color-purple-glow)]" size={28} /></div>
                     : tableData
-                      ? <TableGrid columns={tableData.columns} rows={tableData.rows} />
+                      ? <TableGrid columns={tableData.columns} rows={tableData.rows} caption={`${selectedTable} table data, ${tableData.totalCount.toLocaleString()} rows`} />
                       : <p className="p-6 text-[var(--color-text-muted)] font-medium">Failed to load data.</p>
                   }
                 </div>
@@ -170,14 +192,14 @@ export default function DatabaseView() {
               onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') runQuery(); }}
             />
             <button onClick={runQuery} disabled={loadingQuery || !query.trim()}
-              className="absolute bottom-3 right-3 px-4 py-1.5 rounded-xl bg-[var(--color-purple-glow)] hover:bg-[#7c3aed] text-white text-[12px] font-bold transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
+              className="absolute bottom-3 right-3 px-4 py-1.5 rounded-xl bg-[var(--color-purple-glow)] hover:opacity-90 text-white text-[12px] font-bold transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm">
               {loadingQuery ? <Loader2 size={13} className="animate-spin" /> : <Zap size={13} />}
               {loadingQuery ? 'Running...' : 'Run  ⌘↵'}
             </button>
           </div>
 
           {queryError && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-rose-500/10 border border-rose-500/20 text-[13px] font-medium text-rose-500">
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-[var(--color-rose)]/10 border border-[var(--color-rose)]/20 text-[13px] font-medium text-[var(--color-rose)]">
               <AlertCircle size={16} className="mt-0.5 shrink-0" />
               <span><strong>Error:</strong> {queryError}</span>
             </div>
@@ -187,11 +209,19 @@ export default function DatabaseView() {
             <div className="text-[12px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider">Results</div>
             <div className="bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl overflow-auto max-h-[400px]">
               {!queryResult
-                ? <div className="p-10 text-center text-[var(--color-text-muted)] text-[13px] font-medium">Run a query to see output here.</div>
+                ? (
+                  <div className="p-6">
+                    <EmptyState
+                      icon={<Zap size={24} />}
+                      title="No results yet"
+                      description="Run a query above to see output here."
+                    />
+                  </div>
+                )
                 : Array.isArray(queryResult.results)
                   ? (() => {
                     const cols = queryResult.fields?.length ? queryResult.fields : queryResult.results.length > 0 ? Object.keys(queryResult.results[0]) : [];
-                    return <TableGrid columns={cols.map(f => ({ Field: f }))} rows={queryResult.results} />;
+                    return <TableGrid columns={cols.map(f => ({ Field: f }))} rows={queryResult.results} caption="SQL query results" />;
                   })()
                   : <div className="p-5 text-[13px] text-[var(--color-text-secondary)]"><strong className="text-[var(--color-text-primary)]">Query executed.</strong><pre className="mt-3 p-3 bg-[var(--color-bg-primary)] rounded-lg text-[12px] overflow-x-auto">{JSON.stringify(queryResult.results, null, 2)}</pre></div>
               }

@@ -3,8 +3,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
 import { getStrategyData } from '@/lib/api';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend } from 'recharts';
-import { Target, CheckCircle2, Circle, TrendingUp, ShieldAlert, AlertTriangle, Lock, Loader2 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { Target, CheckCircle2, Circle, TrendingUp, ShieldAlert, AlertTriangle, Lock } from 'lucide-react';
+import {
+  Badge, Card, CardHeader, EmptyState, Skeleton, tint,
+} from '@/components/ui';
 
 interface StrategyViewProps {
   currentUser: User;
@@ -20,6 +23,58 @@ const GROWTH_DATA = [
   { quarter: 'Q3', target: 650, actual: 680 },
   { quarter: 'Q4', target: 800, actual: null },
 ];
+
+/** Skeleton shaped like the OKR list and the two chart panels side by side. */
+function StrategySkeleton() {
+  return (
+    <div className="flex flex-col gap-6" role="status" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading strategic data…</span>
+      <div>
+        <Skeleton height={28} width="40%" />
+        <Skeleton height={14} width="60%" className="mt-2" />
+      </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-5">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Card key={i}>
+              <Skeleton height={12} width="30%" />
+              <Skeleton height={18} width="80%" className="mt-2" />
+              <Skeleton height={8} className="mt-4 rounded-full" />
+              <div className="mt-3 flex flex-col gap-2">
+                <Skeleton height={12} width="90%" />
+                <Skeleton height={12} width="75%" />
+              </div>
+            </Card>
+          ))}
+        </div>
+        <div className="flex flex-col gap-6">
+          <Card>
+            <Skeleton height={14} width="60%" />
+            <Skeleton height={240} className="mt-5 rounded-[var(--radius-card)]" />
+          </Card>
+          <Card>
+            <Skeleton height={14} width="50%" />
+            <Skeleton height={60} className="mt-3 rounded-[var(--radius-card)]" />
+            <Skeleton height={60} className="mt-3 rounded-[var(--radius-card)]" />
+            <Skeleton height={60} className="mt-3 rounded-[var(--radius-card)]" />
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function riskColor(severity: string): string {
+  if (severity === 'HIGH' || severity === 'CRITICAL') return 'var(--color-rose)';
+  if (severity === 'MEDIUM') return 'var(--color-amber)';
+  return 'var(--color-emerald)';
+}
+
+function riskTone(severity: string): 'danger' | 'warning' | 'success' {
+  if (severity === 'HIGH' || severity === 'CRITICAL') return 'danger';
+  if (severity === 'MEDIUM') return 'warning';
+  return 'success';
+}
 
 export default function StrategyView({ currentUser }: StrategyViewProps) {
   const [okrs, setOkrs] = useState<any[]>([]);
@@ -49,23 +104,31 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
 
   if (currentUser.accessLevel > 2) {
     return (
-      <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-16 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-4">
-          <Lock size={28} className="text-rose-500" />
+      <div
+        className="rounded-2xl border border-dashed p-16 text-center"
+        style={{ background: 'var(--color-bg-card)', borderColor: tint('var(--color-rose)', 20) }}
+      >
+        <div
+          aria-hidden="true"
+          className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border"
+          style={{
+            background: tint('var(--color-rose)', 10),
+            borderColor: tint('var(--color-rose)', 20),
+            color: 'var(--color-rose)',
+          }}
+        >
+          <Lock size={28} />
         </div>
-        <h3 className="text-base font-bold text-[var(--color-text-primary)] mb-2">Access Denied</h3>
-        <p className="text-[var(--color-text-secondary)] text-sm font-medium">This view is restricted to Managing Directors (L2) and Super Admins.</p>
+        <h3 className="mb-2 text-base font-bold text-[var(--color-text-primary)]">Access Denied</h3>
+        <p className="text-sm font-medium text-[var(--color-text-secondary)]">
+          This view is restricted to Managing Directors (L2) and Super Admins.
+        </p>
       </div>
     );
   }
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
-        <p className="text-[var(--color-text-muted)] font-medium text-sm">Synchronizing strategic directives...</p>
-      </div>
-    );
+    return <StrategySkeleton />;
   }
 
   return (
@@ -73,39 +136,57 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
       {/* Header */}
       <div>
         <h2 className="text-2xl font-black text-[var(--color-text-primary)]">Corporate Strategy &amp; OKRs</h2>
-        <p className="text-[var(--color-text-secondary)] text-sm font-medium mt-1">
+        <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">
           High-level objectives, key results, and growth targets across all Dropwing ventures.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* OKRs Section */}
         <div className="flex flex-col gap-5">
           <div className="flex items-center gap-2">
-            <Target size={18} className="text-[var(--color-purple-glow)]" />
+            <Target size={18} aria-hidden="true" style={{ color: 'var(--color-purple-glow)' }} />
             <h3 className="text-base font-bold text-[var(--color-text-primary)]">Active Objectives (OKRs)</h3>
           </div>
 
           {okrs.length === 0 ? (
-            <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-10 text-center text-[var(--color-text-muted)] text-sm">
-              No objectives defined yet.
-            </div>
+            <EmptyState
+              icon={<Target size={20} />}
+              title="No objectives defined yet"
+              description="Add OKRs to your ventures and they will be tracked here."
+            />
           ) : (
             okrs.map(okr => (
               <div
                 key={okr.id}
-                className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-5 shadow-sm"
+                className="rounded-2xl border bg-[var(--color-bg-card)] p-5 shadow-sm"
                 style={{ borderLeftWidth: '4px', borderLeftColor: okr.color }}
               >
-                <div className="flex justify-between items-start mb-4">
+                <div className="mb-4 flex items-start justify-between">
                   <div>
-                    <div className="text-[11px] font-bold tracking-widest uppercase mb-1" style={{ color: okr.color }}>{okr.venture_name}</div>
-                    <div className="text-base font-bold text-[var(--color-text-primary)] leading-snug">{okr.objective}</div>
+                    <div
+                      className="mb-1 text-[11px] font-bold uppercase tracking-widest"
+                      style={{ color: okr.color }}
+                    >
+                      {okr.venture_name}
+                    </div>
+                    <div className="text-base font-bold leading-snug text-[var(--color-text-primary)]">
+                      {okr.objective}
+                    </div>
                   </div>
-                  <div className="text-xl font-black ml-4 shrink-0" style={{ color: okr.color }}>{okr.progress}%</div>
+                  <div className="ml-4 shrink-0 text-xl font-black" style={{ color: okr.color }}>
+                    {okr.progress}%
+                  </div>
                 </div>
 
-                <div className="h-2 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] overflow-hidden mb-4">
+                <div
+                  role="progressbar"
+                  aria-label={`${okr.objective} progress`}
+                  aria-valuenow={okr.progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="mb-4 h-2 overflow-hidden rounded-full border border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
+                >
                   <div
                     className="h-full rounded-full transition-all duration-700"
                     style={{ width: `${okr.progress}%`, background: okr.color }}
@@ -116,12 +197,15 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
                   {(okr.keyResults || []).map((kr: any, i: number) => (
                     <div key={i} className="flex items-start gap-2.5">
                       {kr.done
-                        ? <CheckCircle2 size={15} className="text-emerald-500 mt-0.5 shrink-0" />
-                        : <Circle size={15} className="text-[var(--color-text-muted)] mt-0.5 shrink-0" />
+                        ? <CheckCircle2 size={15} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: 'var(--color-emerald)' }} />
+                        : <Circle size={15} aria-hidden="true" className="mt-0.5 shrink-0 text-[var(--color-text-muted)]" />
                       }
-                      <span className={`text-[13px] font-medium leading-snug ${kr.done ? 'line-through text-[var(--color-text-muted)]' : 'text-[var(--color-text-primary)]'}`}>
+                      <span className={`flex-1 text-[13px] font-medium leading-snug ${kr.done ? 'line-through text-[var(--color-text-muted)]' : 'text-[var(--color-text-primary)]'}`}>
                         {kr.text}
                       </span>
+                      <Badge tone={kr.done ? 'success' : 'neutral'} dot>
+                        {kr.done ? 'Done' : 'Open'}
+                      </Badge>
                     </div>
                   ))}
                 </div>
@@ -133,50 +217,60 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
         {/* Charts & Metrics */}
         <div className="flex flex-col gap-6">
           {/* Revenue Growth Chart */}
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <TrendingUp size={16} className="text-emerald-500" />
-              <h3 className="text-[14px] font-bold text-[var(--color-text-primary)]">Projected vs Actual Revenue Growth ($M)</h3>
-            </div>
-            <div className="h-[240px]">
+          <Card>
+            <CardHeader
+              title="Projected vs Actual Revenue Growth ($M)"
+              description="Quarterly targets versus actuals across all ventures."
+            />
+            <div
+              className="h-[240px]"
+              role="img"
+              aria-label="Line chart comparing projected and actual revenue growth by quarter: Q1 target $400M actual $420M, Q2 target $500M actual $480M, Q3 target $650M actual $680M, Q4 target $800M projected only."
+            >
               <ResponsiveContainer width="100%" height="100%" minHeight={240} minWidth={0}>
                 <LineChart data={GROWTH_DATA}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
                   <XAxis dataKey="quarter" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
                   <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={val => `$${val}`} />
                   <Tooltip contentStyle={CHART_STYLE.contentStyle} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
                   <Line type="monotone" dataKey="target" name="Target" stroke="var(--color-text-muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                  <Line type="monotone" dataKey="actual" name="Actual" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981' }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="actual" name="Actual" stroke="var(--color-emerald)" strokeWidth={3} dot={{ r: 4, fill: 'var(--color-emerald)' }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
+          </Card>
 
           {/* Strategic Risks */}
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-5">
-              <ShieldAlert size={16} className="text-[var(--color-purple-glow)]" />
-              <h3 className="text-[14px] font-bold text-[var(--color-text-primary)]">High-Level Risks &amp; Mitigations</h3>
-            </div>
+          <Card>
+            <CardHeader
+              title="High-Level Risks & Mitigations"
+              description="Identified risks tracked across all ventures."
+            />
             <div className="flex flex-col gap-3">
               {risks.length === 0 ? (
-                <div className="text-[var(--color-text-muted)] text-[12px] text-center py-4">No critical risks identified.</div>
+                <EmptyState
+                  icon={<ShieldAlert size={20} />}
+                  title="No critical risks identified"
+                  description="Strategic risks and their mitigations will appear here once logged."
+                />
               ) : (
                 risks.map(risk => {
-                  const isHigh = risk.severity === 'HIGH' || risk.severity === 'CRITICAL';
-                  const colorClass = isHigh ? 'rose' : risk.severity === 'MEDIUM' ? 'amber' : 'emerald';
-                  const hex = isHigh ? '#f43f5e' : risk.severity === 'MEDIUM' ? '#f59e0b' : '#10b981';
-
+                  const c = riskColor(risk.severity);
                   return (
-                    <div key={risk.id} className={`p-4 rounded-xl border`} style={{ background: `${hex}10`, borderColor: `${hex}30` }}>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-[13px] font-bold flex items-center gap-2" style={{ color: hex }}>
-                          <AlertTriangle size={13} /> {risk.risk_name} {risk.venture_name ? `(${risk.venture_name})` : ''}
+                    <div
+                      key={risk.id}
+                      className="rounded-xl border p-4"
+                      style={{ background: tint(c, 8), borderColor: tint(c, 20) }}
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="flex items-center gap-2 text-[13px] font-bold" style={{ color: c }}>
+                          <AlertTriangle size={13} aria-hidden="true" />
+                          {risk.risk_name}{risk.venture_name ? ` (${risk.venture_name})` : ''}
                         </span>
-                        <span className="text-[10px] font-black tracking-widest" style={{ color: hex }}>{risk.severity}</span>
+                        <Badge tone={riskTone(risk.severity)} dot>{risk.severity}</Badge>
                       </div>
-                      <p className="text-[12px] font-medium text-[var(--color-text-secondary)] leading-relaxed">
+                      <p className="text-[12px] font-medium leading-relaxed text-[var(--color-text-secondary)]">
                         Mitigation: {risk.mitigation}
                       </p>
                     </div>
@@ -184,7 +278,7 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
                 })
               )}
             </div>
-          </div>
+          </Card>
         </div>
       </div>
     </div>

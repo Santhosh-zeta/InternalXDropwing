@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { getNotifications, markNotificationRead, markAllNotificationsRead, clearReadNotifications } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { 
-  Bell, BellRing, CheckCircle2, AlertCircle, MessageSquare, 
-  Clock, Info, X, Trash2, Check, RefreshCw, Inbox
+import { tint } from '@/components/ui';
+import {
+  Bell, BellRing, CheckCircle2, MessageSquare,
+  Clock, Info, Trash2, Check, RefreshCw, Inbox
 } from 'lucide-react';
 
 interface Notification {
@@ -19,12 +20,12 @@ interface Notification {
 }
 
 const TYPE_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
-  task_assigned: { icon: CheckCircle2, color: '#10b981' },
-  task_updated:  { icon: RefreshCw, color: '#06b6d4' },
-  project_update:{ icon: Inbox, color: '#8b5cf6' },
-  mention:       { icon: MessageSquare, color: '#f59e0b' },
-  deadline:      { icon: Clock, color: '#f43f5e' },
-  system:        { icon: Info, color: '#6366f1' },
+  task_assigned: { icon: CheckCircle2, color: 'var(--color-emerald)' },
+  task_updated:  { icon: RefreshCw,    color: 'var(--color-cyan)' },
+  project_update:{ icon: Inbox,        color: 'var(--color-purple-glow)' },
+  mention:       { icon: MessageSquare,color: 'var(--color-amber)' },
+  deadline:      { icon: Clock,        color: 'var(--color-rose)' },
+  system:        { icon: Info,         color: 'var(--color-purple-light)' },
 };
 
 function timeAgo(dateStr: string): string {
@@ -41,7 +42,7 @@ interface NotificationBellProps {
   color?: string;
 }
 
-export default function NotificationBell({ color = '#8b5cf6' }: NotificationBellProps) {
+export default function NotificationBell({ color = 'var(--color-purple-glow)' }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unread, setUnread] = useState(0);
@@ -72,13 +73,22 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
   }, [load]);
 
   useEffect(() => {
-    const handler = (e: MouseEvent) => {
+    const handleMouse = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setOpen(false);
       }
     };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    if (open) {
+      document.addEventListener('mousedown', handleMouse);
+      document.addEventListener('keydown', handleKey);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleMouse);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, [open]);
 
   const handleRead = async (id: number) => {
@@ -110,11 +120,14 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
     <div style={{ position: 'relative' }} ref={panelRef}>
       <button
         id="btn-notifications"
+        aria-label={unread > 0 ? `${unread} unread notification${unread === 1 ? '' : 's'}` : 'Notifications'}
+        aria-expanded={open}
+        aria-haspopup="dialog"
         onClick={() => setOpen(o => !o)}
         className="relative group flex items-center justify-center w-10 h-10 rounded-xl transition-all duration-200 border"
         style={{
-          borderColor: open ? `${color}40` : 'var(--color-border)',
-          background: open ? `${color}10` : 'var(--color-bg-secondary)',
+          borderColor: open ? tint(color, 25) : 'var(--color-border)',
+          background: open ? tint(color, 8) : 'var(--color-bg-secondary)',
           color: open ? color : 'var(--color-text-muted)',
         }}
       >
@@ -123,16 +136,24 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
         ) : (
           <Bell size={20} strokeWidth={open ? 2.5 : 2} className="group-hover:text-[var(--color-text-primary)]" />
         )}
-        
+
         {unread > 0 && (
-          <div className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 border-2 border-[var(--color-bg-primary)] text-[10px] font-bold text-white shadow-sm animate-in zoom-in duration-300">
+          <div
+            aria-hidden="true"
+            className="absolute -top-1.5 -right-1.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full border-2 border-[var(--color-bg-primary)] text-[10px] font-bold text-white shadow-sm animate-in zoom-in duration-300"
+            style={{ background: 'var(--color-rose)' }}
+          >
             {unread > 9 ? '9+' : unread}
           </div>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-12 w-[380px] max-h-[520px] flex flex-col bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-2xl z-[1000] overflow-hidden shadow-2xl animate-in slide-in-from-top-2 duration-200">
+        <div
+          role="dialog"
+          aria-label="Notifications"
+          className="absolute right-0 top-12 w-[380px] max-h-[520px] flex flex-col bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-2xl z-[1000] overflow-hidden shadow-2xl animate-in slide-in-from-top-2 duration-200"
+        >
           
           <div className="p-4 border-b border-[var(--color-border)] flex items-center justify-between shrink-0 bg-[var(--color-bg-card)]/50">
             <div>
@@ -151,10 +172,14 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
                   <Check size={14} />
                 </button>
               )}
-              <button 
+              <button
                 onClick={handleClear}
-                className="p-1.5 rounded-lg hover:bg-rose-500/10 text-[var(--color-text-muted)] hover:text-rose-500 transition-colors"
+                className="p-1.5 rounded-lg transition-colors text-[var(--color-text-muted)]"
+                style={{ '--hover-bg': tint('var(--color-rose)', 10) } as React.CSSProperties}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = tint('var(--color-rose)', 10); (e.currentTarget as HTMLElement).style.color = 'var(--color-rose)'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; (e.currentTarget as HTMLElement).style.color = ''; }}
                 title="Clear read"
+                aria-label="Clear read notifications"
               >
                 <Trash2 size={14} />
               </button>
@@ -208,12 +233,13 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
                           : 'bg-[var(--color-bg-card)] border border-[var(--color-border)] shadow-sm'
                       }`}
                     >
-                      <div 
+                      <div
+                        aria-hidden="true"
                         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105"
-                        style={{ 
-                          background: `${cfg.color}10`, 
-                          borderColor: `${cfg.color}25`,
-                          color: cfg.color
+                        style={{
+                          background: tint(cfg.color, 8),
+                          borderColor: tint(cfg.color, 20),
+                          color: cfg.color,
                         }}
                       >
                         <Icon size={18} strokeWidth={2.5} />
@@ -234,7 +260,11 @@ export default function NotificationBell({ color = '#8b5cf6' }: NotificationBell
                       </div>
 
                       {!notif.is_read && (
-                        <div className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]" />
+                        <div
+                          aria-hidden="true"
+                          className="absolute top-3 right-3 w-1.5 h-1.5 rounded-full"
+                          style={{ background: 'var(--color-rose)', boxShadow: `0 0 8px ${tint('var(--color-rose)', 50)}` }}
+                        />
                       )}
                     </div>
                   );

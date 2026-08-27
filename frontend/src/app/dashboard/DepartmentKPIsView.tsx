@@ -3,16 +3,26 @@
 import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
 import api from '@/lib/api';
-import { Users, BarChart3, Trophy, Clock, RefreshCw, Loader2 } from 'lucide-react';
+import {
+  Users, BarChart3, Trophy, Clock, RefreshCw,
+  ShieldCheck, Briefcase, GraduationCap,
+} from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts';
+import {
+  Button, Card, CardHeader, StatCard, EmptyState, Skeleton, SkeletonCard, SkeletonTable, cn, tint,
+} from '@/components/ui';
 
 const CHART_STYLE = {
   contentStyle: { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text-primary)', fontSize: 12 },
 };
+
+/** Axis labels follow the theme rather than a fixed slate grey. */
+const AXIS_TICK = { fontSize: 11, fill: 'var(--color-text-muted)' };
+const AXIS_TICK_SM = { fontSize: 10, fill: 'var(--color-text-muted)' };
 
 interface HeadcountRow { venture: string; color: string; slug: string; total: number; leadership: number; staff: number; interns: number; }
 interface DeptRow { department: string; count: number; ventures: string; }
@@ -22,33 +32,95 @@ interface TimesheetRow { venture: string; color: string; avg_hours: number; tota
 interface DeptKPI { department: string; venture: string; color: string; team_size: number; active_projects: number; total_tasks: number; completed_tasks: number; kpi_score: number; }
 interface HRData { headcount: HeadcountRow[]; departments: DeptRow[]; levels: LevelRow[]; performance: PerfRow[]; timesheets: TimesheetRow[]; totals: { total_employees: number; leadership: number; staff: number; interns: number; }; }
 
-const LEVEL_COLORS: Record<number, string> = { 1: '#8b5cf6', 2: '#a78bfa', 3: '#7c3aed', 4: '#06b6d4', 5: '#f59e0b', 6: '#10b981', 7: '#6366f1', 8: '#94a3b8', 9: '#f43f5e' };
+/**
+ * Access-level palette. These are design colours, not venture data, so they
+ * are expressed as tokens and adapt to the light theme. L7 has no dedicated
+ * token, so it is mixed from two that do.
+ */
+const LEVEL_COLORS: Record<number, string> = {
+  1: 'var(--color-purple-glow)',
+  2: 'var(--color-purple-light)',
+  3: 'var(--color-purple-dark)',
+  4: 'var(--color-cyan)',
+  5: 'var(--color-amber)',
+  6: 'var(--color-emerald)',
+  7: 'color-mix(in srgb, var(--color-purple-glow) 60%, var(--color-cyan))',
+  8: 'var(--color-text-secondary)',
+  9: 'var(--color-rose)',
+};
 
 const TABS = [
-  { id: 'headcount' as const, label: 'Headcount', icon: <Users size={15} /> },
-  { id: 'kpis' as const, label: 'Dept KPIs', icon: <BarChart3 size={15} /> },
-  { id: 'performance' as const, label: 'Top Performers', icon: <Trophy size={15} /> },
-  { id: 'timesheets' as const, label: 'Hours & Effort', icon: <Clock size={15} /> },
+  { id: 'headcount' as const, label: 'Headcount', icon: <Users size={15} aria-hidden="true" /> },
+  { id: 'kpis' as const, label: 'Dept KPIs', icon: <BarChart3 size={15} aria-hidden="true" /> },
+  { id: 'performance' as const, label: 'Top Performers', icon: <Trophy size={15} aria-hidden="true" /> },
+  { id: 'timesheets' as const, label: 'Hours & Effort', icon: <Clock size={15} aria-hidden="true" /> },
 ];
 
-function StatCard({ label, value, sub, c }: { label: string; value: string | number; sub?: string; c: string }) {
+function kpiColor(score: number) {
+  return score >= 70 ? 'var(--color-emerald)' : score >= 40 ? 'var(--color-amber)' : 'var(--color-rose)';
+}
+
+/** Renders a chart series as a sentence for screen readers. */
+function describeSeries(
+  rows: any[],
+  labelKey: string,
+  valueKey: string,
+  format?: (value: any) => string,
+): string {
+  return rows
+    .map((row) => `${row?.[labelKey] ?? 'Unknown'} ${format ? format(row?.[valueKey]) : row?.[valueKey] ?? 0}`)
+    .join(', ');
+}
+
+/** Skeleton shaped like the tile row plus the two headcount panels. */
+function KPISkeleton() {
   return (
-    <div className="rounded-2xl p-5 border shadow-sm" style={{ background: `${c}10`, borderColor: `${c}25` }}>
-      <div className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">{label}</div>
-      <div className="text-3xl font-black leading-none" style={{ color: c }}>{value}</div>
-      {sub && <div className="text-[11px] font-medium text-[var(--color-text-muted)] mt-2">{sub}</div>}
+    <div className="flex flex-col gap-6" role="status" aria-busy="true" aria-live="polite">
+      <span className="sr-only">Loading HR data…</span>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <SkeletonCard key={i} />
+        ))}
+      </div>
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {Array.from({ length: 2 }, (_, i) => (
+          <Card key={i}>
+            <Skeleton height={14} width="45%" />
+            <Skeleton height={10} width="60%" className="mt-2" />
+            <Skeleton height={180} className="mt-5 rounded-[var(--radius-card)]" />
+          </Card>
+        ))}
+      </div>
+      <SkeletonTable rows={4} columns={5} />
     </div>
   );
 }
 
-function kpiColor(score: number) { return score >= 70 ? '#10b981' : score >= 40 ? '#f59e0b' : '#f43f5e'; }
+/**
+ * Gold / silver / bronze, derived from tokens so the ranks stay legible
+ * in the light theme instead of being fixed dark-theme hexes.
+ */
+const RANK_STYLES = [
+  {
+    bg: 'linear-gradient(135deg, color-mix(in srgb, var(--color-amber) 70%, white), var(--color-amber))',
+    label: '1st',
+  },
+  {
+    bg: 'linear-gradient(135deg, var(--color-text-secondary), var(--color-text-muted))',
+    label: '2nd',
+  },
+  {
+    bg: 'linear-gradient(135deg, color-mix(in srgb, var(--color-amber) 55%, var(--color-rose)), color-mix(in srgb, var(--color-amber) 45%, black))',
+    label: '3rd',
+  },
+];
 
 export default function DepartmentKPIsView({ currentUser }: { currentUser: User }) {
   const [tab, setTab] = useState<'headcount' | 'kpis' | 'performance' | 'timesheets'>('headcount');
   const [hrData, setHrData] = useState<HRData | null>(null);
   const [kpiData, setKpiData] = useState<DeptKPI[]>([]);
   const [loading, setLoading] = useState(true);
-  const color = currentUser.accessLevel === 2 ? '#a78bfa' : '#06b6d4';
+  const color = currentUser.accessLevel === 2 ? 'var(--color-purple-light)' : 'var(--color-cyan)';
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -68,172 +140,265 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
   const performance = hrData?.performance || [];
   const timesheets = hrData?.timesheets || [];
   const levels = hrData?.levels || [];
+  const activeLevels = levels.filter(l => l.count > 0);
+  const maxDeptCount = departments[0]?.count || 1;
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" />
-        <p className="text-[var(--color-text-muted)] font-medium text-sm">Loading HR data...</p>
-      </div>
-    );
+    return <KPISkeleton />;
   }
-
-  const RANK_STYLES = [
-    { bg: 'linear-gradient(135deg,#fbbf24,#f59e0b)', label: '1st' },
-    { bg: 'linear-gradient(135deg,#94a3b8,#64748b)', label: '2nd' },
-    { bg: 'linear-gradient(135deg,#cd7c2f,#92400e)', label: '3rd' },
-  ];
 
   return (
     <div className="flex flex-col gap-6 pb-10">
       {/* Controls */}
-      <div className="flex justify-between items-center flex-wrap gap-3">
-        <div className="flex gap-2 bg-[var(--color-bg-secondary)] p-1.5 rounded-xl border border-[var(--color-border)]">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div
+          role="group"
+          aria-label="HR report section"
+          className="flex gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-1.5"
+        >
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-4 py-2 rounded-lg text-[13px] font-bold flex items-center gap-2 transition-all border ${tab === t.id ? 'bg-[var(--color-bg-card)] border-[var(--color-border)] shadow-sm' : 'text-[var(--color-text-muted)] border-transparent hover:text-[var(--color-text-primary)]'}`}
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              aria-pressed={tab === t.id}
+              className={cn(
+                'flex items-center gap-2 rounded-[var(--radius-control)] border px-4 py-2 text-[13px] font-bold transition-all',
+                tab === t.id
+                  ? 'border-[var(--color-border)] bg-[var(--color-bg-card)] shadow-sm'
+                  : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]',
+              )}
               style={tab === t.id ? { color } : {}}
             >{t.icon} {t.label}</button>
           ))}
         </div>
-        <button onClick={fetchData} className="px-4 py-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-card)] hover:bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] text-[13px] font-bold flex items-center gap-2 transition-colors">
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <Button
+          variant="secondary"
+          onClick={fetchData}
+          loading={loading}
+          leadingIcon={<RefreshCw size={14} aria-hidden="true" />}
+        >
+          Refresh
+        </Button>
       </div>
 
       {/* KPI Summary */}
       {totals && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Total Employees" value={totals.total_employees} sub="Active headcount" c={color} />
-          <StatCard label="Leadership" value={totals.leadership} sub="L1–L4 across ventures" c="#8b5cf6" />
-          <StatCard label="Staff" value={totals.staff} sub="L5–L7 employees" c="#10b981" />
-          <StatCard label="Interns" value={totals.interns} sub="L8 trainees" c="#f59e0b" />
+          <StatCard
+            label="Total Employees"
+            value={totals.total_employees}
+            accent={color}
+            icon={<Users size={18} />}
+            delta={{ value: 'Active headcount', direction: 'flat' }}
+          />
+          <StatCard
+            label="Leadership"
+            value={totals.leadership}
+            accent="var(--color-purple-glow)"
+            icon={<ShieldCheck size={18} />}
+            delta={{ value: 'L1–L4 across ventures', direction: 'flat' }}
+          />
+          <StatCard
+            label="Staff"
+            value={totals.staff}
+            accent="var(--color-emerald)"
+            icon={<Briefcase size={18} />}
+            delta={{ value: 'L5–L7 employees', direction: 'flat' }}
+          />
+          <StatCard
+            label="Interns"
+            value={totals.interns}
+            accent="var(--color-amber)"
+            icon={<GraduationCap size={18} />}
+            delta={{ value: 'L8 trainees', direction: 'flat' }}
+          />
         </div>
       )}
 
       {/* Headcount Tab */}
       {tab === 'headcount' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
-            <div className="font-bold text-[14px] text-[var(--color-text-primary)] mb-1">Headcount by Venture</div>
-            <div className="text-[12px] font-medium text-[var(--color-text-muted)] mb-5">Active employees per company</div>
+          <Card>
+            <CardHeader title="Headcount by Venture" description="Active employees per company" />
             {headcount.length > 0 ? (
               <>
-                <ResponsiveContainer width="100%" height={180} minHeight={180} minWidth={0}>
-                  <BarChart data={headcount} barSize={36}>
-                    <defs>{headcount.map((h, i) => <linearGradient key={i} id={`hg${i}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={h.color} stopOpacity={1} /><stop offset="100%" stopColor={h.color} stopOpacity={0.3} /></linearGradient>)}</defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                    <XAxis dataKey="venture" tick={{ fontSize: 10, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                    <Tooltip contentStyle={CHART_STYLE.contentStyle} />
-                    <Bar dataKey="total" radius={[8, 8, 0, 0]} name="Total">{headcount.map((_, i) => <Cell key={i} fill={`url(#hg${i})`} />)}</Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="mt-4 flex flex-col gap-2.5">
+                <div
+                  role="img"
+                  aria-label={`Bar chart of active employees per venture: ${describeSeries(headcount, 'venture', 'total')}.`}
+                >
+                  <ResponsiveContainer width="100%" height={180} minHeight={180} minWidth={0}>
+                    <BarChart data={headcount} barSize={36}>
+                      <defs>{headcount.map((h, i) => <linearGradient key={i} id={`hg${i}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={h.color} stopOpacity={1} /><stop offset="100%" stopColor={h.color} stopOpacity={0.3} /></linearGradient>)}</defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                      <XAxis dataKey="venture" tick={AXIS_TICK_SM} axisLine={false} tickLine={false} />
+                      <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={CHART_STYLE.contentStyle} />
+                      <Bar dataKey="total" radius={[8, 8, 0, 0]} name="Total">{headcount.map((_, i) => <Cell key={i} fill={`url(#hg${i})`} />)}</Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+                <ul className="mt-4 flex flex-col gap-2.5">
                   {headcount.map(h => (
-                    <div key={h.venture} className="flex items-center justify-between px-4 py-3 rounded-xl border border-[var(--color-border)]" style={{ background: `${h.color}0d` }}>
+                    <li
+                      key={h.venture}
+                      className="flex items-center justify-between rounded-[var(--radius-card)] border border-[var(--color-border)] px-4 py-3"
+                      style={{ background: tint(h.color, 5) }}
+                    >
                       <div className="flex items-center gap-2.5">
-                        <div className="w-2 h-2 rounded-full" style={{ background: h.color }} />
-                        <span className="font-bold text-[13px] text-[var(--color-text-primary)]">{h.venture}</span>
+                        <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: h.color }} />
+                        <span className="text-[13px] font-bold text-[var(--color-text-primary)]">{h.venture}</span>
                       </div>
                       <div className="flex gap-4">
-                        {[{ label: 'Total', val: h.total, c: h.color }, { label: 'Lead', val: h.leadership, c: '#8b5cf6' }, { label: 'Staff', val: h.staff, c: '#10b981' }, { label: 'Intern', val: h.interns, c: '#f59e0b' }].map(s => (
+                        {[
+                          { label: 'Total', val: h.total, c: h.color },
+                          { label: 'Lead', val: h.leadership, c: 'var(--color-purple-glow)' },
+                          { label: 'Staff', val: h.staff, c: 'var(--color-emerald)' },
+                          { label: 'Intern', val: h.interns, c: 'var(--color-amber)' },
+                        ].map(s => (
                           <div key={s.label} className="text-center">
                             <div className="text-[14px] font-black" style={{ color: s.c }}>{s.val}</div>
-                            <div className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase tracking-wide">{s.label}</div>
+                            <div className="text-[9px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">{s.label}</div>
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </>
-            ) : <div className="h-44 flex items-center justify-center text-[var(--color-text-muted)] text-[13px] font-medium">No headcount data</div>}
-          </div>
+            ) : (
+              <EmptyState
+                icon={<Users size={20} />}
+                title="No headcount data"
+                description="Once employees are assigned to ventures, headcount is charted here."
+              />
+            )}
+          </Card>
 
-          <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
-            <div className="font-bold text-[14px] text-[var(--color-text-primary)] mb-1">Access Level Distribution</div>
-            <div className="text-[12px] font-medium text-[var(--color-text-muted)] mb-5">Employees per access tier</div>
-            {levels.filter(l => l.count > 0).length > 0 ? (
+          <Card>
+            <CardHeader title="Access Level Distribution" description="Employees per access tier" />
+            {activeLevels.length > 0 ? (
               <>
-                <ResponsiveContainer width="100%" height={160} minHeight={160} minWidth={0}>
-                  <PieChart>
-                    <Pie data={levels.filter(l => l.count > 0)} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="count">
-                      {levels.filter(l => l.count > 0).map((l, i) => <Cell key={i} fill={LEVEL_COLORS[l.level_number] || color} />)}
-                    </Pie>
-                    <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v, _n, p) => [Number(v ?? 0), p.payload.level_name]} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="flex flex-wrap gap-2.5 mt-3">
-                  {levels.filter(l => l.count > 0).map(l => (
-                    <div key={l.level_number} className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full" style={{ background: LEVEL_COLORS[l.level_number] || color }} />
-                      <span className="text-[11px] font-medium text-[var(--color-text-muted)]">{l.level_name} ({l.count})</span>
-                    </div>
-                  ))}
+                <div
+                  role="img"
+                  aria-label={`Donut chart of employees per access tier: ${describeSeries(activeLevels, 'level_name', 'count')}.`}
+                >
+                  <ResponsiveContainer width="100%" height={160} minHeight={160} minWidth={0}>
+                    <PieChart>
+                      <Pie data={activeLevels} cx="50%" cy="50%" innerRadius={45} outerRadius={70} paddingAngle={3} dataKey="count">
+                        {activeLevels.map((l, i) => <Cell key={i} fill={LEVEL_COLORS[l.level_number] || color} />)}
+                      </Pie>
+                      <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v, _n, p) => [Number(v ?? 0), p.payload.level_name]} />
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
+                <ul className="mt-3 flex flex-wrap gap-2.5">
+                  {activeLevels.map(l => (
+                    <li key={l.level_number} className="flex items-center gap-1.5">
+                      <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: LEVEL_COLORS[l.level_number] || color }} />
+                      <span className="text-[11px] font-medium text-[var(--color-text-muted)]">{l.level_name} ({l.count})</span>
+                    </li>
+                  ))}
+                </ul>
               </>
-            ) : <div className="h-44 flex items-center justify-center text-[var(--color-text-muted)] text-[13px] font-medium">No data available</div>}
+            ) : (
+              <EmptyState
+                icon={<BarChart3 size={20} />}
+                title="No access tiers to show"
+                description="Employees appear here once they are assigned an access level."
+              />
+            )}
 
             {departments.length > 0 && (
-              <div className="mt-5 pt-5 border-t border-[var(--color-border)]">
-                <div className="text-[11px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider mb-3">Departments</div>
-                <div className="flex flex-col gap-2">
+              <div className="mt-5 border-t border-[var(--color-border)] pt-5">
+                <div className="mb-3 text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Departments</div>
+                <ul className="flex flex-col gap-2">
                   {departments.slice(0, 8).map(d => (
-                    <div key={d.department} className="flex justify-between items-center">
+                    <li key={d.department} className="flex items-center justify-between">
                       <span className="text-[12px] font-medium text-[var(--color-text-secondary)]">{d.department}</span>
                       <div className="flex items-center gap-2">
-                        <div className="h-1.5 rounded-full" style={{ width: `${Math.min(80, (d.count / (departments[0]?.count || 1)) * 80)}px`, background: color, opacity: 0.7 }} />
-                        <span className="text-[12px] font-black min-w-[20px] text-right" style={{ color }}>{d.count}</span>
+                        <div
+                          role="progressbar"
+                          aria-label={`${d.department} headcount`}
+                          aria-valuenow={d.count}
+                          aria-valuemin={0}
+                          aria-valuemax={maxDeptCount}
+                          aria-valuetext={`${d.count} people`}
+                          className="h-1.5 rounded-full"
+                          style={{ width: `${Math.min(80, (d.count / maxDeptCount) * 80)}px`, background: color, opacity: 0.7 }}
+                        />
+                        <span className="min-w-[20px] text-right text-[12px] font-black" style={{ color }}>{d.count}</span>
                       </div>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             )}
-          </div>
+          </Card>
         </div>
       )}
 
       {/* Dept KPIs */}
       {tab === 'kpis' && (
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <div className="font-bold text-[15px] text-[var(--color-text-primary)]">Department KPI Scorecard</div>
-            <div className="text-[12px] font-medium text-[var(--color-text-muted)] mt-0.5">Task completion rates per department — last 30 days</div>
+        <Card padding="none" className="overflow-hidden">
+          <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-6 py-4">
+            <div className="text-[15px] font-bold text-[var(--color-text-primary)]">Department KPI Scorecard</div>
+            <div className="mt-0.5 text-[12px] font-medium text-[var(--color-text-muted)]">Task completion rates per department — last 30 days</div>
           </div>
           {kpiData.length === 0 ? (
-            <div className="p-16 text-center"><BarChart3 size={40} className="mx-auto mb-4 text-[var(--color-text-muted)] opacity-30" /><p className="text-[var(--color-text-secondary)] font-medium">No KPI data yet. Assign tasks to start tracking.</p></div>
+            <EmptyState
+              className="border-0"
+              icon={<BarChart3 size={20} />}
+              title="No KPI data yet"
+              description="Assign tasks to a department and its completion rate starts tracking here."
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left">
+                <caption className="sr-only">
+                  Department KPI scorecard: team size, active projects, tasks, completed tasks and KPI score per department, last 30 days.
+                </caption>
                 <thead>
-                  <tr className="bg-[var(--color-bg-secondary)] border-b border-[var(--color-border)]">
+                  <tr className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
                     {['Department', 'Venture', 'Team', 'Projects', 'Tasks', 'Completed', 'KPI Score'].map(h => (
-                      <th key={h} className={`px-5 py-3.5 text-[11px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider ${h === 'KPI Score' ? 'text-center' : ''}`}>{h}</th>
+                      <th
+                        key={h}
+                        scope="col"
+                        className={cn(
+                          'px-5 py-3.5 text-[11px] font-bold uppercase tracking-wider text-[var(--color-text-secondary)]',
+                          h === 'KPI Score' && 'text-center',
+                        )}
+                      >{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {kpiData.map((d, idx) => (
-                    <tr key={idx} className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors">
-                      <td className="px-5 py-4 font-bold text-[14px] text-[var(--color-text-primary)]">{d.department}</td>
+                    <tr key={idx} className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-bg-secondary)]">
+                      <th scope="row" className="px-5 py-4 text-left text-[14px] font-bold text-[var(--color-text-primary)]">{d.department}</th>
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-2">
-                          <div className="w-2 h-2 rounded-full" style={{ background: d.color }} />
+                          <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: d.color }} />
                           <span className="text-[13px] font-semibold text-[var(--color-text-secondary)]">{d.venture}</span>
                         </div>
                       </td>
                       <td className="px-5 py-4 text-[13px] font-semibold text-[var(--color-text-secondary)]">{d.team_size}</td>
                       <td className="px-5 py-4 text-[13px] font-semibold text-[var(--color-text-secondary)]">{d.active_projects}</td>
                       <td className="px-5 py-4 text-[13px] font-semibold text-[var(--color-text-secondary)]">{d.total_tasks}</td>
-                      <td className="px-5 py-4 text-[13px] font-black text-emerald-500">{d.completed_tasks}</td>
+                      <td className="px-5 py-4 text-[13px] font-black text-[var(--color-emerald)]">{d.completed_tasks}</td>
                       <td className="px-5 py-4 text-center">
-                        <div className="flex items-center gap-2 justify-center">
-                          <div className="w-14 h-1.5 rounded-full bg-[var(--color-bg-secondary)] border border-[var(--color-border)] overflow-hidden">
+                        <div className="flex items-center justify-center gap-2">
+                          <div
+                            role="progressbar"
+                            aria-label={`${d.department} KPI score`}
+                            aria-valuenow={d.kpi_score || 0}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            className="h-1.5 w-14 overflow-hidden rounded-full border border-[var(--color-border)] bg-[var(--color-bg-secondary)]"
+                          >
                             <div className="h-full rounded-full" style={{ width: `${d.kpi_score || 0}%`, background: kpiColor(d.kpi_score || 0) }} />
                           </div>
-                          <span className="text-[13px] font-black min-w-[36px]" style={{ color: kpiColor(d.kpi_score || 0) }}>{d.kpi_score || 0}%</span>
+                          <span className="min-w-[36px] text-[13px] font-black" style={{ color: kpiColor(d.kpi_score || 0) }}>{d.kpi_score || 0}%</span>
                         </div>
                       </td>
                     </tr>
@@ -242,87 +407,108 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
               </table>
             </div>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Top Performers */}
       {tab === 'performance' && (
-        <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
-            <div className="font-bold text-[15px] text-[var(--color-text-primary)]">Top Performers — Last 30 Days</div>
-            <div className="text-[12px] font-medium text-[var(--color-text-muted)] mt-0.5">Ranked by tasks completed</div>
+        <Card padding="none" className="overflow-hidden">
+          <div className="border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-6 py-4">
+            <div className="text-[15px] font-bold text-[var(--color-text-primary)]">Top Performers — Last 30 Days</div>
+            <div className="mt-0.5 text-[12px] font-medium text-[var(--color-text-muted)]">Ranked by tasks completed</div>
           </div>
           {performance.length === 0 ? (
-            <div className="p-16 text-center"><Trophy size={40} className="mx-auto mb-4 text-[var(--color-text-muted)] opacity-30" /><p className="text-[var(--color-text-secondary)] font-medium">No performance data yet. Assign and complete tasks to see rankings.</p></div>
+            <EmptyState
+              className="border-0"
+              icon={<Trophy size={20} />}
+              title="No performance data yet"
+              description="Assign and complete tasks and the leaderboard fills in here."
+            />
           ) : (
-            <div className="p-5 flex flex-col gap-3">
+            <ol className="flex flex-col gap-3 p-5">
               {performance.map((p, idx) => (
-                <div key={idx}
-                  className="flex items-center gap-4 px-5 py-4 rounded-2xl border transition-colors"
-                  style={{ background: idx === 0 ? `${color}10` : 'var(--color-bg-secondary)', borderColor: idx === 0 ? `${color}30` : 'var(--color-border)' }}
+                <li key={idx}
+                  className="flex items-center gap-4 rounded-[var(--radius-card)] border px-5 py-4 transition-colors"
+                  style={{
+                    background: idx === 0 ? tint(color, 6) : 'var(--color-bg-secondary)',
+                    borderColor: idx === 0 ? tint(color, 19) : 'var(--color-border)',
+                  }}
                 >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center font-black text-[13px] shrink-0 text-white"
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[var(--radius-control)] text-[13px] font-black text-white"
                     style={{ background: idx < 3 ? RANK_STYLES[idx].bg : 'var(--color-border)' }}>
                     {idx < 3 ? RANK_STYLES[idx].label : `#${idx + 1}`}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold text-[14px] text-[var(--color-text-primary)] truncate">{p.full_name}</div>
-                    <div className="text-[11px] font-medium text-[var(--color-text-muted)] mt-0.5">{p.designation} • {p.department}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[14px] font-bold text-[var(--color-text-primary)]">{p.full_name}</div>
+                    <div className="mt-0.5 text-[11px] font-medium text-[var(--color-text-muted)]">{p.designation} • {p.department}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                    <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: p.color }} />
                     <span className="text-[12px] font-semibold text-[var(--color-text-secondary)]">{p.venture}</span>
                   </div>
-                  <div className="text-center min-w-[56px]">
-                    <div className="text-xl font-black text-emerald-500">{p.completed_tasks}</div>
-                    <div className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Completed</div>
+                  <div className="min-w-[56px] text-center">
+                    <div className="text-xl font-black text-[var(--color-emerald)]">{p.completed_tasks}</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Completed</div>
                   </div>
-                  <div className="text-center min-w-[48px]">
+                  <div className="min-w-[48px] text-center">
                     <div className="text-[15px] font-black" style={{ color: kpiColor(p.completion_rate || 0) }}>{p.completion_rate || 0}%</div>
-                    <div className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase tracking-wider">Rate</div>
+                    <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--color-text-muted)]">Rate</div>
                   </div>
-                </div>
+                </li>
               ))}
-            </div>
+            </ol>
           )}
-        </div>
+        </Card>
       )}
 
       {/* Hours & Effort */}
       {tab === 'timesheets' && (
         timesheets.length === 0 ? (
-          <div className="bg-[var(--color-bg-card)] border border-dashed border-[var(--color-border)] rounded-2xl p-16 text-center">
-            <Clock size={40} className="mx-auto mb-4 text-[var(--color-text-muted)] opacity-30" />
-            <p className="text-[var(--color-text-secondary)] font-medium">No timesheet data found for the last 30 days.</p>
-          </div>
+          <EmptyState
+            icon={<Clock size={20} />}
+            title="No timesheet data"
+            description="Nothing was logged in the last 30 days. Hours appear here once the team starts filling timesheets."
+          />
         ) : (
           <div className="flex flex-col gap-5">
-            <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 shadow-sm">
-              <div className="font-bold text-[14px] text-[var(--color-text-primary)] mb-1">Hours Logged by Venture</div>
-              <div className="text-[12px] font-medium text-[var(--color-text-muted)] mb-5">Last 30 days — total &amp; average hours</div>
-              <ResponsiveContainer width="100%" height={200} minHeight={200} minWidth={0}>
-                <BarChart data={timesheets} barSize={44}>
-                  <defs>{timesheets.map((ts, i) => <linearGradient key={i} id={`tsg${i}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={ts.color} stopOpacity={1} /><stop offset="100%" stopColor={ts.color} stopOpacity={0.3} /></linearGradient>)}</defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                  <XAxis dataKey="venture" tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v) => [`${Number(v ?? 0)}h`, 'Total Hours']} />
-                  <Bar dataKey="total_hours" radius={[8, 8, 0, 0]} name="Total Hours">{timesheets.map((_, i) => <Cell key={i} fill={`url(#tsg${i})`} />)}</Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <Card>
+              <CardHeader title="Hours Logged by Venture" description="Last 30 days — total & average hours" />
+              <div
+                role="img"
+                aria-label={`Bar chart of total hours logged per venture in the last 30 days: ${describeSeries(timesheets, 'venture', 'total_hours', (v) => `${Number(v ?? 0)} hours`)}.`}
+              >
+                <ResponsiveContainer width="100%" height={200} minHeight={200} minWidth={0}>
+                  <BarChart data={timesheets} barSize={44}>
+                    <defs>{timesheets.map((ts, i) => <linearGradient key={i} id={`tsg${i}`} x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={ts.color} stopOpacity={1} /><stop offset="100%" stopColor={ts.color} stopOpacity={0.3} /></linearGradient>)}</defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                    <XAxis dataKey="venture" tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                    <YAxis tick={AXIS_TICK} axisLine={false} tickLine={false} />
+                    <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v) => [`${Number(v ?? 0)}h`, 'Total Hours']} />
+                    <Bar dataKey="total_hours" radius={[8, 8, 0, 0]} name="Total Hours">{timesheets.map((_, i) => <Cell key={i} fill={`url(#tsg${i})`} />)}</Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {timesheets.map(ts => (
-                <div key={ts.venture} className="rounded-2xl p-5 border shadow-sm" style={{ background: `${ts.color}10`, borderColor: `${ts.color}25` }}>
-                  <div className="flex items-center gap-2.5 mb-4">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: ts.color }} />
-                    <span className="font-bold text-[14px] text-[var(--color-text-primary)]">{ts.venture}</span>
+                <div
+                  key={ts.venture}
+                  className="rounded-[var(--radius-card)] border p-5"
+                  style={{ background: tint(ts.color, 6), borderColor: tint(ts.color, 15) }}
+                >
+                  <div className="mb-4 flex items-center gap-2.5">
+                    <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ background: ts.color }} />
+                    <span className="text-[14px] font-bold text-[var(--color-text-primary)]">{ts.venture}</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {[{ label: 'Total', val: `${ts.total_hours}h`, c: ts.color }, { label: 'Avg', val: `${ts.avg_hours}h`, c: '#f59e0b' }, { label: 'Members', val: ts.members_logged, c: '#10b981' }].map(s => (
-                      <div key={s.label} className="text-center p-2 bg-[var(--color-bg-secondary)] border border-[var(--color-border)] rounded-xl">
+                    {[
+                      { label: 'Total', val: `${ts.total_hours}h`, c: ts.color },
+                      { label: 'Avg', val: `${ts.avg_hours}h`, c: 'var(--color-amber)' },
+                      { label: 'Members', val: ts.members_logged, c: 'var(--color-emerald)' },
+                    ].map(s => (
+                      <div key={s.label} className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-2 text-center">
                         <div className="text-[15px] font-black" style={{ color: s.c }}>{s.val}</div>
-                        <div className="text-[9px] font-bold text-[var(--color-text-muted)] uppercase tracking-wide mt-0.5">{s.label}</div>
+                        <div className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">{s.label}</div>
                       </div>
                     ))}
                   </div>
