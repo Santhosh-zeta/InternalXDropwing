@@ -24,6 +24,7 @@ checklist — behind one login.
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql)
 ![Socket.IO](https://img.shields.io/badge/Socket.IO-4-010101?style=flat-square&logo=socketdotio)
 ![Flutter](https://img.shields.io/badge/Flutter-3-02569B?style=flat-square&logo=flutter)
+![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
 </div>
 
@@ -657,11 +658,10 @@ Reporting a vulnerability: **[SECURITY.md](SECURITY.md)**.
 
 ## 📄 License
 
-Copyright © Dropwing Groups. All rights reserved.
+Released under the **MIT License** — see [LICENSE](LICENSE).
 
-The source is published for reference, review, and portfolio purposes. See [LICENSE](LICENSE) for
-what that permits. It is not an open-source licence — talk to us before using it in your own
-product.
+Copyright © 2026 Dropwing Groups. You're free to use, modify and distribute this, including
+commercially, as long as the copyright notice travels with it.
 
 ---
 

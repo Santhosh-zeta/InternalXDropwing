@@ -1,24 +1,16 @@
-Copyright © 2026 Dropwing Groups. All rights reserved.
+MIT License
 
-InternalX is proprietary software. The source code is published publicly for
-reference, evaluation, technical review, and portfolio purposes.
+Copyright (c) 2026 Dropwing Groups
 
-PERMITTED, without a separate agreement:
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-  * Viewing and reading the source code.
-  * Cloning the repository and running it locally for evaluation or study.
-  * Quoting short excerpts with attribution, for example in a review, an
-    article, or educational material.
-
-NOT PERMITTED, without prior written permission from Dropwing Groups:
-
-  * Using this software, in whole or in part, in any production system.
-  * Using it, in whole or in part, in any commercial product or service.
-  * Redistributing, sublicensing, or selling it or any derivative of it.
-  * Removing or altering this notice.
-
-To request permission, or to discuss a licence for your use case, contact
-contact@dropwinggroups.com.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -27,6 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
-Third-party dependencies remain under their own licences. See the
-package.json / pubspec.yaml manifests and their respective lockfiles.
