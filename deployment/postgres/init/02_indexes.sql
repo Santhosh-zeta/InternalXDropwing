@@ -68,3 +68,8 @@ CREATE INDEX idx_strategic_risks_venture_id ON strategic_risks(venture_id);
 
 -- announcements
 CREATE INDEX idx_announcements_venture_id ON announcements(venture_id);
+
+-- Task assignees: both directions are hot — "tasks for a user" on every
+-- dashboard load, "assignees of a task" on every task detail view.
+CREATE INDEX IF NOT EXISTS idx_task_assignees_user ON task_assignees(user_id);
+CREATE INDEX IF NOT EXISTS idx_task_assignees_task ON task_assignees(task_id);

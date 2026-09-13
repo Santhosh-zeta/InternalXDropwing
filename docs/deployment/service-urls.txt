@@ -81,15 +81,15 @@ Test if your services are working:
      → cloudflared tunnel create internalx-tunnel
 
   4. Configure & deploy:
-     → ./deploy-with-tunnel.sh
+     → ./deployment/cloudflare/deploy-with-tunnel.sh
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 📚 DOCUMENTATION
 
-  Full Setup Guide:      CLOUDFLARE_TUNNEL_SETUP.md
-  Quick Start Guide:     DEPLOYMENT_QUICK_START.md
-  Deployment Script:     deploy-with-tunnel.sh
-  Config Template:       cloudflared-config.yml
+  Full Setup Guide:      docs/deployment/cloudflare-tunnel.md
+  Quick Start Guide:     docs/deployment/quick-start.md
+  Deployment Script:     deployment/cloudflare/deploy-with-tunnel.sh
+  Config Template:       deployment/cloudflare/cloudflared-config.yml
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

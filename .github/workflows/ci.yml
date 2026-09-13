@@ -1,0 +1,154 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Web · typecheck, lint, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        working-directory: frontend
+        run: npm ci
+
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Build
+        working-directory: frontend
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+        run: npm run build
+
+  backend:
+    name: API · install, parse, boot
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: internalx
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install
+        working-directory: backend
+        run: npm ci
+
+      - name: Parse every source file
+        working-directory: backend
+        run: find src -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Apply schema, indexes and seed
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -d internalx -v ON_ERROR_STOP=1 \
+            -f deployment/postgres/init/01_schema.sql \
+            -f deployment/postgres/init/02_indexes.sql \
+            -f deployment/postgres/init/03_seed.sql
+
+      - name: Tables referenced by controllers must exist in the schema
+        env:
+          PGPASSWORD: postgres
+        run: |
+          # Guards against the class of bug where a controller queries a table
+          # that only an ad-hoc migration script ever created, so a fresh
+          # install from the documented path fails at runtime.
+          status=0
+          for t in task_assignees tasks users ventures access_levels projects \
+                   timesheets documents messages notifications audit_logs okrs; do
+            if [ -z "$(psql -h localhost -U postgres -d internalx -tAc \
+                        "SELECT to_regclass('public.$t')")" ]; then
+              echo "::error::table '$t' is queried by backend/src but missing from the init schema"
+              status=1
+            fi
+          done
+          exit $status
+
+      - name: Boot the server and hit /api/health
+        working-directory: backend
+        env:
+          NODE_ENV: development
+          PORT: '5000'
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_NAME: internalx
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          JWT_SECRET: ci-only-not-a-real-secret
+          FRONTEND_URL: http://localhost:3000
+        run: |
+          node src/server.js &
+          curl -sSf --retry 20 --retry-all-errors --retry-delay 1 \
+            http://localhost:5000/api/health
+          echo
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: No credentials in tracked files
+        run: |
+          # Deliberately narrow: assignments with a long literal value, plus a
+          # few provider-specific prefixes. Templates and placeholders pass.
+          if git grep -nIE \
+               -e '(PASSWORD|PASSWD|SECRET|TOKEN|API_?KEY)[[:space:]]*=[[:space:]]*["'"'"']?[A-Za-z0-9@#$%^&*_+-]{12,}' \
+               -e 'GOCSPX-[A-Za-z0-9_-]{10,}' \
+               -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' \
+               -- ':!*.lock' ':!*package-lock.json' ':!*.github/workflows/*' \
+             | grep -viE 'change_me|your_|generate_|replace_|example|placeholder|dummy|sample|xxx+|secret_key|random|<[A-Za-z_]+>|\$\{'; then
+            echo "::error::a credential-shaped literal is committed — remove it and rotate the value"
+            exit 1
+          fi
+          echo "No credentials found in tracked files."
+
+      - name: No .env file is tracked
+        run: |
+          if git ls-files | grep -E '(^|/)\.env(\.|$)' | grep -v '\.env\.example$'; then
+            echo "::error::an .env file is tracked"
+            exit 1
+          fi
+          echo "No tracked .env files."

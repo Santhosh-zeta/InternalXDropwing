@@ -19,22 +19,22 @@
 
 ### Documentation
 ```
-✓ CLOUDFLARE_TUNNEL_SETUP.md        (9.9 KB) - Comprehensive guide
-✓ DEPLOYMENT_QUICK_START.md         (8.6 KB) - Step-by-step quickstart
-✓ SERVICE_URLS.txt                  (5.5 KB) - Quick reference card
-✓ DEPLOYMENT_SUMMARY.md             (this file)
+✓ docs/deployment/cloudflare-tunnel.md        (9.9 KB) - Comprehensive guide
+✓ docs/deployment/quick-start.md         (8.6 KB) - Step-by-step quickstart
+✓ docs/deployment/service-urls.txt                  (5.5 KB) - Quick reference card
+✓ docs/deployment/summary.md             (this file)
 ```
 
 ### Configuration
 ```
-✓ cloudflared-config.yml            (1.3 KB) - Tunnel config template
+✓ deployment/cloudflare/cloudflared-config.yml            (1.3 KB) - Tunnel config template
 ✓ backend/.env.production           - Backend environment template
 ✓ frontend/.env.production.local    - Frontend environment template
 ```
 
 ### Automation
 ```
-✓ deploy-with-tunnel.sh             - One-command deployment script
+✓ deployment/cloudflare/deploy-with-tunnel.sh             - One-command deployment script
 ✓ logs/                             - Directory for service logs
 ```
 
@@ -62,7 +62,7 @@ cloudflared tunnel create internalx-tunnel
 ### Step 3: Update Config & Deploy
 ```bash
 # 1. Copy template to config location
-cp cloudflared-config.yml ~/.cloudflared/config.yml
+cp deployment/cloudflare/cloudflared-config.yml ~/.cloudflared/config.yml
 
 # 2. Edit config with your UUID
 nano ~/.cloudflared/config.yml
@@ -72,7 +72,7 @@ cp backend/.env.production backend/.env
 cp frontend/.env.production.local frontend/.env.local
 
 # 4. Deploy!
-./deploy-with-tunnel.sh
+./deployment/cloudflare/deploy-with-tunnel.sh
 ```
 
 **Done!** Your app is now at: `https://internalx.santhoshv.xyz`
@@ -192,7 +192,7 @@ NEXT_PUBLIC_SOCKET_URL=https://internalx.santhoshv.xyz
 
 ### Tunnel Configuration (`~/.cloudflared/config.yml`)
 Already set up! Just:
-1. Copy `cloudflared-config.yml` to `~/.cloudflared/config.yml`
+1. Copy `deployment/cloudflare/cloudflared-config.yml` to `~/.cloudflared/config.yml`
 2. Update the UUID in the `credentials-file` path
 3. Run `cloudflared tunnel run internalx-tunnel`
 
@@ -237,11 +237,11 @@ Already set up! Just:
 
 | Resource | Location |
 |----------|----------|
-| **Full Setup Guide** | `CLOUDFLARE_TUNNEL_SETUP.md` |
-| **Quick Start** | `DEPLOYMENT_QUICK_START.md` |
-| **Service URLs** | `SERVICE_URLS.txt` |
-| **Tunnel Config** | `cloudflared-config.yml` |
-| **Deploy Script** | `./deploy-with-tunnel.sh` |
+| **Full Setup Guide** | `docs/deployment/cloudflare-tunnel.md` |
+| **Quick Start** | `docs/deployment/quick-start.md` |
+| **Service URLs** | `docs/deployment/service-urls.txt` |
+| **Tunnel Config** | `deployment/cloudflare/cloudflared-config.yml` |
+| **Deploy Script** | `./deployment/cloudflare/deploy-with-tunnel.sh` |
 | **Backend Template** | `backend/.env.production` |
 | **Frontend Template** | `frontend/.env.production.local` |
 
@@ -275,7 +275,7 @@ tail -f logs/backend.log
 pkill -f "node"
 
 # Or use the deployment script which handles cleanup
-./deploy-with-tunnel.sh
+./deployment/cloudflare/deploy-with-tunnel.sh
 ```
 
 ---
@@ -297,7 +297,7 @@ pkill -f "node"
 **Q: "CORS error"**
 - A: Ensure `FRONTEND_URL` in backend matches your Cloudflare domain
 
-For more help, see: `CLOUDFLARE_TUNNEL_SETUP.md` → Troubleshooting section
+For more help, see: `docs/deployment/cloudflare-tunnel.md` → Troubleshooting section
 
 ---
 

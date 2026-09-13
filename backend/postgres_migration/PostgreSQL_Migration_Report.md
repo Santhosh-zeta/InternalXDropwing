@@ -30,7 +30,7 @@ The InternalX backend has been successfully migrated from MySQL to PostgreSQL. T
 - Universal driver adaptation.
 
 ## Remaining Manual Actions (Checklist)
-1. Ensure the PostgreSQL Database server at `***REMOVED***` is configured to accept remote connections from the application server.
+1. Ensure the PostgreSQL Database server at `<DB_HOST>` is configured to accept remote connections from the application server.
 2. Ensure the `dgos_app` user has proper GRANTS on the `internalx` database.
 3. Apply the `postgres_seed.sql` schema using `psql` or a tool like DBeaver.
 4. Set the new `.env` variables on Hostinger.

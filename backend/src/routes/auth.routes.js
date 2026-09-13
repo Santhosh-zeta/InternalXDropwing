@@ -2,13 +2,24 @@ const express = require('express');
 const router = express.Router();
 const { register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe, googleLogin } = require('../controllers/auth.controller');
 const { authenticate } = require('../middleware/auth.middleware');
+const { loginLimiter, accountLimiter, authLimiter } = require('../middleware/rateLimit.middleware');
+const {
+  registerRules,
+  loginRules,
+  emailOnlyRules,
+  verifyOtpRules,
+  resetPasswordRules,
+} = require('../middleware/validate.middleware');
 
-router.post('/register', register);
-router.post('/login', login);
-router.post('/google-login', googleLogin);
-router.post('/verify-otp', verifyOtp);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
+// Ceiling over the whole unauthenticated auth surface.
+router.use(authLimiter);
+
+router.post('/register', accountLimiter, registerRules, register);
+router.post('/login', loginLimiter, loginRules, login);
+router.post('/google-login', loginLimiter, googleLogin);
+router.post('/verify-otp', loginLimiter, verifyOtpRules, verifyOtp);
+router.post('/forgot-password', accountLimiter, emailOnlyRules, forgotPassword);
+router.post('/reset-password', accountLimiter, resetPasswordRules, resetPassword);
 
 router.post('/logout', authenticate, logout);
 router.get('/me', authenticate, getMe);

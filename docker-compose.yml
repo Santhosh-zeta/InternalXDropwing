@@ -1,16 +1,38 @@
-version: '3.8'
+# Local development database for InternalX.
+#
+#   docker compose up -d          # start PostgreSQL 16 on localhost:5432
+#   docker compose down           # stop it (data is kept in the named volume)
+#   docker compose down -v        # stop it and wipe the data
+#
+# On first start the scripts in deployment/postgres/init are executed in order,
+# so the database comes up with the full schema, indexes and seed rows already
+# applied. Point backend/.env at it with:
+#
+#   DB_HOST=localhost  DB_PORT=5432  DB_NAME=internalx
+#   DB_USER=postgres   DB_PASSWORD=postgres
+#
+# These credentials are for local development only. Production deployment uses
+# deployment/postgres/docker-compose.yml, which reads secrets from an .env file.
 
 services:
-  mysql:
-    image: mysql:8.0
-    container_name: internalx-mysql
+  postgres:
+    image: postgres:16-alpine
+    container_name: internalx-postgres
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: secretpassword
-      MYSQL_DATABASE: internalx
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: internalx
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - postgres_data:/var/lib/postgresql/data
+      - ./deployment/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d internalx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
-  mysql_data:
+  postgres_data:

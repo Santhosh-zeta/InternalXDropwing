@@ -1,24 +1,138 @@
-# Dependencies
+# ─────────────────────────────────────────────────────────────
+#  Secrets — NEVER COMMIT ANYTHING MATCHING THESE
+# ─────────────────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+env
+env.*
+*.env
+*.env.bak
+secrets.json
+credentials.json
+service-account*.json
+google-services.json
+GoogleService-Info.plist
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+*.crt
+key.properties
+cloudflared-credentials*.json
+*.tunnel.json
+DGOS_PRODUCTION_DB.txt
+
+# ─────────────────────────────────────────────────────────────
+#  Dependencies
+# ─────────────────────────────────────────────────────────────
 node_modules/
 .npm
+.pnp
+.pnp.js
+.yarn/
+jspm_packages/
 
-# Environment variables — NEVER COMMIT these
-.env
-.env.local
-.env.production
-
-# Build outputs
+# ─────────────────────────────────────────────────────────────
+#  Build output / generated artifacts
+# ─────────────────────────────────────────────────────────────
 dist/
 build/
+out/
+.next/
+.turbo/
+.vercel/
+*.tsbuildinfo
+next-env.d.ts
 
-# Logs
+# Packaged deployment bundle produced by `node build_package.js`
+DGOS-PRODUCTION/
+InternalX_Production/
+temp_unzip/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Backend serves a copy of the frontend build from here
+backend/public/frontend-build/
+backend/test_public/
+
+# ─────────────────────────────────────────────────────────────
+#  Runtime data — user uploads and database dumps are NOT source
+# ─────────────────────────────────────────────────────────────
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/avatars/
+backend/uploads/avatars/*
+!backend/uploads/avatars/.gitkeep
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.sql.gz
+backups/
+deployment/postgres/backups/
+
+# ─────────────────────────────────────────────────────────────
+#  Flutter / Dart (mobile)
+# ─────────────────────────────────────────────────────────────
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+mobile/ios/Pods/
+mobile/ios/Flutter/Flutter.framework
+mobile/ios/Flutter/Generated.xcconfig
+mobile/ios/Flutter/flutter_export_environment.sh
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/android/app/google-services.json
+mobile/ios/Runner/GoogleService-Info.plist
+*.iml
+
+# ─────────────────────────────────────────────────────────────
+#  Logs & scratch
+# ─────────────────────────────────────────────────────────────
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pids/
+*.pid
+*.seed
+coverage/
+.nyc_output/
+backend/scratch/
+scratch/
+tmp/
+.temp/
 
-# OS
+# ─────────────────────────────────────────────────────────────
+#  LaTeX build artifacts (client_portal_vision.tex)
+# ─────────────────────────────────────────────────────────────
+*.aux
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+*.out
+
+# ─────────────────────────────────────────────────────────────
+#  OS / editor
+# ─────────────────────────────────────────────────────────────
 .DS_Store
+.DS_Store?
+._*
 Thumbs.db
-
-# IDE
+ehthumbs.db
+Desktop.ini
 .vscode/
+!.vscode/extensions.json
 .idea/
+*.swp
+*.swo
+*~

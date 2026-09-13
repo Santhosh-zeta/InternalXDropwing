@@ -62,7 +62,7 @@ Replace `<TUNNEL_UUID>` with your UUID from Step 3, then:
 
 ```bash
 # Copy our template to cloudflared config directory
-cp cloudflared-config.yml ~/.cloudflared/config.yml
+cp deployment/cloudflare/cloudflared-config.yml ~/.cloudflared/config.yml
 
 # Edit the config file
 nano ~/.cloudflared/config.yml
@@ -90,8 +90,8 @@ cp frontend/.env.production.local frontend/.env.local
 
 ```bash
 # Option A: Automated (Recommended)
-chmod +x deploy-with-tunnel.sh
-./deploy-with-tunnel.sh
+chmod +x deployment/cloudflare/deploy-with-tunnel.sh
+./deployment/cloudflare/deploy-with-tunnel.sh
 
 # Option B: Manual (3 separate terminals)
 # Terminal 1:
@@ -171,10 +171,10 @@ Open in browser: **https://internalx.santhoshv.xyz**
 
 ```
 InternalXDropwing/
-├── CLOUDFLARE_TUNNEL_SETUP.md          ← Detailed guide (read for deep dive)
-├── DEPLOYMENT_QUICK_START.md           ← This file
-├── cloudflared-config.yml              ← Tunnel configuration template
-├── deploy-with-tunnel.sh               ← One-command deployment script
+├── docs/deployment/cloudflare-tunnel.md          ← Detailed guide (read for deep dive)
+├── docs/deployment/quick-start.md           ← This file
+├── deployment/cloudflare/cloudflared-config.yml              ← Tunnel configuration template
+├── deployment/cloudflare/deploy-with-tunnel.sh               ← One-command deployment script
 ├── backend/
 │   ├── .env                            ← Your actual backend config
 │   └── .env.production                 ← Template (copy to .env)
@@ -275,7 +275,7 @@ cloudflared tunnel logs internalx-tunnel
 1. **Install dependencies**: `npm install` in both backend & frontend
 2. **Configure .env files**: Copy .env.production files and update values
 3. **Setup Cloudflare Tunnel**: Follow steps 1-7 above
-4. **Run deployment script**: `./deploy-with-tunnel.sh`
+4. **Run deployment script**: `./deployment/cloudflare/deploy-with-tunnel.sh`
 5. **Test**: Open https://internalx.santhoshv.xyz
 6. **Monitor**: Use tail/logs commands above
 7. **Deploy to production**: Scale up databases, enable backups, etc.

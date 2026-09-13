@@ -52,7 +52,7 @@ This report documents the resolution of the final PostgreSQL blockers identified
 - ✅ Learning
 - ✅ Users
 
-The backend is fully connected to the VPS instance (`***REMOVED***`) and compiling perfectly.
+The backend is fully connected to the VPS instance (`<DB_HOST>`) and compiling perfectly.
 
 ## Remaining Blockers
 

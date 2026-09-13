@@ -7,6 +7,10 @@
 
 set -e
 
+# All paths below are relative to the repository root, so run from there
+# regardless of where the script was invoked from.
+cd "$(dirname "${BASH_SOURCE[0]}")/../.."
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

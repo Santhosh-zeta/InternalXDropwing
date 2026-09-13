@@ -209,6 +209,23 @@ CREATE TABLE tasks (
 CREATE TRIGGER update_tasks_modtime BEFORE UPDATE ON tasks FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
 
 -- =============================================
+-- TASK ASSIGNEES TABLE
+-- ---------------------------------------------
+-- A task has a primary owner (tasks.assigned_to) and may additionally be
+-- shared with any number of collaborators. Every read path that answers
+-- "which tasks can this user see?" joins through here, so this table is
+-- required — the Tasks, KPI, analytics and client-portal endpoints all
+-- reference it.
+-- =============================================
+CREATE TABLE task_assignees (
+  task_id INTEGER NOT NULL,
+  user_id INTEGER NOT NULL,
+  PRIMARY KEY (task_id, user_id),
+  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- =============================================
 -- TIMESHEETS TABLE
 -- =============================================
 CREATE TABLE timesheets (

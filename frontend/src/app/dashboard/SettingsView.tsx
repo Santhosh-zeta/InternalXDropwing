@@ -577,7 +577,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
                 </Button>
               </div>
             </form>
-          </Card>
+          </div>
         )}
 
       </div>

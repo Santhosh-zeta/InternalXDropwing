@@ -1,6 +1,7 @@
 {
   "name": "internalx-backend",
   "version": "1.0.0",
+  "private": true,
   "description": "InternalX Dropwing Groups - Backend API",
   "main": "src/server.js",
   "scripts": {
@@ -10,7 +11,7 @@
   },
   "keywords": [],
   "author": "Dropwing Groups",
-  "license": "ISC",
+  "license": "SEE LICENSE IN LICENSE",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
