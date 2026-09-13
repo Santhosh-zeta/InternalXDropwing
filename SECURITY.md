@@ -99,4 +99,6 @@ Before pushing, it's worth a quick check that nothing sensitive slipped into a d
 git diff --cached | grep -nEi '(password|secret|api[_-]?key|token)\s*[:=]\s*["'"'"'][^"'"'"']{8,}'
 ```
 
-GitHub's own secret scanning and push protection are enabled on this repository as a second net.
+CI runs the same check on every push and pull request (`.github/workflows/ci.yml`). Enabling
+GitHub's secret scanning and push protection under **Settings → Code security** is worth doing as
+a second net.
