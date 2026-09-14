@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:logger/logger.dart';
 import '../cache/secure_storage_provider.dart';
 import '../config/app_config.dart';
+import '../demo/demo_mode.dart';
+import '../demo/demo_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final secureStorage = ref.watch(secureStorageProvider);
@@ -19,6 +21,13 @@ final dioProvider = Provider<Dio>((ref) {
       },
     ),
   );
+
+  // TEMPORARY — see core/demo/demo_mode.dart. Placed first so it resolves
+  // every request before anything below (auth headers, logging, the real
+  // network call) ever runs.
+  if (kDemoMode) {
+    dio.interceptors.add(DemoInterceptor());
+  }
 
   final logger = Logger();
 
