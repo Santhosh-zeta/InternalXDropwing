@@ -163,6 +163,15 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
 
   const confirm = useConfirm();
 
+  // backend/src/routes/task.routes.js:
+  //   POST /        requireLevel(7)  → accessLevel <= 7
+  //   PUT  /:id     requireLevel(7)  → accessLevel <= 7
+  //   DELETE /:id   requireLevel(5)  → accessLevel <= 5
+  // Interns (L8) were previously shown a "New Task" button that always 403s,
+  // and an L6/L7 task creator was shown a Delete button that always 403s.
+  const canWriteTasks = currentUser.accessLevel <= 7;
+  const canDeleteTasks = currentUser.accessLevel <= 5;
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -439,14 +448,16 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
             ))}
           </select>
 
-          <Button
-            variant="primary"
-            size="sm"
-            leadingIcon={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
-            onClick={openCreateModal}
-          >
-            New Task
-          </Button>
+          {canWriteTasks && (
+            <Button
+              variant="primary"
+              size="sm"
+              leadingIcon={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
+              onClick={openCreateModal}
+            >
+              New Task
+            </Button>
+          )}
         </div>
       </div>
 
@@ -454,8 +465,10 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
         <EmptyState
           icon={<ListTodo size={22} aria-hidden="true" />}
           title="No tasks yet"
-          description="Tasks are how work gets assigned and tracked here. Create the first one and it will appear on the board."
-          action={
+          description={canWriteTasks
+            ? 'Tasks are how work gets assigned and tracked here. Create the first one and it will appear on the board.'
+            : 'Nothing has been assigned to you yet. Creating tasks needs Staff access (L7) or above — a manager can assign you one.'}
+          action={canWriteTasks ? (
             <Button
               variant="primary"
               leadingIcon={<Plus size={16} strokeWidth={2.5} aria-hidden="true" />}
@@ -463,7 +476,7 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
             >
               Create your first task
             </Button>
-          }
+          ) : undefined}
         />
       ) : filteredTasks.length === 0 ? (
         <EmptyState
@@ -513,41 +526,41 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
 
                       <div className="flex items-center gap-1">
                         <GripVertical size={14} aria-hidden="true" className="text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing" />
-                        {(currentUser.id === task.assigned_by || currentUser.accessLevel <= 3) && (
-                          <>
-                            <Button
-                              iconOnly
-                              aria-label={`Edit task: ${task.title}`}
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setEditingTask(task);
-                                setNewTask({
-                                  title: task.title,
-                                  description: task.description || '',
-                                  priority: task.priority,
-                                  assigned_to: task.assignees ? task.assignees.map(a => a.id.toString()) : [],
-                                  due_date: task.due_date ? task.due_date.split('T')[0] : '',
-                                  project_id: task.project_id?.toString() || '',
-                                  parent_task_id: task.parent_task_id?.toString() || ''
-                                });
-                                setShowModal(true);
-                              }}
-                              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--color-purple-glow)]"
-                            >
-                              <Edit2 size={14} aria-hidden="true" />
-                            </Button>
-                            <Button
-                              iconOnly
-                              aria-label={`Delete task: ${task.title}`}
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDelete(task.id)}
-                              className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--color-rose)]"
-                            >
-                              <Trash2 size={14} aria-hidden="true" />
-                            </Button>
-                          </>
+                        {canWriteTasks && (currentUser.id === task.assigned_by || currentUser.accessLevel <= 3) && (
+                          <Button
+                            iconOnly
+                            aria-label={`Edit task: ${task.title}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setEditingTask(task);
+                              setNewTask({
+                                title: task.title,
+                                description: task.description || '',
+                                priority: task.priority,
+                                assigned_to: task.assignees ? task.assignees.map(a => a.id.toString()) : [],
+                                due_date: task.due_date ? task.due_date.split('T')[0] : '',
+                                project_id: task.project_id?.toString() || '',
+                                parent_task_id: task.parent_task_id?.toString() || ''
+                              });
+                              setShowModal(true);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--color-purple-glow)]"
+                          >
+                            <Edit2 size={14} aria-hidden="true" />
+                          </Button>
+                        )}
+                        {canDeleteTasks && (
+                          <Button
+                            iconOnly
+                            aria-label={`Delete task: ${task.title}`}
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(task.id)}
+                            className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-[var(--color-rose)]"
+                          >
+                            <Trash2 size={14} aria-hidden="true" />
+                          </Button>
                         )}
                       </div>
                     </div>

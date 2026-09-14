@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { User } from '@/lib/constants';
+import { User, VENTURES } from '@/lib/constants';
 import { getAnalytics } from '@/lib/api';
 import { BarChart3, CheckCircle2, Users, Building2, DollarSign, RefreshCw, Lock } from 'lucide-react';
 import {
@@ -79,6 +79,7 @@ function ReportsSkeleton() {
 export default function ReportsView({ currentUser }: { currentUser: User }) {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'overview' | 'tasks' | 'ventures' | 'team'>('overview');
   const [range, setRange] = useState('7 Days');
 
@@ -88,8 +89,14 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    try { const res = await getAnalytics(rangeInDays); if (res.success) setData(res.data); }
-    catch (e) { console.error(e); }
+    try {
+      const res = await getAnalytics(rangeInDays);
+      if (!res.success) throw new Error('Request was not successful');
+      setData(res.data);
+      setError(null);
+    } catch {
+      setError('Could not load report data. Check your connection and try again.');
+    }
     finally { setLoading(false); }
   }, [rangeInDays]);
 
@@ -162,23 +169,37 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
 
       {loading ? (
         <ReportsSkeleton />
+      ) : error ? (
+        <EmptyState
+          tone="error"
+          icon={<BarChart3 size={22} aria-hidden="true" />}
+          title="Reports unavailable"
+          description={error}
+          action={
+            <Button variant="primary" leadingIcon={<RefreshCw size={16} aria-hidden="true" />} onClick={fetchData}>
+              Try again
+            </Button>
+          }
+        />
       ) : (
         <>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* The "+12%"/"+3 across ventures" deltas these two cards used to
+                carry were fixed strings with no backing figure — no endpoint
+                reports a prior-period comparison, so they are dropped rather
+                than faked. */}
             <StatCard
               label="Tasks Completed"
               value={totalVel}
               accent="var(--color-emerald)"
               icon={<CheckCircle2 size={16} />}
-              delta={{ value: `+12% vs last ${range}`, direction: 'up' }}
             />
             <StatCard
               label="Active Team"
               value={totalUsers}
               accent="var(--color-cyan)"
               icon={<Users size={16} />}
-              delta={{ value: '+3 across ventures', direction: 'up' }}
             />
             {currentUser.accessLevel <= 4 && (
               <StatCard
@@ -189,9 +210,14 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
                 delta={{ value: 'Project budgets', direction: 'flat' }}
               />
             )}
+            {/* `users` here is analytics userDistribution grouped by venture
+                — its length undercounts any venture with zero active users,
+                and the `|| 4` fallback silently showed a made-up figure
+                whenever analytics returned nothing at all. VENTURES is the
+                app's real, static list of operating units. */}
             <StatCard
               label="Ventures"
-              value={users.length || 4}
+              value={VENTURES.length}
               accent={color}
               icon={<Building2 size={16} />}
               delta={{ value: 'Operating units', direction: 'flat' }}

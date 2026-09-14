@@ -38,7 +38,7 @@ class ProjectList extends _$ProjectList {
 }
 
 @riverpod
-Future<List<ProjectModel>> filteredProjects(FilteredProjectsRef ref) async {
+Future<List<ProjectModel>> filteredProjects(Ref ref) async {
   final projects = await ref.watch(projectListProvider.future);
   final filter = ref.watch(projectFilterProvider);
 
@@ -50,13 +50,12 @@ Future<List<ProjectModel>> filteredProjects(FilteredProjectsRef ref) async {
     case ProjectFilter.archived:
       return projects.where((p) => p.isArchived).toList();
     case ProjectFilter.all:
-    default:
       return projects;
   }
 }
 
 @riverpod
-Future<ProjectModel> projectDetail(ProjectDetailRef ref, int id) async {
+Future<ProjectModel> projectDetail(Ref ref, int id) async {
   final repository = ref.watch(projectsRepositoryProvider);
   return repository.getProjectById(id);
 }

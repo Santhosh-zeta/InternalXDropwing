@@ -124,8 +124,8 @@ class AppTheme {
         isDark ? NebulaColors.highlight : NebulaColors.highlightLight;
     final Color danger =
         isDark ? NebulaColors.critical : NebulaColors.criticalLight;
-    final Color disabled = textSecondary.withOpacity(0.38);
-    final Color disabledSurface = textSecondary.withOpacity(0.12);
+    final Color disabled = textSecondary.withValues(alpha: 0.38);
+    final Color disabledSurface = textSecondary.withValues(alpha: 0.12);
 
     final BorderRadius buttonShapeRadius =
         BorderRadius.circular(_buttonRadius);
@@ -151,10 +151,10 @@ class AppTheme {
       dividerColor: border,
       disabledColor: disabled,
       shadowColor: Colors.black,
-      splashColor: accent.withOpacity(0.10),
-      highlightColor: accent.withOpacity(0.06),
-      hoverColor: accent.withOpacity(0.04),
-      focusColor: accent.withOpacity(0.12),
+      splashColor: accent.withValues(alpha: 0.10),
+      highlightColor: accent.withValues(alpha: 0.06),
+      hoverColor: accent.withValues(alpha: 0.04),
+      focusColor: accent.withValues(alpha: 0.12),
       visualDensity: VisualDensity.adaptivePlatformDensity,
     );
 
@@ -194,7 +194,7 @@ class AppTheme {
       cardTheme: base.cardTheme.copyWith(
         color: card,
         surfaceTintColor: Colors.transparent,
-        shadowColor: Colors.black.withOpacity(isDark ? 0.5 : 0.08),
+        shadowColor: Colors.black.withValues(alpha: isDark ? 0.5 : 0.08),
         elevation: isDark ? 0 : 1,
         clipBehavior: Clip.antiAlias,
         margin: const EdgeInsets.symmetric(
@@ -226,7 +226,7 @@ class AppTheme {
         elevation: 0,
         modalElevation: 0,
         showDragHandle: true,
-        dragHandleColor: textSecondary.withOpacity(0.4),
+        dragHandleColor: textSecondary.withValues(alpha: 0.4),
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(_sheetRadius),
@@ -237,7 +237,7 @@ class AppTheme {
       drawerTheme: DrawerThemeData(
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
-        scrimColor: Colors.black.withOpacity(0.6),
+        scrimColor: Colors.black.withValues(alpha: 0.6),
         elevation: 0,
       ),
 
@@ -292,7 +292,7 @@ class AppTheme {
           padding: _buttonPadding,
           minimumSize: _buttonMinSize,
           textStyle: text.labelLarge,
-          side: BorderSide(color: accent.withOpacity(0.5)),
+          side: BorderSide(color: accent.withValues(alpha: 0.5)),
           shape: RoundedRectangleBorder(borderRadius: buttonShapeRadius),
         ),
       ),
@@ -315,7 +315,7 @@ class AppTheme {
         style: IconButton.styleFrom(
           foregroundColor: textSecondary,
           disabledForegroundColor: disabled,
-          highlightColor: accent.withOpacity(0.12),
+          highlightColor: accent.withValues(alpha: 0.12),
         ),
       ),
 
@@ -343,7 +343,7 @@ class AppTheme {
           vertical: NebulaSpacing.md,
         ),
         hintStyle: text.bodyMedium?.copyWith(
-          color: textSecondary.withOpacity(0.7),
+          color: textSecondary.withValues(alpha: 0.7),
         ),
         labelStyle: text.bodyMedium?.copyWith(color: textSecondary),
         floatingLabelStyle: text.bodyMedium?.copyWith(color: accent),
@@ -354,14 +354,14 @@ class AppTheme {
         border: inputBorder(border),
         enabledBorder: inputBorder(border),
         focusedBorder: inputBorder(accent, 1.5),
-        disabledBorder: inputBorder(border.withOpacity(0.5)),
+        disabledBorder: inputBorder(border.withValues(alpha: 0.5)),
         errorBorder: inputBorder(danger),
         focusedErrorBorder: inputBorder(danger, 1.5),
       ),
 
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: accent,
-        selectionColor: accent.withOpacity(0.3),
+        selectionColor: accent.withValues(alpha: 0.3),
         selectionHandleColor: accent,
       ),
 
@@ -371,7 +371,7 @@ class AppTheme {
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: card,
         surfaceTintColor: Colors.transparent,
-        indicatorColor: accent.withOpacity(0.18),
+        indicatorColor: accent.withValues(alpha: 0.18),
         elevation: 0,
         height: 68,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
@@ -406,7 +406,7 @@ class AppTheme {
 
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: card,
-        indicatorColor: accent.withOpacity(0.18),
+        indicatorColor: accent.withValues(alpha: 0.18),
         selectedIconTheme: IconThemeData(color: accent, size: 22),
         unselectedIconTheme: IconThemeData(color: textSecondary, size: 22),
         selectedLabelTextStyle: text.labelSmall?.copyWith(color: accent),
@@ -432,7 +432,7 @@ class AppTheme {
       // -----------------------------------------------------------------------
       chipTheme: ChipThemeData(
         backgroundColor: isDark ? NebulaColors.surfaceCard : muted,
-        selectedColor: accent.withOpacity(0.2),
+        selectedColor: accent.withValues(alpha: 0.2),
         disabledColor: disabledSurface,
         checkmarkColor: accent,
         surfaceTintColor: Colors.transparent,
@@ -460,7 +460,7 @@ class AppTheme {
 
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
-        selectedTileColor: accent.withOpacity(0.10),
+        selectedTileColor: accent.withValues(alpha: 0.10),
         selectedColor: accent,
         iconColor: textSecondary,
         textColor: textPrimary,
@@ -507,7 +507,7 @@ class AppTheme {
 
       progressIndicatorTheme: ProgressIndicatorThemeData(
         color: accent,
-        linearTrackColor: accent.withOpacity(0.15),
+        linearTrackColor: accent.withValues(alpha: 0.15),
         circularTrackColor: Colors.transparent,
         refreshBackgroundColor: card,
       ),
@@ -536,7 +536,7 @@ class AppTheme {
           return Colors.transparent;
         }),
         checkColor: WidgetStateProperty.all<Color>(Colors.white),
-        side: BorderSide(color: textSecondary.withOpacity(0.6), width: 1.5),
+        side: BorderSide(color: textSecondary.withValues(alpha: 0.6), width: 1.5),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(NebulaSpacing.xs),
         ),
@@ -552,9 +552,9 @@ class AppTheme {
 
       sliderTheme: SliderThemeData(
         activeTrackColor: accent,
-        inactiveTrackColor: accent.withOpacity(0.2),
+        inactiveTrackColor: accent.withValues(alpha: 0.2),
         thumbColor: accent,
-        overlayColor: accent.withOpacity(0.12),
+        overlayColor: accent.withValues(alpha: 0.12),
       ),
 
       iconTheme: IconThemeData(color: textSecondary, size: 22),

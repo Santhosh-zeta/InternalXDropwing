@@ -3,28 +3,38 @@
 import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
 import { getStrategyData } from '@/lib/api';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { Target, CheckCircle2, Circle, TrendingUp, ShieldAlert, AlertTriangle, Lock } from 'lucide-react';
+import { Target, CheckCircle2, Circle, ShieldAlert, AlertTriangle, Lock, RotateCcw } from 'lucide-react';
 import {
-  Badge, Card, CardHeader, EmptyState, Skeleton, tint,
+  Badge, Button, Card, CardHeader, EmptyState, Skeleton, tint,
 } from '@/components/ui';
 
 interface StrategyViewProps {
   currentUser: User;
 }
 
-const CHART_STYLE = {
-  contentStyle: { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text-primary)', fontSize: 12 },
-};
+interface KeyResult {
+  text: string;
+  done: boolean;
+}
 
-const GROWTH_DATA = [
-  { quarter: 'Q1', target: 400, actual: 420 },
-  { quarter: 'Q2', target: 500, actual: 480 },
-  { quarter: 'Q3', target: 650, actual: 680 },
-  { quarter: 'Q4', target: 800, actual: null },
-];
+interface Okr {
+  id: number;
+  objective: string;
+  progress: number;
+  color: string;
+  venture_name: string | null;
+  keyResults: KeyResult[];
+}
 
-/** Skeleton shaped like the OKR list and the two chart panels side by side. */
+interface StrategicRisk {
+  id: number;
+  risk_name: string;
+  severity: string;
+  mitigation: string;
+  venture_name: string | null;
+}
+
+/** Skeleton shaped like the OKR list and the risks panel beside it. */
 function StrategySkeleton() {
   return (
     <div className="flex flex-col gap-6" role="status" aria-busy="true" aria-live="polite">
@@ -49,12 +59,8 @@ function StrategySkeleton() {
         </div>
         <div className="flex flex-col gap-6">
           <Card>
-            <Skeleton height={14} width="60%" />
-            <Skeleton height={240} className="mt-5 rounded-[var(--radius-card)]" />
-          </Card>
-          <Card>
             <Skeleton height={14} width="50%" />
-            <Skeleton height={60} className="mt-3 rounded-[var(--radius-card)]" />
+            <Skeleton height={60} className="mt-4 rounded-[var(--radius-card)]" />
             <Skeleton height={60} className="mt-3 rounded-[var(--radius-card)]" />
             <Skeleton height={60} className="mt-3 rounded-[var(--radius-card)]" />
           </Card>
@@ -77,32 +83,41 @@ function riskTone(severity: string): 'danger' | 'warning' | 'success' {
 }
 
 export default function StrategyView({ currentUser }: StrategyViewProps) {
-  const [okrs, setOkrs] = useState<any[]>([]);
-  const [risks, setRisks] = useState<any[]>([]);
+  const [okrs, setOkrs] = useState<Okr[]>([]);
+  const [risks, setRisks] = useState<StrategicRisk[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const hasAccess = currentUser.accessLevel <= 2;
+
+  const loadData = useCallback(async () => {
     try {
       const res = await getStrategyData();
-      if (res.success) {
-        setOkrs(res.data.okrs);
-        setRisks(res.data.risks);
-      }
-    } catch (e) {
-      console.error(e);
+      if (!res.success) throw new Error('Request was not successful');
+      setOkrs(res.data.okrs ?? []);
+      setRisks(res.data.risks ?? []);
+      setError(null);
+    } catch {
+      setError('Could not load strategy data. Check your connection and try again.');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    if (currentUser.accessLevel <= 2) {
-      fetchData();
-    }
-  }, [fetchData, currentUser.accessLevel]);
+  const retry = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void loadData();
+  }, [loadData]);
 
-  if (currentUser.accessLevel > 2) {
+  useEffect(() => {
+    // The loader's first statement is an `await`, so no setState runs
+    // synchronously here — the rule cannot see past the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (hasAccess) void loadData();
+  }, [hasAccess, loadData]);
+
+  if (!hasAccess) {
     return (
       <div
         className="rounded-2xl border border-dashed p-16 text-center"
@@ -131,15 +146,41 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
     return <StrategySkeleton />;
   }
 
+  const header = (
+    <div>
+      <h2 className="text-2xl font-black text-[var(--color-text-primary)]">Corporate Strategy &amp; OKRs</h2>
+      <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">
+        High-level objectives, key results, and strategic risks across all Dropwing ventures.
+      </p>
+    </div>
+  );
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 pb-10">
+        {header}
+        <EmptyState
+          tone="error"
+          icon={<Target size={22} aria-hidden="true" />}
+          title="Strategy data unavailable"
+          description={error}
+          action={
+            <Button
+              variant="primary"
+              leadingIcon={<RotateCcw size={16} aria-hidden="true" />}
+              onClick={retry}
+            >
+              Try again
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 pb-10">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-black text-[var(--color-text-primary)]">Corporate Strategy &amp; OKRs</h2>
-        <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">
-          High-level objectives, key results, and growth targets across all Dropwing ventures.
-        </p>
-      </div>
+      {header}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* OKRs Section */}
@@ -194,7 +235,7 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
                 </div>
 
                 <div className="flex flex-col gap-2.5">
-                  {(okr.keyResults || []).map((kr: any, i: number) => (
+                  {(okr.keyResults ?? []).map((kr, i) => (
                     <div key={i} className="flex items-start gap-2.5">
                       {kr.done
                         ? <CheckCircle2 size={15} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: 'var(--color-emerald)' }} />
@@ -216,30 +257,12 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
 
         {/* Charts & Metrics */}
         <div className="flex flex-col gap-6">
-          {/* Revenue Growth Chart */}
-          <Card>
-            <CardHeader
-              title="Projected vs Actual Revenue Growth ($M)"
-              description="Quarterly targets versus actuals across all ventures."
-            />
-            <div
-              className="h-[240px]"
-              role="img"
-              aria-label="Line chart comparing projected and actual revenue growth by quarter: Q1 target $400M actual $420M, Q2 target $500M actual $480M, Q3 target $650M actual $680M, Q4 target $800M projected only."
-            >
-              <ResponsiveContainer width="100%" height="100%" minHeight={240} minWidth={0}>
-                <LineChart data={GROWTH_DATA}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                  <XAxis dataKey="quarter" stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="var(--color-text-muted)" fontSize={12} tickLine={false} axisLine={false} tickFormatter={val => `$${val}`} />
-                  <Tooltip contentStyle={CHART_STYLE.contentStyle} />
-                  <Legend wrapperStyle={{ fontSize: 12, color: 'var(--color-text-secondary)' }} />
-                  <Line type="monotone" dataKey="target" name="Target" stroke="var(--color-text-muted)" strokeWidth={2} strokeDasharray="5 5" dot={false} />
-                  <Line type="monotone" dataKey="actual" name="Actual" stroke="var(--color-emerald)" strokeWidth={3} dot={{ r: 4, fill: 'var(--color-emerald)' }} activeDot={{ r: 6 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
+          {/* A "Projected vs Actual Revenue Growth" chart previously lived here,
+              backed entirely by a hard-coded GROWTH_DATA constant ($400M–$800M
+              figures with no basis in reality). GET /api/strategy
+              (backend/src/controllers/strategy.controller.js) returns only
+              `okrs` and `risks` — no revenue series exists to chart, so the
+              card is removed rather than shipped as fake data. */}
 
           {/* Strategic Risks */}
           <Card>

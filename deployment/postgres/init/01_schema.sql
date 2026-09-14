@@ -56,7 +56,10 @@ CREATE TABLE users (
   full_name VARCHAR(100) NOT NULL,
   email VARCHAR(150) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  otp VARCHAR(10),
+  -- Stores an HMAC-SHA256 hex digest of the OTP, not the OTP itself (64 hex
+  -- chars) — see backend/src/utils/otp.js. Widened from VARCHAR(10), which
+  -- only fit the plaintext 6-digit code.
+  otp VARCHAR(64),
   otp_expires_at TIMESTAMP NULL,
   reset_password_token VARCHAR(255),
   reset_password_expires_at TIMESTAMP NULL,

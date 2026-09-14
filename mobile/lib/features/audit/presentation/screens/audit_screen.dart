@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/audit_model.dart';
@@ -16,10 +17,10 @@ class AuditScreen extends ConsumerWidget {
       authenticated: (u) => u,
       orElse: () => null,
     );
-    final level = user?.accessLevel ?? 99;
+    final level = user?.accessLevel ?? AccessLevels.unknown;
 
-    // L1 only (accessLevel == 1)
-    if (level != 1) {
+    // Super Admin only.
+    if (level != AccessLevels.superAdmin) {
       return Scaffold(
         backgroundColor: NebulaColors.background,
         appBar: AppBar(
@@ -36,12 +37,12 @@ class AuditScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: NebulaColors.surfaceCard,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: NebulaColors.critical.withOpacity(0.3)),
+              border: Border.all(color: NebulaColors.critical.withValues(alpha: 0.3)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.shieldOff, size: 56, color: NebulaColors.critical.withOpacity(0.7)),
+                Icon(LucideIcons.shieldOff, size: 56, color: NebulaColors.critical.withValues(alpha: 0.7)),
                 const SizedBox(height: 16),
                 const Text(
                   'Super Admin Access Only',
@@ -202,7 +203,7 @@ class _AuditLogsContent extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(LucideIcons.clipboardList,
-                            size: 64, color: NebulaColors.textSecondary.withOpacity(0.4)),
+                            size: 64, color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
                         const SizedBox(height: 16),
                         const Text('No logs found',
                             style: TextStyle(color: NebulaColors.textSecondary, fontSize: 16)),
@@ -292,7 +293,7 @@ class _AuditLogTileState extends State<_AuditLogTile> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.15),
+                    color: color.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
@@ -410,7 +411,7 @@ class _ActionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.2) : NebulaColors.surface,
+          color: isSelected ? color.withValues(alpha: 0.2) : NebulaColors.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? color : Colors.transparent,

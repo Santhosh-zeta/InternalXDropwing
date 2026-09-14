@@ -8,11 +8,11 @@ class TaskListWidget extends StatelessWidget {
   final bool emptyStateIsPositive;
 
   const TaskListWidget({
-    Key? key, 
+    super.key, 
     required this.tasks, 
     required this.title,
     this.emptyStateIsPositive = false,
-  }) : super(key: key);
+  });
 
   Color _getPriorityColor(String priority) {
     switch (priority.toLowerCase()) {
@@ -44,7 +44,7 @@ class TaskListWidget extends StatelessWidget {
             decoration: BoxDecoration(
               color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+              border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
             ),
             child: Column(
               children: [
@@ -98,7 +98,7 @@ class TaskListWidget extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+                border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,7 +114,7 @@ class TaskListWidget extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
                           color: Theme.of(context).scaffoldBackgroundColor,
-                          border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.2)),
+                          border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.2)),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(

@@ -30,7 +30,7 @@ class NebulaColors {
   // ---------------------------------------------------------------------------
   // Borders / hairlines
   // ---------------------------------------------------------------------------
-  /// 5% white — matches the historical `Colors.white.withOpacity(0.05)` divider.
+  /// 5% white — matches the historical `Colors.white.withValues(alpha: 0.05)` divider.
   static const Color borderDark = Color(0x0DFFFFFF);
   static const Color borderLight = Color(0xFFE2E8F0);
 

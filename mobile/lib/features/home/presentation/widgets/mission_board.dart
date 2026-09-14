@@ -6,7 +6,7 @@ import '../../data/models/home_models.dart';
 class MissionBoard extends StatelessWidget {
   final List<HomeTask> tasks;
 
-  const MissionBoard({Key? key, required this.tasks}) : super(key: key);
+  const MissionBoard({super.key, required this.tasks});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +17,10 @@ class MissionBoard extends StatelessWidget {
     final now = DateTime.now();
 
     for (var task in tasks) {
-      if (task.status == 'Completed') {
+      // Real enum values are lowercase (task_status in 01_schema.sql); this
+      // used to compare against 'Completed' and therefore never matched, so
+      // the "Completed" tile below always read 0.
+      if (task.status == 'completed') {
         completed++;
       } else {
         if (task.priority.toLowerCase() == 'high') {
@@ -104,9 +107,9 @@ class _MissionCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         children: [

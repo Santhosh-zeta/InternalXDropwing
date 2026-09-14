@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const { authenticate } = require('../middleware/auth.middleware');
+const {
+  createChecklistItemRules,
+  progressRules,
+  createResourceRules,
+  createFeedbackRules,
+  learningIdRules,
+} = require('../middleware/validate.middleware');
 
 // ─── CHECKLIST ────────────────────────────────────────────────────────────────
 
@@ -47,7 +54,7 @@ router.get('/checklist', authenticate, async (req, res) => {
 });
 
 // POST /api/learning/checklist — Manager creates a checklist item
-router.post('/checklist', authenticate, async (req, res) => {
+router.post('/checklist', authenticate, createChecklistItemRules, async (req, res) => {
   try {
     const { accessLevel, ventureId } = req.user;
     if (accessLevel > 5) return res.status(403).json({ success: false, message: 'Managers only.' });
@@ -67,7 +74,7 @@ router.post('/checklist', authenticate, async (req, res) => {
 });
 
 // DELETE /api/learning/checklist/:id — Manager deletes a checklist item
-router.delete('/checklist/:id', authenticate, async (req, res) => {
+router.delete('/checklist/:id', authenticate, learningIdRules, async (req, res) => {
   try {
     const { accessLevel } = req.user;
     if (accessLevel > 5) return res.status(403).json({ success: false, message: 'Managers only.' });
@@ -82,7 +89,7 @@ router.delete('/checklist/:id', authenticate, async (req, res) => {
 // ─── PROGRESS ─────────────────────────────────────────────────────────────────
 
 // PATCH /api/learning/progress/:checklistItemId — Intern marks item complete/incomplete
-router.patch('/progress/:checklistItemId', authenticate, async (req, res) => {
+router.patch('/progress/:checklistItemId', authenticate, progressRules, async (req, res) => {
   try {
     const { id: userId, accessLevel } = req.user;
     if (accessLevel !== 8) return res.status(403).json({ success: false, message: 'Interns only.' });
@@ -160,7 +167,7 @@ router.get('/resources', authenticate, async (req, res) => {
 });
 
 // POST /api/learning/resources — Manager adds a resource
-router.post('/resources', authenticate, async (req, res) => {
+router.post('/resources', authenticate, createResourceRules, async (req, res) => {
   try {
     const { accessLevel, id: userId, ventureId } = req.user;
     if (accessLevel > 5) return res.status(403).json({ success: false, message: 'Managers only.' });
@@ -180,7 +187,7 @@ router.post('/resources', authenticate, async (req, res) => {
 });
 
 // DELETE /api/learning/resources/:id — Manager deletes a resource
-router.delete('/resources/:id', authenticate, async (req, res) => {
+router.delete('/resources/:id', authenticate, learningIdRules, async (req, res) => {
   try {
     const { accessLevel } = req.user;
     if (accessLevel > 5) return res.status(403).json({ success: false, message: 'Managers only.' });
@@ -231,7 +238,7 @@ router.get('/feedback', authenticate, async (req, res) => {
 });
 
 // POST /api/learning/feedback — Manager adds feedback for an intern
-router.post('/feedback', authenticate, async (req, res) => {
+router.post('/feedback', authenticate, createFeedbackRules, async (req, res) => {
   try {
     const { id: managerId, accessLevel, ventureId } = req.user;
     if (accessLevel > 5) return res.status(403).json({ success: false, message: 'Managers only.' });
@@ -251,7 +258,7 @@ router.post('/feedback', authenticate, async (req, res) => {
 });
 
 // DELETE /api/learning/feedback/:id — Manager deletes feedback
-router.delete('/feedback/:id', authenticate, async (req, res) => {
+router.delete('/feedback/:id', authenticate, learningIdRules, async (req, res) => {
   try {
     const { accessLevel, id: managerId } = req.user;
     if (accessLevel > 5) return res.status(403).json({ success: false, message: 'Managers only.' });

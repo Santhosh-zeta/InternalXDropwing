@@ -9,11 +9,11 @@ class MissionControlLayer extends StatelessWidget {
   final int documentsToApprove;
 
   const MissionControlLayer({
-    Key? key,
+    super.key,
     required this.criticalTasks,
     required this.pendingProjects,
     required this.documentsToApprove,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +24,9 @@ class MissionControlLayer extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: NebulaColors.surfaceCard.withOpacity(0.5),
+            color: NebulaColors.surfaceCard.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
             boxShadow: NebulaShadows.subtle,
           ),
           child: Column(
@@ -59,7 +59,7 @@ class MissionControlLayer extends StatelessWidget {
                   color: NebulaColors.success,
                 ),
               if (criticalTasks == 0 && pendingProjects == 0 && documentsToApprove == 0)
-                _MissionItem(
+                const _MissionItem(
                   icon: Icons.check_circle_outline,
                   text: 'All clear for today. Explore the galaxy.',
                   color: NebulaColors.highlight,
@@ -92,7 +92,7 @@ class _MissionItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
+              color: color.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color, size: 20),

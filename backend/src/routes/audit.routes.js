@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
 
 // GET /api/audit (Level 1 only)
-router.get('/', authenticate, requireLevel(1), async (req, res) => {
+router.get('/', authenticate, reportLimiter, requireLevel(1), async (req, res) => {
   try {
     const [logs] = await pool.query(`
       SELECT a.*, u.full_name as user_name, u.email as user_email

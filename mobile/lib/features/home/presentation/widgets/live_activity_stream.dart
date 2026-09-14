@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../data/models/home_models.dart';
 
 class LiveActivityStream extends StatefulWidget {
   final List<ActivityItem> activities;
 
-  const LiveActivityStream({Key? key, required this.activities}) : super(key: key);
+  const LiveActivityStream({super.key, required this.activities});
 
   @override
   State<LiveActivityStream> createState() => _LiveActivityStreamState();
 }
 
 class _LiveActivityStreamState extends State<LiveActivityStream> {
-  // Use to animate items in sequence
-  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
-  
   @override
   Widget build(BuildContext context) {
     if (widget.activities.isEmpty) return const SizedBox.shrink();
@@ -32,7 +28,7 @@ class _LiveActivityStreamState extends State<LiveActivityStream> {
                 color: NebulaColors.highlight,
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: NebulaColors.highlight.withOpacity(0.5), blurRadius: 10)
+                  BoxShadow(color: NebulaColors.highlight.withValues(alpha: 0.5), blurRadius: 10)
                 ],
               ),
             ),
@@ -50,9 +46,9 @@ class _LiveActivityStreamState extends State<LiveActivityStream> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: NebulaColors.surfaceCard.withOpacity(0.3),
+            color: NebulaColors.surfaceCard.withValues(alpha: 0.3),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.05)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
           ),
           child: ListView.builder(
             shrinkWrap: true,
@@ -79,17 +75,13 @@ class _ActivityStreamItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    IconData icon;
     Color color;
 
     if (activity.action.toLowerCase().contains('task')) {
-      icon = LucideIcons.checkCircle2;
       color = NebulaColors.success;
     } else if (activity.action.toLowerCase().contains('project')) {
-      icon = LucideIcons.folder;
       color = NebulaColors.primary;
     } else {
-      icon = LucideIcons.zap;
       color = NebulaColors.highlight;
     }
 
@@ -109,7 +101,7 @@ class _ActivityStreamItem extends StatelessWidget {
                     color: color,
                     shape: BoxShape.circle,
                     boxShadow: [
-                      BoxShadow(color: color.withOpacity(0.5), blurRadius: 5)
+                      BoxShadow(color: color.withValues(alpha: 0.5), blurRadius: 5)
                     ]
                   ),
                 ),
@@ -117,7 +109,7 @@ class _ActivityStreamItem extends StatelessWidget {
                   Expanded(
                     child: Container(
                       width: 1,
-                      color: color.withOpacity(0.2),
+                      color: color.withValues(alpha: 0.2),
                     ),
                   ),
                 if (isLast)

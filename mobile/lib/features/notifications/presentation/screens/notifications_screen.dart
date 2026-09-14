@@ -119,7 +119,7 @@ class NotificationsScreen extends ConsumerWidget {
                 children: [
                   Icon(LucideIcons.bellOff,
                       size: 64,
-                      color: NebulaColors.textSecondary.withOpacity(0.4)),
+                      color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
                   const SizedBox(height: 16),
                   const Text('No notifications',
                       style: TextStyle(
@@ -251,7 +251,7 @@ class _NotificationTile extends ConsumerWidget {
         decoration: BoxDecoration(
           color: notification.isRead
               ? Colors.transparent
-              : NebulaColors.primary.withOpacity(0.04),
+              : NebulaColors.primary.withValues(alpha: 0.04),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,7 +261,7 @@ class _NotificationTile extends ConsumerWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(_typeIcon(), size: 18, color: color),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../providers/home_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -9,9 +10,10 @@ import '../widgets/greeting_section.dart';
 import '../widgets/mission_control_layer.dart';
 import '../widgets/nebula_hero_orb.dart';
 import '../widgets/command_center_grid.dart';
-import '../widgets/strategic_radar.dart';
 import '../widgets/mission_board.dart';
 import '../widgets/venture_galaxy.dart';
+import '../widgets/venture_summary_section.dart';
+import '../widgets/announcements_section.dart';
 import '../widgets/live_activity_stream.dart';
 import '../widgets/ai_executive_assistant.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -19,7 +21,7 @@ import '../../../projects/presentation/providers/projects_provider.dart';
 import '../../../documents/presentation/providers/documents_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -71,10 +73,15 @@ class HomeScreen extends ConsumerWidget {
       body: DynamicNebulaBackground(
         child: homeDataAsync.when(
           data: (data) {
-            // Calculate today's mission data
+            // Calculate today's mission data.
+            //
+            // Real task_status values are lowercase ('completed', not
+            // 'Completed' — see 01_schema.sql); comparing against the wrong
+            // case here used to make every completed high-priority task
+            // count as still-critical forever.
             int critical = 0;
             for (var t in data.tasks) {
-              if (t.priority.toLowerCase() == 'high' && t.status != 'Completed') {
+              if (t.priority.toLowerCase() == 'high' && t.status != 'completed') {
                 critical++;
               }
             }
@@ -82,13 +89,22 @@ class HomeScreen extends ConsumerWidget {
             int runningProjects = 0;
             ref.watch(projectListProvider).whenData((projs) {
               runningProjects = projs.where((p) => p.isActive).length;
-              pendingProjects = projs.length; // Simplified, or just projs.where((p) => !p.isCompleted).length
+              // Projects that need a decision or a kickoff, not every
+              // project (which used to include completed and archived ones).
+              pendingProjects = projs.where((p) => p.isPending).length;
             });
 
             int documents = 0;
             ref.watch(documentsProvider).whenData((docs) {
               documents = docs.length;
             });
+
+            // Real completion rate over this user's visible tasks — there is
+            // no "organization health" figure anywhere in the API.
+            final completedCount = data.tasks.where((t) => t.status == 'completed').length;
+            final completionRate = data.tasks.isEmpty
+                ? 0
+                : ((completedCount / data.tasks.length) * 100).round();
 
             return RefreshIndicator(
               onRefresh: () async {
@@ -111,8 +127,8 @@ class HomeScreen extends ConsumerWidget {
                       const SizedBox(height: 32),
                       
                       NebulaHeroOrb(
-                        healthPercentage: 92,
-                        activeVentures: data.analytics.userDistribution.isNotEmpty ? data.analytics.userDistribution.length : 4,
+                        completionRate: completionRate,
+                        activeVentures: data.analytics.userDistribution.length,
                         runningProjects: runningProjects,
                         openTasks: data.tasks.length,
                       ),
@@ -129,14 +145,13 @@ class HomeScreen extends ConsumerWidget {
                       const CommandCenterGrid(),
                       const SizedBox(height: 32),
 
-                      StrategicRadar(
-                        metrics: {
-                          'Revenue': 85,
-                          'Projects': 70,
-                          'Efficiency': 92,
-                          'Learning': 65,
-                        },
-                      ),
+                      // Company announcements (below Admin) and the
+                      // cross-venture roll-up (Admin and above) are two
+                      // halves of the same real data the API already
+                      // returns — each renders nothing for the audience
+                      // it isn't meant for.
+                      AnnouncementsSection(data: data, accessLevel: currentUser.accessLevel),
+                      VentureSummarySection(data: data, accessLevel: currentUser.accessLevel),
                       const SizedBox(height: 32),
 
                       VentureGalaxy(data: data),
@@ -194,7 +209,7 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _NotificationBell extends ConsumerWidget {
-  const _NotificationBell({Key? key}) : super(key: key);
+  const _NotificationBell();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

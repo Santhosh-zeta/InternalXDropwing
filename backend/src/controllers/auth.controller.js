@@ -4,10 +4,11 @@ const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { generateOTP, generateResetToken } = require('../utils/otp');
+const { generateOTP, generateResetToken, hashOTP, verifyOTP } = require('../utils/otp');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.service');
+const { createSession, revokeSession } = require('../services/session.service');
 
-const generateAuthResponse = (user, res, message) => {
+const generateAuthResponse = async (user, res, message, req) => {
   const token = jwt.sign(
     {
       id: user.id,
@@ -20,6 +21,16 @@ const generateAuthResponse = (user, res, message) => {
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
   );
+
+  /**
+   * Record the session before the token reaches the client. This is the only
+   * place that signs a JWT, so every sign-in path lands here and no token can
+   * escape without a revocable row behind it. The expiry is read back off the
+   * signed token rather than recomputed, so the row and the token can never
+   * disagree about when access ends.
+   */
+  const { exp } = jwt.decode(token);
+  await createSession(user.id, token, new Date(exp * 1000), req);
 
   res.cookie('internalx_token', token, {
     httpOnly: true,
@@ -91,9 +102,11 @@ const login = async (req, res) => {
     // 10 minutes expiry
     const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
+    // Only the hash is persisted — the cleartext OTP exists solely in the email
+    // we are about to send. See utils/otp.js for why it is an HMAC.
     await pool.query(
       'UPDATE users SET otp = ?, otp_expires_at = ? WHERE id = ?',
-      [otp, otpExpiresAt, user.id]
+      [hashOTP(otp), otpExpiresAt, user.id]
     );
 
     // Send OTP via email
@@ -140,8 +153,10 @@ const verifyOtp = async (req, res) => {
 
     const user = rows[0];
 
-    // Check if OTP matches and is not expired
-    if (!user.otp || user.otp !== otp || new Date() > new Date(user.otp_expires_at)) {
+    // Constant-time compare against the stored hash, so the number of matching
+    // leading digits cannot be read off the response latency.
+    const otpExpired = !user.otp_expires_at || new Date() > new Date(user.otp_expires_at);
+    if (otpExpired || !verifyOTP(otp, user.otp)) {
       return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
     }
 
@@ -151,7 +166,7 @@ const verifyOtp = async (req, res) => {
       [user.id]
     );
 
-    return generateAuthResponse(user, res, 'Account verified and login successful');
+    return await generateAuthResponse(user, res, 'Account verified and login successful', req);
   } catch (err) {
     console.error('Verify OTP error:', err);
     return res.status(500).json({ success: false, message: 'Server error during OTP verification' });
@@ -241,6 +256,21 @@ const resetPassword = async (req, res) => {
  * POST /api/auth/logout
  */
 const logout = async (req, res) => {
+  /**
+   * Clearing the cookie only removes the browser's copy. Deleting the session
+   * row is what stops the token itself from working — including the copy the
+   * mobile client holds in its keychain and any copy an attacker captured.
+   */
+  try {
+    if (req.authToken) await revokeSession(req.authToken);
+  } catch (err) {
+    // A failure here means the token stays live until it expires, which the
+    // user needs to know about rather than being told they are safely out.
+    console.error('Session revocation failed:', err.message);
+    res.clearCookie('internalx_token');
+    return res.status(500).json({ success: false, message: 'Could not fully sign out. Please try again.' });
+  }
+
   res.clearCookie('internalx_token');
   return res.json({ success: true, message: 'Logged out successfully' });
 };
@@ -404,7 +434,7 @@ const googleLogin = async (req, res) => {
     }
 
     await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
-    return generateAuthResponse(user, res, 'Google login successful');
+    return await generateAuthResponse(user, res, 'Google login successful', req);
   } catch (err) {
     console.error('Google login error:', err);
     return res.status(500).json({ success: false, message: 'Server error during Google login' });

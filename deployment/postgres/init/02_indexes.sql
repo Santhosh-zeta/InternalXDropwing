@@ -9,6 +9,13 @@ CREATE INDEX idx_users_venture_id ON users(venture_id);
 
 -- sessions
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
+-- Every authenticated request looks a session up by token_hash
+-- (src/services/session.service.js#isSessionActive) — this is the hottest
+-- query in the app and was previously an unindexed sequential scan.
+CREATE INDEX idx_sessions_token_hash ON sessions(token_hash);
+-- Backs both the "AND expires_at > CURRENT_TIMESTAMP" half of that same
+-- lookup and the hourly cleanup sweep's "WHERE expires_at <= CURRENT_TIMESTAMP".
+CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 
 -- venture_roles & assignments
 CREATE INDEX idx_venture_roles_venture_id ON venture_roles(venture_id);

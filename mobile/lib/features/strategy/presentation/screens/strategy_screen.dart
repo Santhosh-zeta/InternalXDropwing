@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/strategy_model.dart';
@@ -16,10 +17,10 @@ class StrategyScreen extends ConsumerWidget {
       authenticated: (u) => u,
       orElse: () => null,
     );
-    final level = user?.accessLevel ?? 99;
+    final level = user?.accessLevel ?? AccessLevels.unknown;
 
-    // L5+ (accessLevel >= 5) are restricted
-    if (level >= 5) {
+    // Strategy is for CXO (4) and above; Manager (5) and below are restricted.
+    if (!AccessLevels.hasAtLeast(level, AccessLevels.cxo)) {
       return Scaffold(
         backgroundColor: NebulaColors.background,
         appBar: _buildAppBar(),
@@ -128,9 +129,9 @@ class _OKRCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border(left: BorderSide(color: NebulaColors.primary, width: 3)),
+        border: const Border(left: BorderSide(color: NebulaColors.primary, width: 3)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -172,7 +173,7 @@ class _OKRCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: NebulaColors.primary.withOpacity(0.15),
+                    color: NebulaColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -187,7 +188,7 @@ class _OKRCard extends StatelessWidget {
                 const SizedBox(width: 8),
               ],
               if (okr.ownerName != null) ...[
-                Icon(LucideIcons.user, size: 12, color: NebulaColors.textSecondary),
+                const Icon(LucideIcons.user, size: 12, color: NebulaColors.textSecondary),
                 const SizedBox(width: 4),
                 Text(
                   okr.ownerName!,
@@ -204,7 +205,7 @@ class _OKRCard extends StatelessWidget {
               const Text('Progress', style: TextStyle(fontSize: 12, color: NebulaColors.textSecondary)),
               Text(
                 '${okr.progress}%',
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   color: NebulaColors.primary,
@@ -275,7 +276,7 @@ class _KeyResultRow extends StatelessWidget {
               value: kr.progress,
               backgroundColor: NebulaColors.surface,
               valueColor: AlwaysStoppedAnimation<Color>(
-                NebulaColors.primary.withOpacity(0.7),
+                NebulaColors.primary.withValues(alpha: 0.7),
               ),
               minHeight: 3,
             ),
@@ -348,7 +349,7 @@ class _RiskCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border(left: BorderSide(color: color, width: 4)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       padding: const EdgeInsets.all(16),
@@ -371,7 +372,7 @@ class _RiskCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.15),
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -450,7 +451,7 @@ class _StatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Text(
@@ -472,7 +473,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: NebulaColors.textSecondary.withOpacity(0.4)),
+          Icon(icon, size: 64, color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
           Text(message, style: const TextStyle(color: NebulaColors.textSecondary, fontSize: 16)),
         ],
@@ -526,12 +527,12 @@ class _AccessRestrictedView extends StatelessWidget {
         decoration: BoxDecoration(
           color: NebulaColors.surfaceCard,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: NebulaColors.critical.withOpacity(0.3)),
+          border: Border.all(color: NebulaColors.critical.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: NebulaColors.critical.withOpacity(0.7)),
+            Icon(icon, size: 56, color: NebulaColors.critical.withValues(alpha: 0.7)),
             const SizedBox(height: 16),
             Text(
               message,

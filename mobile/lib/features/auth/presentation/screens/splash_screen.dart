@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
-import '../../../core/theme/nebula_colors.dart';
-import '../../../core/theme/nebula_animations.dart';
+import '../../../../core/theme/nebula_colors.dart';
+import '../../../../core/theme/nebula_animations.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -81,13 +81,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                       shape: BoxShape.circle,
                       gradient: RadialGradient(
                         colors: [
-                          NebulaColors.primary.withOpacity(0.8),
-                          NebulaColors.primary.withOpacity(0.2),
+                          NebulaColors.primary.withValues(alpha: 0.8),
+                          NebulaColors.primary.withValues(alpha: 0.2),
                         ],
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: NebulaColors.primary.withOpacity(0.5),
+                          color: NebulaColors.primary.withValues(alpha: 0.5),
                           blurRadius: 20,
                           spreadRadius: 5,
                         ),
@@ -102,7 +102,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           color: NebulaColors.primary,
                           boxShadow: [
                             BoxShadow(
-                              color: NebulaColors.primary.withOpacity(0.6),
+                              color: NebulaColors.primary.withValues(alpha: 0.6),
                               blurRadius: 15,
                             ),
                           ],
@@ -148,11 +148,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: NebulaColors.primary.withOpacity(0.3),
+                      color: NebulaColors.primary.withValues(alpha: 0.3),
                       width: 2,
                     ),
                   ),
-                  child: CircularProgressIndicator(
+                  child: const CircularProgressIndicator(
                     valueColor:
                         AlwaysStoppedAnimation<Color>(NebulaColors.primary),
                     strokeWidth: 2,

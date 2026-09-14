@@ -1,17 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../data/models/approval_model.dart';
 import '../../data/data_sources/approval_data_source.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../core/api/api_client.dart';
-
-final approvalDataSourceProvider = Provider<ApprovalDataSource>((ref) {
-  final dio = ref.watch(apiClientProvider);
-  return ApprovalDataSource(dio: dio);
-});
 
 /// Provider to fetch list of pending approvals
-final approvalsProvider =
-    FutureProvider<List<ApprovalRequest>>((ref) async {
+final approvalsProvider = FutureProvider<List<ApprovalRequest>>((ref) async {
   final dataSource = ref.watch(approvalDataSourceProvider);
   return await dataSource.getApprovals();
 });

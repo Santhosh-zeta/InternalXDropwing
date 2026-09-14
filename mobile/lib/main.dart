@@ -5,12 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:logger/logger.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_mode_provider.dart';
 import 'core/network/network_info_provider.dart';
 import 'core/notifications/firebase_notif_handler.dart';
 import 'firebase_options.dart';
+
+final _logger = Logger();
 
 class MyHttpOverrides extends HttpOverrides {
   @override
@@ -23,8 +26,8 @@ class MyHttpOverrides extends HttpOverrides {
 // Background message handler (must be top-level)
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp();
-  print('Handling background message: ${message.messageId}');
-  print('Message data: ${message.data}');
+  _logger.i('Handling background message: ${message.messageId}');
+  _logger.d('Message data: ${message.data}');
 }
 
 void main() async {
@@ -46,17 +49,16 @@ void main() async {
     alert: true,
     announcement: false,
     badge: true,
-    carplay: false,
     criticalAlert: false,
     provisional: false,
     sound: true,
   );
 
-  print('Notification permission: ${settings.authorizationStatus}');
+  _logger.i('Notification permission: ${settings.authorizationStatus}');
 
   // Get FCM token
   final token = await messaging.getToken();
-  print('FCM Token: $token');
+  _logger.d('FCM Token: $token');
 
   // Handle background messages
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);

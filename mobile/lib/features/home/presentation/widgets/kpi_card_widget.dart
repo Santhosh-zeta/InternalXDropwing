@@ -4,7 +4,7 @@ import '../../data/models/home_models.dart';
 class KPICardWidget extends StatelessWidget {
   final KPICard kpi;
 
-  const KPICardWidget({Key? key, required this.kpi}) : super(key: key);
+  const KPICardWidget({super.key, required this.kpi});
 
   Color _parseColor(String hexColor) {
     hexColor = hexColor.replaceAll('#', '');
@@ -33,10 +33,10 @@ class KPICardWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -62,7 +62,7 @@ class KPICardWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(_getIcon(kpi.icon), color: color, size: 20),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -36,7 +37,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
 
     // Access gate: L9 only
     final isL9 = authState.maybeWhen(
-      authenticated: (user) => user.accessLevel == 9,
+      authenticated: (user) => user.accessLevel == AccessLevels.client,
       orElse: () => false,
     );
 
@@ -52,7 +53,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
           elevation: 0,
           centerTitle: false,
         ),
-        body: Center(
+        body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -61,8 +62,8 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                 size: 48,
                 color: NebulaColors.critical,
               ),
-              const SizedBox(height: 16),
-              const Text(
+              SizedBox(height: 16),
+              Text(
                 'Client Portal (L9 Only)',
                 style: TextStyle(
                   fontSize: 18,
@@ -70,8 +71,8 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                   color: NebulaColors.textPrimary,
                 ),
               ),
-              const SizedBox(height: 8),
-              const Text(
+              SizedBox(height: 8),
+              Text(
                 'You do not have access to this feature.',
                 style: TextStyle(
                   fontSize: 14,
@@ -138,7 +139,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
         children: projects.isEmpty
             ? [
                 const SizedBox(height: 80),
-                Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
+                const Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
                 const SizedBox(height: 16),
                 const Text(
                   'No projects',
@@ -173,7 +174,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _getStatusColor(project.status).withOpacity(0.2),
+                              color: _getStatusColor(project.status).withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -242,7 +243,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: NebulaColors.highlight.withOpacity(0.15),
+                                color: NebulaColors.highlight.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -274,7 +275,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                               message: '${member.name}\n${member.email ?? ''}',
                               child: CircleAvatar(
                                 radius: 16,
-                                backgroundColor: NebulaColors.primary.withOpacity(0.3),
+                                backgroundColor: NebulaColors.primary.withValues(alpha: 0.3),
                                 child: Text(
                                   member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
                                   style: const TextStyle(
@@ -290,7 +291,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.secondary(
+                        child: OutlinedButton(
                           onPressed: () {
                             showModalBottomSheet(
                               context: context,
@@ -345,7 +346,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                                     Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
-                                        color: _getStatusColor(project.status).withOpacity(0.2),
+                                        color: _getStatusColor(project.status).withValues(alpha: 0.2),
                                         borderRadius: BorderRadius.circular(6),
                                       ),
                                       child: Text(
@@ -380,7 +381,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
         children: deliverables.isEmpty
             ? [
                 const SizedBox(height: 80),
-                Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
+                const Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
                 const SizedBox(height: 16),
                 const Text(
                   'No deliverables',
@@ -443,7 +444,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: _getDeliverableStatusColor(deliv.status).withOpacity(0.2),
+                              color: _getDeliverableStatusColor(deliv.status).withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -484,7 +485,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
         children: invoices.isEmpty
             ? [
                 const SizedBox(height: 80),
-                Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
+                const Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
                 const SizedBox(height: 16),
                 const Text(
                   'No invoices',
@@ -543,7 +544,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: _getInvoiceStatusColor(invoice.status)
-                                      .withOpacity(0.2),
+                                      .withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -562,7 +563,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                       const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.secondary(
+                        child: OutlinedButton(
                           onPressed: () {
                             _showInvoiceDetails(context, invoice);
                           },

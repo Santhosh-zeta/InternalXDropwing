@@ -216,7 +216,11 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
     items: filteredProjects.filter(p => p.status === s.id)
   }));
 
+  // backend/src/routes/project.routes.js: POST/PUT are requireLevel(4), but
+  // DELETE is requireLevel(3) — a CXO (L4) can create and edit projects but
+  // was previously shown a "Purge" button that always 403s.
   const canCreate = currentUser.accessLevel <= 4;
+  const canDelete = currentUser.accessLevel <= 3;
 
   return (
     <div className="flex flex-col gap-6 h-full pb-10 relative">
@@ -434,7 +438,7 @@ export default function ProjectsView({ currentUser }: ProjectsViewProps) {
         description="Global Workspace Node"
         footer={
           <>
-            {canCreate && editingProject && (
+            {canDelete && editingProject && (
               <Button
                 variant="danger"
                 leadingIcon={<Trash2 size={16} aria-hidden="true" />}

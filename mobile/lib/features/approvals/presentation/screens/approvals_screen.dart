@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../data/models/approval_model.dart';
@@ -41,9 +42,10 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
     final authState = ref.read(authProvider);
     return authState.maybeWhen(
       authenticated: (user) {
-        final level = user.accessLevel;
-        // L1-L5: 1,2,3,4,5 can access approvals
-        return level <= 5;
+        // `PATCH /api/timesheets/:id/approve` rejects level 6 and below,
+        // so Manager (5) and above may decide approvals.
+        return AccessLevels.hasAtLeast(
+            user.accessLevel, ApiAccess.approveTimesheet);
       },
       orElse: () => false,
     );
@@ -73,7 +75,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
 
   Color _getTypeColor(String type) {
     switch (type.toLowerCase()) {
-      case 'timesheet':
+      case 'timesheets':
         return NebulaColors.highlight;
       case 'document':
         return NebulaColors.primary;
@@ -125,7 +127,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 LucideIcons.lock,
                 size: 48,
                 color: NebulaColors.textSecondary,
@@ -181,7 +183,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 LucideIcons.alertCircle,
                 size: 48,
                 color: NebulaColors.critical,
@@ -236,13 +238,13 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
-                        color: Colors.white.withOpacity(0.1),
+                        color: Colors.white.withValues(alpha: 0.1),
                       ),
                     ),
                     focusedBorder: OutlineInputBorder(
@@ -312,7 +314,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                         side: BorderSide(
                           color: isSelected
                               ? NebulaColors.primary
-                              : Colors.white.withOpacity(0.1),
+                              : Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
                     );
@@ -327,7 +329,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(
+                            const Icon(
                               LucideIcons.inbox,
                               size: 48,
                               color: NebulaColors.textSecondary,
@@ -418,7 +420,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.white.withOpacity(0.1),
+          color: Colors.white.withValues(alpha: 0.1),
           width: 1,
         ),
       ),
@@ -450,11 +452,11 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                           ),
                           decoration: BoxDecoration(
                             color: widget.getTypeColor(widget.approval.type)
-                                .withOpacity(0.15),
+                                .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                             border: Border.all(
                               color: widget.getTypeColor(widget.approval.type)
-                                  .withOpacity(0.3),
+                                  .withValues(alpha: 0.3),
                             ),
                           ),
                           child: Text(
@@ -519,7 +521,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
             if (_isExpanded) ...[
               Divider(
                 height: 1,
-                color: Colors.white.withOpacity(0.1),
+                color: Colors.white.withValues(alpha: 0.1),
               ),
               Padding(
                 padding: const EdgeInsets.all(16.0),

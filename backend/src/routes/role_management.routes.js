@@ -3,6 +3,12 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
+const {
+  createRoleRules,
+  updateRoleRules,
+  roleIdRules,
+  roleAssignmentRules,
+} = require('../middleware/validate.middleware');
 
 // Ensure venture_roles table and venture_role_assignments table exist (idempotent)
 async function ensureTables() {
@@ -135,7 +141,7 @@ router.get('/assign-team-members', authenticate, async (req, res) => {
 });
 
 // ── GET /api/role-management/:id — Get a single role with its assigned users ──
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, roleIdRules, async (req, res) => {
   try {
     const roleId = parseInt(req.params.id);
     const [rows] = await pool.query(`
@@ -177,7 +183,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // ── POST /api/role-management — Create a new custom role ──
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authenticate, createRoleRules, async (req, res) => {
   try {
     const { accessLevel, ventureId, id: userId } = req.user;
     if (accessLevel > 4) {
@@ -227,7 +233,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // ── POST /api/role-management/:id/duplicate — Duplicate a role ──
-router.post('/:id/duplicate', authenticate, async (req, res) => {
+router.post('/:id/duplicate', authenticate, roleIdRules, async (req, res) => {
   try {
     const { accessLevel, ventureId, id: userId } = req.user;
     if (accessLevel > 4) {
@@ -258,7 +264,7 @@ router.post('/:id/duplicate', authenticate, async (req, res) => {
 });
 
 // ── POST /api/role-management/assign — Assign a custom role to a user ──
-router.post('/assign', authenticate, async (req, res) => {
+router.post('/assign', authenticate, roleAssignmentRules, async (req, res) => {
   try {
     const { accessLevel, ventureId, id: userId } = req.user;
     if (accessLevel > 4) {
@@ -294,7 +300,7 @@ router.post('/assign', authenticate, async (req, res) => {
 });
 
 // ── DELETE /api/role-management/assign — Remove a custom role from a user ──
-router.delete('/assign', authenticate, async (req, res) => {
+router.delete('/assign', authenticate, roleAssignmentRules, async (req, res) => {
   try {
     const { accessLevel, id: userId } = req.user;
     if (accessLevel > 4) {
@@ -317,7 +323,7 @@ router.delete('/assign', authenticate, async (req, res) => {
 });
 
 // ── PUT /api/role-management/:id — Update a custom role ──
-router.put('/:id', authenticate, async (req, res) => {
+router.put('/:id', authenticate, updateRoleRules, async (req, res) => {
   try {
     const { accessLevel, ventureId, id: userId } = req.user;
     if (accessLevel > 4) {
@@ -361,7 +367,7 @@ router.put('/:id', authenticate, async (req, res) => {
 });
 
 // ── DELETE /api/role-management/:id — Soft-delete (deactivate) a custom role ──
-router.delete('/:id', authenticate, async (req, res) => {
+router.delete('/:id', authenticate, roleIdRules, async (req, res) => {
   try {
     const { accessLevel, ventureId, id: userId } = req.user;
     if (accessLevel > 4) {

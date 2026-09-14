@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/data/models/auth_models.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
@@ -26,10 +27,12 @@ final _filteredTeamProvider = Provider<List<User>>((ref) {
               (m.department?.toLowerCase().contains(search) ?? false);
           final matchesFilter = switch (filter) {
             TeamFilter.all => true,
-            TeamFilter.admin => m.accessLevel >= 3 && m.accessLevel <= 4,
-            TeamFilter.manager => m.accessLevel == 5,
-            TeamFilter.staff => m.accessLevel >= 6 && m.accessLevel <= 7,
-            TeamFilter.intern => m.accessLevel == 8,
+            TeamFilter.admin => AccessLevels.isBetween(
+                m.accessLevel, AccessLevels.admin, AccessLevels.cxo),
+            TeamFilter.manager => m.accessLevel == AccessLevels.manager,
+            TeamFilter.staff => AccessLevels.isBetween(
+                m.accessLevel, AccessLevels.executiveStaff, AccessLevels.staff),
+            TeamFilter.intern => m.accessLevel == AccessLevels.intern,
           };
           return matchesSearch && matchesFilter;
         }).toList(),
@@ -250,7 +253,7 @@ class _MemberCard extends StatelessWidget {
           color: NebulaColors.surfaceCard,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
           ],
         ),
         padding: const EdgeInsets.all(14),
@@ -294,7 +297,7 @@ class _MemberCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: lc.withOpacity(0.15),
+                color: lc.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
@@ -365,7 +368,7 @@ class _MemberDetailSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                  color: NebulaColors.textSecondary.withOpacity(0.3),
+                  color: NebulaColors.textSecondary.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2)),
             ),
             Padding(
@@ -400,7 +403,7 @@ class _MemberDetailSheet extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                            color: lc.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                            color: lc.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
                         child: Text(user.levelName,
                             style: TextStyle(
                                 color: lc, fontSize: 12, fontWeight: FontWeight.w700)),
@@ -578,16 +581,11 @@ class _EditLevelDialogState extends State<_EditLevelDialog> {
   late int _selected;
   bool _loading = false;
 
-  static const _levels = [
-    (1, 'L1 – Super Admin'),
-    (2, 'L2 – Executive'),
-    (3, 'L3 – Senior Admin'),
-    (4, 'L4 – Admin'),
-    (5, 'L5 – Manager'),
-    (6, 'L6 – Senior Staff'),
-    (7, 'L7 – Staff'),
-    (8, 'L8 – Intern'),
-  ];
+  /// Every access level, most privileged first, named from the single source
+  /// of truth in `core/constants/access_levels.dart`.
+  static final _levels = AccessLevels.all
+      .map((level) => (level, '${AccessLevels.badgeOf(level)} – ${AccessLevels.nameOf(level)}'))
+      .toList();
 
   @override
   void initState() {
@@ -617,19 +615,21 @@ class _EditLevelDialogState extends State<_EditLevelDialog> {
       title: const Text('Edit Level', style: TextStyle(color: NebulaColors.textPrimary)),
       content: SizedBox(
         width: double.maxFinite,
-        child: ListView(
-          shrinkWrap: true,
-          children: _levels
-              .map((lvl) => RadioListTile<int>(
-                    title: Text(lvl.$2,
-                        style: const TextStyle(color: NebulaColors.textPrimary, fontSize: 14)),
-                    value: lvl.$1,
-                    groupValue: _selected,
-                    activeColor: NebulaColors.primary,
-                    onChanged: (v) => setState(() => _selected = v!),
-                    dense: true,
-                  ))
-              .toList(),
+        child: RadioGroup<int>(
+          groupValue: _selected,
+          onChanged: (v) => setState(() => _selected = v ?? _selected),
+          child: ListView(
+            shrinkWrap: true,
+            children: _levels
+                .map((lvl) => RadioListTile<int>(
+                      title: Text(lvl.$2,
+                          style: const TextStyle(color: NebulaColors.textPrimary, fontSize: 14)),
+                      value: lvl.$1,
+                      activeColor: NebulaColors.primary,
+                      dense: true,
+                    ))
+                .toList(),
+          ),
         ),
       ),
       actions: [
@@ -696,7 +696,7 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton>
         itemCount: 6,
         itemBuilder: (_, __) => Container(
           decoration: BoxDecoration(
-            color: NebulaColors.surfaceCard.withOpacity(_anim.value),
+            color: NebulaColors.surfaceCard.withValues(alpha: _anim.value),
             borderRadius: BorderRadius.circular(16),
           ),
         ),
@@ -721,7 +721,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: NebulaColors.textSecondary.withOpacity(0.4)),
+            Icon(icon, size: 64, color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
             const SizedBox(height: 16),
             Text(title,
                 style: const TextStyle(

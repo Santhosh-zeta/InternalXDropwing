@@ -5,7 +5,7 @@ import '../../../../core/theme/nebula_colors.dart';
 class DynamicNebulaBackground extends StatefulWidget {
   final Widget child;
 
-  const DynamicNebulaBackground({Key? key, required this.child}) : super(key: key);
+  const DynamicNebulaBackground({super.key, required this.child});
 
   @override
   State<DynamicNebulaBackground> createState() => _DynamicNebulaBackgroundState();

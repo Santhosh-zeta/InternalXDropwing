@@ -40,7 +40,7 @@ class DocumentsScreen extends ConsumerWidget {
                 children: [
                   Icon(LucideIcons.fileX,
                       size: 64,
-                      color: NebulaColors.textSecondary.withOpacity(0.4)),
+                      color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
                   const SizedBox(height: 16),
                   const Text('No documents yet',
                       style: TextStyle(
@@ -104,6 +104,18 @@ class DocumentsScreen extends ConsumerWidget {
         final fileName = file.name;
 
         if (!context.mounted) return;
+
+        // FilePicker leaves `path` null on platforms that only hand back bytes
+        // (web). Uploading needs a real file on disk, so bail out clearly.
+        if (filePath == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('This file could not be read from disk'),
+              backgroundColor: NebulaColors.critical,
+            ),
+          );
+          return;
+        }
 
         _showUploadBottomSheet(context, ref, filePath, fileName);
       }
@@ -229,7 +241,7 @@ class _DocumentTile extends ConsumerWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Icon(_iconForType(), size: 22, color: color),
@@ -386,7 +398,7 @@ class _UploadBottomSheetState extends State<_UploadBottomSheet> {
               color: NebulaColors.background,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: NebulaColors.primary.withOpacity(0.2),
+                color: NebulaColors.primary.withValues(alpha: 0.2),
               ),
             ),
             child: Row(
@@ -395,7 +407,7 @@ class _UploadBottomSheetState extends State<_UploadBottomSheet> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: NebulaColors.primary.withOpacity(0.12),
+                    color: NebulaColors.primary.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
@@ -444,7 +456,7 @@ class _UploadBottomSheetState extends State<_UploadBottomSheet> {
                   child: LinearProgressIndicator(
                     value: _uploadProgress,
                     minHeight: 6,
-                    backgroundColor: NebulaColors.textSecondary.withOpacity(0.1),
+                    backgroundColor: NebulaColors.textSecondary.withValues(alpha: 0.1),
                     valueColor: const AlwaysStoppedAnimation<Color>(
                       NebulaColors.primary,
                     ),

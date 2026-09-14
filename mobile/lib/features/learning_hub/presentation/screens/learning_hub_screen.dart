@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/nebula_colors.dart';
@@ -65,13 +64,13 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    NebulaColors.primary.withOpacity(0.2),
-                    NebulaColors.highlight.withOpacity(0.1),
+                    NebulaColors.primary.withValues(alpha: 0.2),
+                    NebulaColors.highlight.withValues(alpha: 0.1),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: NebulaColors.primary.withOpacity(0.3)),
+                    color: NebulaColors.primary.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -80,7 +79,7 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
                     height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: NebulaColors.primary.withOpacity(0.1),
+                      color: NebulaColors.primary.withValues(alpha: 0.1),
                       border: Border.all(color: NebulaColors.primary, width: 2),
                     ),
                     child: Center(
@@ -224,7 +223,7 @@ class _CategoryHeader extends StatelessWidget {
         ),
         const SizedBox(width: 8),
         Expanded(
-            child: Divider(color: NebulaColors.primary.withOpacity(0.3))),
+            child: Divider(color: NebulaColors.primary.withValues(alpha: 0.3))),
       ],
     );
   }
@@ -242,7 +241,7 @@ class _ChecklistItemTile extends ConsumerWidget {
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(10),
         border: item.completed
-            ? Border.all(color: NebulaColors.success.withOpacity(0.3))
+            ? Border.all(color: NebulaColors.success.withValues(alpha: 0.3))
             : null,
       ),
       child: ListTile(
@@ -258,7 +257,7 @@ class _ChecklistItemTile extends ConsumerWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: item.completed
-                  ? NebulaColors.success.withOpacity(0.2)
+                  ? NebulaColors.success.withValues(alpha: 0.2)
                   : NebulaColors.surface,
               border: Border.all(
                 color: item.completed
@@ -377,7 +376,7 @@ class _ResourceTile extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: NebulaColors.highlight.withOpacity(0.1),
+            color: NebulaColors.highlight.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(_icon(), size: 18, color: NebulaColors.highlight),

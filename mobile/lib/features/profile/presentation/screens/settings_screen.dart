@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../../core/theme/theme_mode_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -113,7 +114,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final profileState = ref.watch(profileProvider);
-    final authState = ref.watch(authProvider);
 
     return Scaffold(
       backgroundColor: NebulaColors.background,
@@ -158,7 +158,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: NebulaColors.primary.withOpacity(0.2),
+                      color: NebulaColors.primary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: const Text(
@@ -247,7 +247,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: NebulaColors.primary.withOpacity(0.15),
+                              color: NebulaColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -286,7 +286,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: NebulaColors.primary.withOpacity(0.15),
+                              color: NebulaColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -334,7 +334,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ),
                     ),
-                    if (user.accessLevel <= 2)
+                    if (AccessLevels.hasAtLeast(
+                        user.accessLevel, AccessLevels.managingDirector))
                       _buildSettingCard(
                         title: 'View Access Control',
                         child: GestureDetector(
@@ -346,7 +347,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: NebulaColors.primary.withOpacity(0.15),
+                              color: NebulaColors.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Row(
@@ -414,7 +415,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: NebulaColors.primary.withOpacity(0.15),
+                    color: NebulaColors.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Row(
@@ -448,7 +449,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: NebulaColors.highlight.withOpacity(0.15),
+                    color: NebulaColors.highlight.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Row(
@@ -613,8 +614,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeColor: NebulaColors.primary,
-            inactiveTrackColor: NebulaColors.background.withOpacity(0.5),
+            activeThumbColor: NebulaColors.primary,
+            inactiveTrackColor: NebulaColors.background.withValues(alpha: 0.5),
           ),
         ],
       ),
@@ -629,7 +630,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       decoration: BoxDecoration(
         color: NebulaColors.background,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: NebulaColors.textSecondary.withOpacity(0.3)),
+        border: Border.all(color: NebulaColors.textSecondary.withValues(alpha: 0.3)),
       ),
       child: DropdownButton<String>(
         // Owned by ThemeModeNotifier, which both applies the mode via
@@ -689,9 +690,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.25)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -869,33 +870,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
+      builder: (ctx) => const Padding(
+        padding: EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'About InternalX Dropwing',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NebulaColors.textPrimary),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'Dropwing Groups',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: NebulaColors.textSecondary),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'InternalX is your all-in-one platform for project management, team collaboration, and business intelligence.',
               style: TextStyle(fontSize: 13, color: NebulaColors.textSecondary),
             ),
-            const SizedBox(height: 16),
-            const Text(
+            SizedBox(height: 16),
+            Text(
               'Contact Support',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: NebulaColors.textSecondary),
             ),
-            const SizedBox(height: 8),
-            const Text(
+            SizedBox(height: 8),
+            Text(
               'dev2@dropwinggroups.com',
               style: TextStyle(
                 fontSize: 13,

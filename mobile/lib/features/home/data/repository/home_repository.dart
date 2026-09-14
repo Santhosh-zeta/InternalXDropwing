@@ -2,7 +2,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_client.dart';
 import '../models/home_models.dart';
-import '../../../auth/data/models/auth_models.dart';
 
 final homeRepositoryProvider = Provider<HomeRepository>((ref) {
   final dio = ref.watch(dioProvider);

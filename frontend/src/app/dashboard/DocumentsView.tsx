@@ -264,7 +264,11 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {documents.map(doc => {
             const fileColor = getFileColor(doc.mime_type);
-            const canDelete = currentUser.accessLevel <= 3 || currentUser.id === doc.uploaded_by;
+            // backend/src/controllers/document.controller.js deleteDocument:
+            // allowed when accessLevel < 6, or the caller uploaded the file.
+            // This previously gated at <= 3, so an L4/L5 user viewing someone
+            // else's document saw a Delete button that always 403s.
+            const canDelete = currentUser.accessLevel <= 5 || currentUser.id === doc.uploaded_by;
 
             return (
               <Card
@@ -348,7 +352,7 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
               <tbody>
                 {documents.map(doc => {
                   const fileColor = getFileColor(doc.mime_type);
-                  const canDelete = currentUser.accessLevel <= 3 || currentUser.id === doc.uploaded_by;
+                  const canDelete = currentUser.accessLevel <= 5 || currentUser.id === doc.uploaded_by;
                   return (
                     <tr key={doc.id} className="border-b border-[var(--color-border)] hover:bg-[var(--color-bg-secondary)] transition-colors">
                       <td className="p-4 px-5">

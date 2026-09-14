@@ -88,7 +88,7 @@ class ProjectsScreen extends ConsumerWidget {
                 children: [
                   Icon(LucideIcons.folderOpen,
                       size: 64,
-                      color: NebulaColors.textSecondary.withOpacity(0.4)),
+                      color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
                   const SizedBox(height: 16),
                   const Text('No projects found.',
                       style: TextStyle(
@@ -123,9 +123,9 @@ class ProjectsScreen extends ConsumerWidget {
               const Icon(LucideIcons.alertCircle,
                   size: 48, color: NebulaColors.critical),
               const SizedBox(height: 12),
-              Text(
+              const Text(
                 'Failed to load projects',
-                style: const TextStyle(
+                style: TextStyle(
                     color: NebulaColors.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w600),
@@ -201,7 +201,7 @@ class _ProjectCard extends StatelessWidget {
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -247,7 +247,7 @@ class _ProjectCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.12),
+                    color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
@@ -378,7 +378,7 @@ class _ProjectCard extends StatelessWidget {
 
                 if (project.endDate != null) ...[
                   const SizedBox(width: 8),
-                  Icon(LucideIcons.calendar,
+                  const Icon(LucideIcons.calendar,
                       size: 12, color: NebulaColors.textSecondary),
                   const SizedBox(width: 3),
                   Text(

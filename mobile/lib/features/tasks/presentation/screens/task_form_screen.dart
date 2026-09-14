@@ -144,7 +144,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
-                      value: _priority,
+                      initialValue: _priority,
                       decoration: const InputDecoration(labelText: 'Priority'),
                       items: const [
                         DropdownMenuItem(value: 'low', child: Text('Low')),
@@ -169,7 +169,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                     // Project Dropdown
                     projectsAsync.when(
                       data: (projects) => DropdownButtonFormField<int?>(
-                        value: _selectedProjectId,
+                        initialValue: _selectedProjectId,
                         decoration: const InputDecoration(labelText: 'Link to Project'),
                         items: [
                           const DropdownMenuItem<int?>(value: null, child: Text('No Project')),
@@ -187,7 +187,7 @@ class _TaskFormScreenState extends ConsumerState<TaskFormScreen> {
                       data: (tasks) {
                         final availableTasks = tasks.where((t) => t.id != widget.taskId && (t.projectId == _selectedProjectId || _selectedProjectId == null)).toList();
                         return DropdownButtonFormField<int?>(
-                          value: _selectedParentTaskId,
+                          initialValue: _selectedParentTaskId,
                           decoration: const InputDecoration(labelText: 'Parent Task (Subtask of)'),
                           items: [
                             const DropdownMenuItem<int?>(value: null, child: Text('None (Top-level)')),

@@ -46,7 +46,7 @@ class TaskList extends _$TaskList {
 }
 
 @riverpod
-Future<List<TaskModel>> filteredTasks(FilteredTasksRef ref) async {
+Future<List<TaskModel>> filteredTasks(Ref ref) async {
   final tasks = await ref.watch(taskListProvider.future);
   final filter = ref.watch(taskFilterProvider);
   final searchQuery = ref.watch(taskSearchQueryProvider).toLowerCase();

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../constants/access_levels.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/notifications/presentation/providers/notifications_provider.dart';
 import '../../features/auth/data/models/auth_models.dart';
@@ -51,35 +52,35 @@ class MainLayoutScreen extends ConsumerWidget {
         ),
         child: NavigationBar(
           backgroundColor: NebulaColors.background,
-          indicatorColor: NebulaColors.primary.withOpacity(0.15),
+          indicatorColor: NebulaColors.primary.withValues(alpha: 0.15),
           selectedIndex: navigationShell.currentIndex,
           onDestinationSelected: _goBranch,
-          destinations: [
-            const NavigationDestination(
+          destinations: const [
+            NavigationDestination(
                 icon: Icon(LucideIcons.home,
                     color: NebulaColors.textSecondary),
                 selectedIcon:
                     Icon(LucideIcons.home, color: NebulaColors.primary),
                 label: 'Home'),
-            const NavigationDestination(
+            NavigationDestination(
                 icon: Icon(LucideIcons.checkSquare,
                     color: NebulaColors.textSecondary),
                 selectedIcon: Icon(LucideIcons.checkSquare,
                     color: NebulaColors.primary),
                 label: 'Tasks'),
-            const NavigationDestination(
+            NavigationDestination(
                 icon: Icon(LucideIcons.folder,
                     color: NebulaColors.textSecondary),
                 selectedIcon:
                     Icon(LucideIcons.folder, color: NebulaColors.primary),
                 label: 'Projects'),
-            const NavigationDestination(
+            NavigationDestination(
                 icon: Icon(LucideIcons.briefcase,
                     color: NebulaColors.textSecondary),
                 selectedIcon: Icon(LucideIcons.briefcase,
                     color: NebulaColors.primary),
                 label: 'Workspace'),
-            const NavigationDestination(
+            NavigationDestination(
                 icon: Icon(LucideIcons.user,
                     color: NebulaColors.textSecondary),
                 selectedIcon:
@@ -92,46 +93,6 @@ class MainLayoutScreen extends ConsumerWidget {
   }
 }
 
-class _NotificationIcon extends StatelessWidget {
-  final int count;
-  final bool selected;
-
-  const _NotificationIcon({required this.count, required this.selected});
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Icon(
-          LucideIcons.bell,
-          color: selected ? NebulaColors.primary : NebulaColors.textSecondary,
-        ),
-        if (count > 0)
-          Positioned(
-            right: -6,
-            top: -4,
-            child: Container(
-              padding: const EdgeInsets.all(3),
-              decoration: const BoxDecoration(
-                color: NebulaColors.critical,
-                shape: BoxShape.circle,
-              ),
-              constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
-              child: Text(
-                count > 99 ? '99+' : '$count',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
-                    fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-}
 
 class _DGOSDrawer extends ConsumerWidget {
   final User user;
@@ -152,7 +113,6 @@ class _DGOSDrawer extends ConsumerWidget {
     final isCXO = role.contains('cxo') || role.contains('director');
     final isManager = role.contains('manager') || role.contains('head');
     final isStaff = role.contains('staff') || role.contains('employee');
-    final isIntern = role.contains('intern');
 
     // Administration
     if (['user management', 'venture management', 'access control', 'audit logs'].contains(feature)) {
@@ -262,7 +222,7 @@ class _DGOSDrawer extends ConsumerWidget {
                   children: [
                     CircleAvatar(
                       radius: 24,
-                      backgroundColor: NebulaColors.primary.withOpacity(0.1),
+                      backgroundColor: NebulaColors.primary.withValues(alpha: 0.1),
                       backgroundImage: user.avatarUrl != null ? NetworkImage(user.avatarUrl!) : null,
                       child: user.avatarUrl == null
                           ? Text(
@@ -356,7 +316,7 @@ class _DGOSDrawer extends ConsumerWidget {
                       title: 'Timesheets',
                       icon: LucideIcons.clock,
                       onTap: () {}),
-                if (user.accessLevel == 9)
+                if (user.accessLevel == AccessLevels.client)
                   _DrawerTile(
                       title: 'Client Portal',
                       icon: LucideIcons.globe,
