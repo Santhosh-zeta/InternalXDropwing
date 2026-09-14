@@ -106,6 +106,14 @@ class HomeTask {
   final int? assignedTo;
   final String? dueDate;
 
+  // The /tasks response has always carried these; the model just was not
+  // reading them, which is why the home screen could not scope anything by
+  // venture and invented its own numbers instead.
+  final int? ventureId;
+  final String? ventureName;
+  final String? ventureColor;
+  final String? assignedByName;
+
   HomeTask({
     required this.id,
     required this.title,
@@ -113,6 +121,10 @@ class HomeTask {
     required this.priority,
     this.assignedTo,
     this.dueDate,
+    this.ventureId,
+    this.ventureName,
+    this.ventureColor,
+    this.assignedByName,
   });
 
   factory HomeTask.fromJson(Map<String, dynamic> json) {
@@ -123,8 +135,25 @@ class HomeTask {
       priority: json['priority'] ?? '',
       assignedTo: json['assigned_to'],
       dueDate: json['due_date'],
+      ventureId: json['venture_id'],
+      ventureName: json['venture_name'],
+      ventureColor: json['primary_color'],
+      assignedByName: json['assigned_by_name'],
     );
   }
+
+  /// Status strings arrive lower-case-hyphenated from Postgres
+  /// ('in-progress'), but older rows and some clients send 'In Progress'.
+  /// Normalise once here rather than at a dozen comparison sites - a
+  /// case-mismatch bug in exactly this spot shipped in the previous version.
+  String get normalisedStatus =>
+      status.toLowerCase().replaceAll('_', '-').replaceAll(' ', '-');
+
+  bool get isDone => normalisedStatus == 'completed';
+
+  bool get isInProgress => normalisedStatus == 'in-progress';
+
+  DateTime? get due => dueDate == null ? null : DateTime.tryParse(dueDate!);
 }
 
 class KPICard {
