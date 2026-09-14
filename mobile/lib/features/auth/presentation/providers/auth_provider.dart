@@ -3,6 +3,8 @@ import '../../data/models/auth_models.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
 import 'auth_state.dart';
+import '../../../../core/demo/demo_mode.dart';
+import '../../../../core/demo/demo_data.dart' as demo;
 
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _repository;
@@ -10,6 +12,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._repository) : super(const AuthState.initial());
 
   Future<void> checkAuthStatus() async {
+    // TEMPORARY — see core/demo/demo_mode.dart. Skips real auth entirely and
+    // opens straight to Home as a seeded Super Admin.
+    if (kDemoMode) {
+      state = AuthState.authenticated(User.fromJson(demo.demoUserJson()));
+      return;
+    }
     state = const AuthState.loading();
     try {
       final hasToken = await _repository.hasCachedToken();
@@ -27,6 +35,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> login(String email, String password) async {
+    // TEMPORARY — see core/demo/demo_mode.dart. Any credentials succeed.
+    if (kDemoMode) {
+      state = AuthState.authenticated(User.fromJson(demo.demoUserJson()));
+      return;
+    }
     state = const AuthState.loading();
     try {
       final user = await _repository.login(LoginRequest(email: email, password: password));
