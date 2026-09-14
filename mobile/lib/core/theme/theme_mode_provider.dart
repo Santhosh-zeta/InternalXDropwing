@@ -10,12 +10,12 @@ const String kThemeModeKey = 'theme_mode';
 
 /// Mode used when nothing has been persisted yet.
 ///
-/// Deliberately [ThemeMode.dark] rather than [ThemeMode.system]: most screens
-/// still paint themselves with the hard-coded dark `NebulaColors` tokens, so a
-/// device in light mode would otherwise show white-on-white until those screens
-/// are migrated to `Theme.of(context)`. Flip this to [ThemeMode.system] once
-/// the feature screens read their colours from the theme.
-const ThemeMode kDefaultThemeMode = ThemeMode.dark;
+/// This was pinned to [ThemeMode.dark] because most screens painted themselves
+/// with hard-coded dark `NebulaColors` tokens, so a device in light mode showed
+/// white-on-white. That is no longer true: every screen now reads its colours
+/// from the active theme, so the app follows the device again and the light
+/// theme is reachable for the first time.
+const ThemeMode kDefaultThemeMode = ThemeMode.system;
 
 /// Persisted app theme mode.
 ///

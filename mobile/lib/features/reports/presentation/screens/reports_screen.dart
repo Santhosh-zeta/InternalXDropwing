@@ -9,7 +9,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/report_model.dart';
 import '../../data/report_provider.dart';
 import '../widgets/report_charts.dart';
-import '../widgets/state_views.dart';
+import '../../../../core/widgets/state_views.dart';
 
 /// Project budgets are stored and displayed in rupees, matching the Budget
 /// module and the web dashboard's Reports view.
@@ -469,7 +469,7 @@ class _VenturesTab extends StatelessWidget {
                   label: slice.venture,
                   valueLabel: _rupee.format(slice.totalBudget),
                   fraction: total <= 0 ? 0 : slice.totalBudget / total,
-                  color: parseHexColor(slice.color) ?? scheme.primary,
+                  color: parseHexColor(slice.color, fallback: scheme.primary),
                 ),
             ],
           ),

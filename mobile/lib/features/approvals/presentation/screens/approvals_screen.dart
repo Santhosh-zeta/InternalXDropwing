@@ -4,9 +4,9 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/constants/access_levels.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import '../../data/models/approval_model.dart';
 import '../providers/approval_provider.dart';
+import '../../../../core/theme/theme_context.dart';
 
 class ApprovalsScreen extends ConsumerStatefulWidget {
   const ApprovalsScreen({super.key});
@@ -76,15 +76,15 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
   Color _getTypeColor(String type) {
     switch (type.toLowerCase()) {
       case 'timesheets':
-        return NebulaColors.highlight;
+        return context.scheme.secondary;
       case 'document':
-        return NebulaColors.primary;
+        return context.scheme.primary;
       case 'leave':
-        return NebulaColors.success;
+        return context.dl.success;
       case 'expense':
-        return NebulaColors.warning;
+        return context.dl.warning;
       default:
-        return NebulaColors.textSecondary;
+        return context.scheme.onSurfaceVariant;
     }
   }
 
@@ -116,10 +116,10 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
             style: GoogleFonts.inter(
               fontWeight: FontWeight.bold,
               fontSize: 20,
-              color: NebulaColors.textPrimary,
+              color: context.scheme.onSurface,
             ),
           ),
-          backgroundColor: NebulaColors.background,
+          backgroundColor: context.scheme.surface,
           elevation: 0,
           scrolledUnderElevation: 0,
         ),
@@ -127,10 +127,10 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 LucideIcons.lock,
                 size: 48,
-                color: NebulaColors.textSecondary,
+                color: context.scheme.onSurfaceVariant,
               ),
               const SizedBox(height: 16),
               Text(
@@ -138,7 +138,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: NebulaColors.textPrimary,
+                  color: context.scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
@@ -146,7 +146,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                 'Only managers (L1-L5) can access approvals',
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: NebulaColors.textSecondary,
+                  color: context.scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -165,28 +165,28 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
           style: GoogleFonts.inter(
             fontWeight: FontWeight.bold,
             fontSize: 20,
-            color: NebulaColors.textPrimary,
+            color: context.scheme.onSurface,
           ),
         ),
-        backgroundColor: NebulaColors.background,
+        backgroundColor: context.scheme.surface,
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
       body: approvalsAsync.when(
-        loading: () => const Center(
+        loading: () => Center(
           child: CircularProgressIndicator(
             valueColor:
-                AlwaysStoppedAnimation<Color>(NebulaColors.primary),
+                AlwaysStoppedAnimation<Color>(context.scheme.primary),
           ),
         ),
         error: (error, stackTrace) => Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 LucideIcons.alertCircle,
                 size: 48,
-                color: NebulaColors.critical,
+                color: context.dl.critical,
               ),
               const SizedBox(height: 16),
               Text(
@@ -194,7 +194,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                 style: GoogleFonts.inter(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: NebulaColors.textPrimary,
+                  color: context.scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
@@ -202,7 +202,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                 error.toString(),
                 style: GoogleFonts.inter(
                   fontSize: 12,
-                  color: NebulaColors.textSecondary,
+                  color: context.scheme.onSurfaceVariant,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -230,11 +230,11 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                   decoration: InputDecoration(
                     hintText: 'Search by name or title...',
                     hintStyle: GoogleFonts.inter(
-                      color: NebulaColors.textSecondary,
+                      color: context.scheme.onSurfaceVariant,
                       fontSize: 14,
                     ),
                     filled: true,
-                    fillColor: NebulaColors.surfaceCard,
+                    fillColor: context.scheme.surfaceContainerHighest,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide(
@@ -249,21 +249,21 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                        color: NebulaColors.primary,
+                      borderSide: BorderSide(
+                        color: context.scheme.primary,
                         width: 2,
                       ),
                     ),
-                    prefixIcon: const Icon(
+                    prefixIcon: Icon(
                       LucideIcons.search,
-                      color: NebulaColors.textSecondary,
+                      color: context.scheme.onSurfaceVariant,
                       size: 20,
                     ),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(
+                            icon: Icon(
                               LucideIcons.x,
-                              color: NebulaColors.textSecondary,
+                              color: context.scheme.onSurfaceVariant,
                               size: 20,
                             ),
                             onPressed: () {
@@ -274,7 +274,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                         : null,
                   ),
                   style: GoogleFonts.inter(
-                    color: NebulaColors.textPrimary,
+                    color: context.scheme.onSurface,
                     fontSize: 14,
                   ),
                 ),
@@ -300,7 +300,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                             fontWeight: FontWeight.w500,
                             color: isSelected
                                 ? Colors.white
-                                : NebulaColors.textSecondary,
+                                : context.scheme.onSurfaceVariant,
                           ),
                         ),
                         selected: isSelected,
@@ -309,11 +309,11 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                             _selectedFilter = filter;
                           });
                         },
-                        backgroundColor: NebulaColors.surfaceCard,
-                        selectedColor: NebulaColors.primary,
+                        backgroundColor: context.scheme.surfaceContainerHighest,
+                        selectedColor: context.scheme.primary,
                         side: BorderSide(
                           color: isSelected
-                              ? NebulaColors.primary
+                              ? context.scheme.primary
                               : Colors.white.withValues(alpha: 0.1),
                         ),
                       ),
@@ -329,10 +329,10 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(
+                            Icon(
                               LucideIcons.inbox,
                               size: 48,
-                              color: NebulaColors.textSecondary,
+                              color: context.scheme.onSurfaceVariant,
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -343,7 +343,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                               style: GoogleFonts.inter(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: NebulaColors.textPrimary,
+                                color: context.scheme.onSurface,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -351,7 +351,7 @@ class _ApprovalsScreenState extends ConsumerState<ApprovalsScreen> {
                               'All caught up!',
                               style: GoogleFonts.inter(
                                 fontSize: 14,
-                                color: NebulaColors.textSecondary,
+                                color: context.scheme.onSurfaceVariant,
                               ),
                             ),
                           ],
@@ -417,7 +417,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: Colors.white.withValues(alpha: 0.1),
@@ -474,7 +474,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                           widget.formatTimeAgo(widget.approval.createdAt),
                           style: GoogleFonts.inter(
                             fontSize: 12,
-                            color: NebulaColors.textSecondary,
+                            color: context.scheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -486,7 +486,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                       style: GoogleFonts.inter(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: NebulaColors.textPrimary,
+                        color: context.scheme.onSurface,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -494,7 +494,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                       widget.approval.title,
                       style: GoogleFonts.inter(
                         fontSize: 13,
-                        color: NebulaColors.textSecondary,
+                        color: context.scheme.onSurfaceVariant,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -508,7 +508,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                           _isExpanded
                               ? LucideIcons.chevronUp
                               : LucideIcons.chevronDown,
-                          color: NebulaColors.textSecondary,
+                          color: context.scheme.onSurfaceVariant,
                           size: 20,
                         ),
                       ],
@@ -534,7 +534,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                       style: GoogleFonts.inter(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: NebulaColors.textSecondary,
+                        color: context.scheme.onSurfaceVariant,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -563,7 +563,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                         style: GoogleFonts.inter(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                          color: NebulaColors.textSecondary,
+                          color: context.scheme.onSurfaceVariant,
                           letterSpacing: 0.5,
                         ),
                       ),
@@ -583,7 +583,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                           child: ElevatedButton(
                             onPressed: widget.onApprove,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: NebulaColors.success,
+                              backgroundColor: context.dl.success,
                               foregroundColor: Colors.white,
                               padding:
                                   const EdgeInsets.symmetric(vertical: 12),
@@ -615,7 +615,7 @@ class _ApprovalCardState extends State<_ApprovalCard> {
                           child: ElevatedButton(
                             onPressed: widget.onReject,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: NebulaColors.critical,
+                              backgroundColor: context.dl.critical,
                               foregroundColor: Colors.white,
                               padding:
                                   const EdgeInsets.symmetric(vertical: 12),
@@ -675,7 +675,7 @@ class _DetailRow extends StatelessWidget {
             label,
             style: GoogleFonts.inter(
               fontSize: 13,
-              color: NebulaColors.textSecondary,
+              color: context.scheme.onSurfaceVariant,
             ),
           ),
           Expanded(
@@ -684,7 +684,7 @@ class _DetailRow extends StatelessWidget {
               textAlign: TextAlign.end,
               style: GoogleFonts.inter(
                 fontSize: 13,
-                color: NebulaColors.textPrimary,
+                color: context.scheme.onSurface,
                 fontWeight: FontWeight.w500,
               ),
               maxLines: 1,

@@ -1,12 +1,34 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../../../../core/theme/nebula_spacing.dart';
+import '../../../../core/theme/nebula_typography.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/motion.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
-import '../../../../core/theme/nebula_colors.dart';
 
+/// Sign in — the first thing anyone sees, so it sets the standard.
+///
+/// The previous version put the form on a hard-coded navy-to-purple gradient
+/// inside a translucent "glass" panel, and restyled every field by hand: its
+/// own fill, its own three borders, its own label and error styles, none of
+/// which existed in light mode. All of that is gone. The fields here carry no
+/// decoration of their own — they take `inputDecorationTheme` from the theme,
+/// which is what makes them correct under both brightnesses.
+///
+/// A failed sign-in used to fire a red `SnackBar` carrying the raw exception
+/// string, which scrolled away before it could be read. It is now an inline
+/// note that stays put, sits directly above the button that produced it, and
+/// says what to do next.
+///
+/// Nothing about the credential flow changed: the same controllers, the same
+/// validators, the same `authProvider.login(email, password)` call, and the
+/// same router-driven navigation on success.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -18,6 +40,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _emailController;
   late TextEditingController _passwordController;
+
+  /// The last failure, held so it can be shown inline instead of in a
+  /// SnackBar. Cleared as soon as another attempt starts.
+  String? _error;
+
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -39,6 +67,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _submit() {
     if (_formKey.currentState!.validate()) {
+      setState(() => _error = null);
       ref.read(authProvider.notifier).login(
             _emailController.text.trim(),
             _passwordController.text,
@@ -49,20 +78,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final isSmallScreen = MediaQuery.of(context).size.height < 700;
 
-    // Listen for errors
     ref.listen<AuthState>(authProvider, (previous, next) {
       next.maybeWhen(
-        error: (message) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(message),
-              backgroundColor: NebulaColors.critical,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
+        error: (message) => setState(() => _error = message),
+        loading: () => setState(() => _error = null),
         orElse: () {},
       );
     });
@@ -73,346 +93,121 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
 
     return Scaffold(
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Color(0xFF080C14), // Dark navy
-              Color(0xFF12103A), // Deep purple
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20.0),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: NebulaSpacing.lg,
+              vertical: NebulaSpacing.xl,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
               child: Form(
                 key: _formKey,
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Top Logo Section
-                    if (!isSmallScreen)
-                      Column(
-                        children: [
-                          Container(
-                            width: 60,
-                            height: 60,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: NebulaColors.primary,
-                              boxShadow: [
-                                BoxShadow(
-                                  color:
-                                      NebulaColors.primary.withValues(alpha: 0.6),
-                                  blurRadius: 15,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.hexagon_outlined,
-                              color: Colors.white,
-                              size: 28,
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'InternalX',
-                            style: GoogleFonts.inter(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: NebulaColors.textPrimary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 24),
-                        ],
+                    const _Wordmark(),
+                    const SizedBox(height: NebulaSpacing.xl),
+
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      autofillHints: const [AutofillHints.username],
+                      decoration: const InputDecoration(
+                        labelText: 'Work email',
+                        prefixIcon: Icon(LucideIcons.mail, size: 18),
                       ),
-                    // Form Container with Glassmorphism
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
-                          width: 1,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Email is required';
+                        }
+                        if (!value.contains('@')) {
+                          return 'Enter a valid email';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: NebulaSpacing.md),
+
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.password],
+                      onFieldSubmitted: (_) {
+                        if (!isLoading) _submit();
+                      },
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(LucideIcons.lock, size: 18),
+                        suffixIcon: IconButton(
+                          tooltip: _obscurePassword ? 'Show password' : 'Hide password',
+                          icon: Icon(
+                            _obscurePassword ? LucideIcons.eye : LucideIcons.eyeOff,
+                            size: 18,
+                          ),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.3),
-                            blurRadius: 20,
-                            offset: const Offset(0, 8),
-                          ),
-                        ],
                       ),
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            'Sign In',
-                            style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: NebulaColors.textPrimary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 24),
-                          // Email Field
-                          TextFormField(
-                            controller: _emailController,
-                            decoration: InputDecoration(
-                              labelText: 'Email Address',
-                              labelStyle: GoogleFonts.inter(
-                                color: NebulaColors.textSecondary,
-                                fontSize: 14,
-                              ),
-                              filled: true,
-                              fillColor: Colors.white.withValues(alpha: 0.05),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: NebulaColors.primary,
-                                  width: 2,
-                                ),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.email_outlined,
-                                color: NebulaColors.textSecondary,
-                                size: 20,
-                              ),
-                              errorStyle: GoogleFonts.inter(
-                                color: NebulaColors.critical,
-                                fontSize: 12,
-                              ),
-                            ),
-                            style: GoogleFonts.inter(
-                              color: NebulaColors.textPrimary,
-                              fontSize: 14,
-                            ),
-                            keyboardType: TextInputType.emailAddress,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Email is required';
-                              }
-                              if (!value.contains('@')) {
-                                return 'Enter a valid email';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          // Password Field
-                          TextFormField(
-                            controller: _passwordController,
-                            decoration: InputDecoration(
-                              labelText: 'Password',
-                              labelStyle: GoogleFonts.inter(
-                                color: NebulaColors.textSecondary,
-                                fontSize: 14,
-                              ),
-                              filled: true,
-                              fillColor: Colors.white.withValues(alpha: 0.05),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: BorderSide(
-                                  color: Colors.white.withValues(alpha: 0.1),
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: NebulaColors.primary,
-                                  width: 2,
-                                ),
-                              ),
-                              prefixIcon: const Icon(
-                                Icons.lock_outlined,
-                                color: NebulaColors.textSecondary,
-                                size: 20,
-                              ),
-                              errorStyle: GoogleFonts.inter(
-                                color: NebulaColors.critical,
-                                fontSize: 12,
-                              ),
-                            ),
-                            style: GoogleFonts.inter(
-                              color: NebulaColors.textPrimary,
-                              fontSize: 14,
-                            ),
-                            obscureText: true,
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Password is required';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 12),
-                          // Forgot Password Link
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: TextButton(
-                              onPressed: () => context.push('/forgot-password'),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 4),
-                              ),
-                              child: Text(
-                                'Forgot Password?',
-                                style: GoogleFonts.inter(
-                                  color: NebulaColors.primary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          // Sign In Button
-                          ElevatedButton(
-                            onPressed: isLoading ? null : _submit,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: NebulaColors.primary,
-                              foregroundColor: Colors.white,
-                              disabledBackgroundColor:
-                                  NebulaColors.primary.withValues(alpha: 0.5),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              elevation: 0,
-                            ),
-                            child: isLoading
-                                ? const SizedBox(
-                                    height: 20,
-                                    width: 20,
-                                    child: CircularProgressIndicator(
-                                      valueColor:
-                                          AlwaysStoppedAnimation<Color>(
-                                              Colors.white),
-                                      strokeWidth: 2,
-                                    ),
-                                  )
-                                : Text(
-                                    'Sign In',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Sign Up Link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                "Don't have an account? ",
-                                style: GoogleFonts.inter(
-                                  color: NebulaColors.textSecondary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              TextButton(
-                                onPressed: () => context.push('/signup'),
-                                style: TextButton.styleFrom(
-                                  padding: EdgeInsets.zero,
-                                ),
-                                child: Text(
-                                  'Sign Up',
-                                  style: GoogleFonts.inter(
-                                    color: NebulaColors.primary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Password is required';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => context.push('/forgot-password'),
+                        child: const Text('Forgot password?'),
                       ),
                     ),
-                    const SizedBox(height: 32),
-                    // Powered by text
+
+                    if (_error != null) ...[
+                      const SizedBox(height: NebulaSpacing.xs),
+                      _SignInProblem(message: _error!),
+                      const SizedBox(height: NebulaSpacing.md),
+                    ] else
+                      const SizedBox(height: NebulaSpacing.sm),
+
+                    FilledButton(
+                      onPressed: isLoading ? null : _submit,
+                      child: isLoading
+                          ? SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: context.scheme.onSurfaceVariant,
+                              ),
+                            )
+                          : const Text('Sign in'),
+                    ),
+
+                    const SizedBox(height: NebulaSpacing.lg),
                     Text(
-                      'Powered by Dropwing Groups',
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: NebulaColors.textSecondary.withValues(alpha: 0.7),
-                        fontWeight: FontWeight.w400,
-                      ),
+                      'Dropwing Groups · internal use only',
                       textAlign: TextAlign.center,
-                    ),
-                    // Quick Access (Debug Mode Only)
-                    if (kDebugMode) ...[
-                      const SizedBox(height: 24),
-                      Text(
-                        'QUICK ACCESS LOGINS',
-                        textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: NebulaColors.textSecondary,
-                          letterSpacing: 1.2,
-                        ),
+                      style: NebulaTypography.monoLabel(
+                        color: context.dl.textTertiary,
+                        fontSize: 9,
                       ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        height: 40,
-                        child: ListView(
-                          scrollDirection: Axis.horizontal,
-                          children: [
-                            _buildTestChip('Super Admin',
-                                'sa@dropwinggroups.com', Icons.shield),
-                            const SizedBox(width: 8),
-                            _buildTestChip('MD', 'md@dropwinggroups.com',
-                                Icons.account_balance),
-                            const SizedBox(width: 8),
-                            _buildTestChip(
-                                'Dropwing Admin', 'ad@dropwing.in', Icons.settings),
-                            const SizedBox(width: 8),
-                            _buildTestChip('Fenixa Admin', 'ad@fenixa.com',
-                                Icons.settings),
-                            const SizedBox(width: 8),
-                            _buildTestChip('PerSyniX Admin',
-                                'ad@persynix.com', Icons.settings),
-                            const SizedBox(width: 8),
-                            _buildTestChip(
-                                'Grovia Admin', 'ad@grovia.in', Icons.settings),
-                            const SizedBox(width: 8),
-                            _buildTestChip('Dropwing Staff', 'st@dropwing.in',
-                                Icons.person),
-                            const SizedBox(width: 8),
-                            _buildTestChip('Fenixa Staff', 'st@fenixa.com',
-                                Icons.person),
-                          ],
-                        ),
+                    ),
+
+                    if (kDebugMode) ...[
+                      const SizedBox(height: NebulaSpacing.xl),
+                      _QuickAccess(
+                        onPick: (email) {
+                          _emailController.text = email;
+                          _passwordController.text = 'Test@1234';
+                          _submit();
+                        },
                       ),
                     ],
                   ],
@@ -424,30 +219,177 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       ),
     );
   }
+}
 
-  Widget _buildTestChip(String label, String email, IconData icon) {
-    return ActionChip(
-      label: Text(
-        label,
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          color: NebulaColors.textPrimary,
+/// Eyebrow plus heading. The heading is the largest thing on the screen; the
+/// wordmark sits above it in mono, small, and does not compete.
+class _Wordmark extends StatelessWidget {
+  const _Wordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'INTERNALX · DROPWING GROUPS',
+          style: NebulaTypography.monoLabel(color: context.dl.textTertiary),
         ),
+        const SizedBox(height: NebulaSpacing.md),
+        Text('Sign in', style: context.text.displayMedium),
+        const SizedBox(height: 6),
+        Text(
+          'Use the work account your administrator issued you.',
+          style: context.text.bodyMedium,
+        ),
+      ],
+    );
+  }
+}
+
+/// An inline failure note.
+///
+/// Says what to do about it first and what the server said second, because
+/// "Unauthorized" on its own has never told anybody anything.
+class _SignInProblem extends StatelessWidget {
+  const _SignInProblem({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final dl = context.dl;
+    final detail = readableError(message);
+    final guidance = _guidance(detail);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: dl.critical.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(NebulaSpacing.radiusSm),
+        border: Border.all(color: dl.critical.withValues(alpha: 0.28)),
       ),
-      avatar: Icon(
-        icon,
-        size: 16,
-        color: NebulaColors.primary,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(LucideIcons.triangleAlert, size: 15, color: dl.critical),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  guidance,
+                  style: context.text.bodySmall?.copyWith(color: dl.critical),
+                ),
+                if (detail.isNotEmpty && detail != guidance) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    detail,
+                    style: context.text.bodySmall?.copyWith(
+                      color: dl.textTertiary,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
       ),
-      backgroundColor: Colors.white.withValues(alpha: 0.05),
-      side: BorderSide(
-        color: Colors.white.withValues(alpha: 0.1),
-      ),
-      onPressed: () {
-        _emailController.text = email;
-        _passwordController.text = 'Test@1234';
-        _submit();
-      },
+    );
+  }
+
+  /// Maps what came back to something a person can act on.
+  static String _guidance(String detail) {
+    final d = detail.toLowerCase();
+    if (d.contains('cannot reach') ||
+        d.contains('socket') ||
+        d.contains('network') ||
+        d.contains('connection')) {
+      return 'Cannot reach the server. Check your connection and try again.';
+    }
+    if (d.contains('took too long') || d.contains('timed out')) {
+      return 'The server took too long to answer. Try again in a moment.';
+    }
+    if (d.contains('locked') ||
+        d.contains('disabled') ||
+        d.contains('inactive') ||
+        d.contains('suspend')) {
+      return 'This account cannot sign in. Ask an administrator to restore it.';
+    }
+    if (d.contains('invalid') ||
+        d.contains('credential') ||
+        d.contains('password') ||
+        d.contains('unauthor') ||
+        d.contains('not found') ||
+        d.contains('401')) {
+      return 'That email and password do not match an account. '
+          'Check both and try again.';
+    }
+    return 'Sign-in did not go through. Try again, or ask an administrator '
+        'if it keeps failing.';
+  }
+}
+
+/// Debug-only seeded accounts. Compiled out of release builds entirely — it
+/// sits behind `kDebugMode` at the call site.
+class _QuickAccess extends StatelessWidget {
+  const _QuickAccess({required this.onPick});
+
+  final ValueChanged<String> onPick;
+
+  static const _accounts = <(String, String)>[
+    ('Super Admin', 'sa@dropwinggroups.com'),
+    ('MD', 'md@dropwinggroups.com'),
+    ('Dropwing Admin', 'ad@dropwing.in'),
+    ('Fenixa Admin', 'ad@fenixa.com'),
+    ('PerSyniX Admin', 'ad@persynix.com'),
+    ('Grovia Admin', 'ad@grovia.in'),
+    ('Dropwing Staff', 'st@dropwing.in'),
+    ('Fenixa Staff', 'st@fenixa.com'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final dl = context.dl;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'QUICK ACCESS · DEBUG BUILD',
+          style: NebulaTypography.monoLabel(color: dl.textTertiary, fontSize: 9),
+        ),
+        const SizedBox(height: NebulaSpacing.sm),
+        SizedBox(
+          height: 30,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _accounts.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 6),
+            itemBuilder: (context, i) {
+              final (label, email) = _accounts[i];
+              return PressScale(
+                onTap: () => onPick(email),
+                child: Container(
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: context.scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(NebulaSpacing.radiusSm),
+                    border: Border.all(color: dl.border),
+                  ),
+                  child: Text(
+                    label,
+                    style: context.text.bodySmall?.copyWith(fontSize: 11.5),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }

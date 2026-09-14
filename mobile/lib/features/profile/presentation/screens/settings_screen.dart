@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive/hive.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/constants/access_levels.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import '../../../../core/theme/theme_mode_provider.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
+import '../../../../core/theme/theme_context.dart';
 
 /// Preference keys in the `user_prefs` Hive box (opened in `main.dart`, and
 /// named by `kUserPrefsBoxName` in `theme_mode_provider.dart`). The theme mode
@@ -116,13 +116,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final profileState = ref.watch(profileProvider);
 
     return Scaffold(
-      backgroundColor: NebulaColors.background,
+      backgroundColor: context.scheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Settings',
-          style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary),
+          style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface),
         ),
-        backgroundColor: NebulaColors.surfaceCard,
+        backgroundColor: context.scheme.surfaceContainerHighest,
         elevation: 0,
         centerTitle: false,
       ),
@@ -151,20 +151,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'English',
-                    style: TextStyle(color: NebulaColors.textPrimary, fontSize: 14),
+                    style: TextStyle(color: context.scheme.onSurface, fontSize: 14),
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: NebulaColors.primary.withValues(alpha: 0.2),
+                      color: context.scheme.primary.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Coming Soon',
                       style: TextStyle(
-                        color: NebulaColors.primary,
+                        color: context.scheme.primary,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -226,9 +226,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'Start Time',
-                          style: TextStyle(color: NebulaColors.textSecondary, fontSize: 13),
+                          style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 13),
                         ),
                         GestureDetector(
                           onTap: () async {
@@ -247,13 +247,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: NebulaColors.primary.withValues(alpha: 0.15),
+                              color: context.scheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               _quietHoursStart.format(context),
-                              style: const TextStyle(
-                                color: NebulaColors.primary,
+                              style: TextStyle(
+                                color: context.scheme.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -265,9 +265,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
+                        Text(
                           'End Time',
-                          style: TextStyle(color: NebulaColors.textSecondary, fontSize: 13),
+                          style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 13),
                         ),
                         GestureDetector(
                           onTap: () async {
@@ -286,13 +286,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: NebulaColors.primary.withValues(alpha: 0.15),
+                              color: context.scheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               _quietHoursEnd.format(context),
-                              style: const TextStyle(
-                                color: NebulaColors.primary,
+                              style: TextStyle(
+                                color: context.scheme.primary,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -316,8 +316,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       title: 'Venture',
                       child: Text(
                         user.venture?.name ?? 'N/A',
-                        style: const TextStyle(
-                          color: NebulaColors.textPrimary,
+                        style: TextStyle(
+                          color: context.scheme.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -327,8 +327,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       title: 'Access Level',
                       child: Text(
                         '${user.levelName} (L${user.accessLevel})',
-                        style: const TextStyle(
-                          color: NebulaColors.textPrimary,
+                        style: TextStyle(
+                          color: context.scheme.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                         ),
@@ -347,22 +347,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
-                              color: NebulaColors.primary.withValues(alpha: 0.15),
+                              color: context.scheme.primary.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(
                                   LucideIcons.externalLink,
                                   size: 14,
-                                  color: NebulaColors.primary,
+                                  color: context.scheme.primary,
                                 ),
-                                SizedBox(width: 6),
+                                const SizedBox(width: 6),
                                 Text(
                                   'Open',
                                   style: TextStyle(
-                                    color: NebulaColors.primary,
+                                    color: context.scheme.primary,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 13,
                                   ),
@@ -384,10 +384,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _buildSectionHeader('App Information'),
             _buildSettingCard(
               title: 'App Version',
-              child: const Text(
+              child: Text(
                 '1.0.0+1',
                 style: TextStyle(
-                  color: NebulaColors.textPrimary,
+                  color: context.scheme.onSurface,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -395,10 +395,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             _buildSettingCard(
               title: 'Build Number',
-              child: const Text(
+              child: Text(
                 '1',
                 style: TextStyle(
-                  color: NebulaColors.textPrimary,
+                  color: context.scheme.onSurface,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -415,22 +415,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: NebulaColors.primary.withValues(alpha: 0.15),
+                    color: context.scheme.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         LucideIcons.refreshCw,
                         size: 14,
-                        color: NebulaColors.primary,
+                        color: context.scheme.primary,
                       ),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
                         'Check',
                         style: TextStyle(
-                          color: NebulaColors.primary,
+                          color: context.scheme.primary,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -449,22 +449,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: NebulaColors.highlight.withValues(alpha: 0.15),
+                    color: context.scheme.secondary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
                         LucideIcons.info,
                         size: 14,
-                        color: NebulaColors.highlight,
+                        color: context.scheme.secondary,
                       ),
-                      SizedBox(width: 6),
+                      const SizedBox(width: 6),
                       Text(
                         'Learn More',
                         style: TextStyle(
-                          color: NebulaColors.highlight,
+                          color: context.scheme.secondary,
                           fontWeight: FontWeight.w600,
                           fontSize: 13,
                         ),
@@ -483,7 +483,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () {
                 _showChangePasswordSheet(context, ref);
               },
-              child: const Icon(LucideIcons.chevronRight, color: NebulaColors.textSecondary),
+              child: Icon(LucideIcons.chevronRight, color: context.scheme.onSurfaceVariant),
             ),
             _buildSettingCard(
               title: 'Log Out',
@@ -491,7 +491,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onTap: () {
                 _showLogoutConfirmation(context, ref);
               },
-              child: const Icon(LucideIcons.chevronRight, color: NebulaColors.critical),
+              child: Icon(LucideIcons.chevronRight, color: context.dl.critical),
             ),
             const SizedBox(height: 48),
           ],
@@ -510,7 +510,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
-            color: isRed ? NebulaColors.critical : NebulaColors.textSecondary,
+            color: isRed ? context.dl.critical : context.scheme.onSurfaceVariant,
           ),
         ),
       ),
@@ -530,7 +530,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: NebulaColors.surfaceCard,
+          color: context.scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -545,16 +545,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isRed ? NebulaColors.critical : NebulaColors.textPrimary,
+                      color: isRed ? context.dl.critical : context.scheme.onSurface,
                     ),
                   ),
                   if (subtitle != null) ...[
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: NebulaColors.textSecondary,
+                        color: context.scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
@@ -581,7 +581,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -593,18 +593,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: NebulaColors.textPrimary,
+                    color: context.scheme.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
-                    color: NebulaColors.textSecondary,
+                    color: context.scheme.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -614,8 +614,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: NebulaColors.primary,
-            inactiveTrackColor: NebulaColors.background.withValues(alpha: 0.5),
+            activeThumbColor: context.scheme.primary,
+            inactiveTrackColor: context.scheme.surface.withValues(alpha: 0.5),
           ),
         ],
       ),
@@ -628,9 +628,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: NebulaColors.background,
+        color: context.scheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: NebulaColors.textSecondary.withValues(alpha: 0.3)),
+        border: Border.all(color: context.scheme.onSurfaceVariant.withValues(alpha: 0.3)),
       ),
       child: DropdownButton<String>(
         // Owned by ThemeModeNotifier, which both applies the mode via
@@ -638,7 +638,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         value: themeMode,
         isExpanded: true,
         underline: const SizedBox(),
-        dropdownColor: NebulaColors.surfaceCard,
+        dropdownColor: context.scheme.surfaceContainerHighest,
         items: [
           DropdownMenuItem(
             value: 'light',
@@ -646,8 +646,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'Light',
               style: TextStyle(
                 color: themeMode == 'light'
-                    ? NebulaColors.primary
-                    : NebulaColors.textSecondary,
+                    ? context.scheme.primary
+                    : context.scheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -657,8 +657,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'Dark',
               style: TextStyle(
                 color: themeMode == 'dark'
-                    ? NebulaColors.primary
-                    : NebulaColors.textSecondary,
+                    ? context.scheme.primary
+                    : context.scheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -668,8 +668,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               'System',
               style: TextStyle(
                 color: themeMode == 'system'
-                    ? NebulaColors.primary
-                    : NebulaColors.textSecondary,
+                    ? context.scheme.primary
+                    : context.scheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -685,7 +685,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// Small inline explanation used where a control is stored but not yet
   /// acted on, or where storage itself is unavailable.
   Widget _buildNote(String text, {bool isWarning = false}) {
-    final color = isWarning ? NebulaColors.warning : NebulaColors.textSecondary;
+    final color = isWarning ? context.dl.warning : context.scheme.onSurfaceVariant;
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       padding: const EdgeInsets.all(12),
@@ -722,7 +722,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: NebulaColors.surfaceCard,
+      backgroundColor: context.scheme.surfaceContainerHighest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -737,22 +737,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Change Password',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NebulaColors.textPrimary),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.scheme.onSurface),
             ),
             const SizedBox(height: 20),
             TextField(
               controller: currentPasswordController,
               obscureText: true,
-              style: const TextStyle(color: NebulaColors.textPrimary),
+              style: TextStyle(color: context.scheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Current Password',
-                labelStyle: const TextStyle(color: NebulaColors.textSecondary),
+                labelStyle: TextStyle(color: context.scheme.onSurfaceVariant),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: NebulaColors.primary),
+                  borderSide: BorderSide(color: context.scheme.primary),
                 ),
               ),
             ),
@@ -760,14 +760,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             TextField(
               controller: newPasswordController,
               obscureText: true,
-              style: const TextStyle(color: NebulaColors.textPrimary),
+              style: TextStyle(color: context.scheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'New Password',
-                labelStyle: const TextStyle(color: NebulaColors.textSecondary),
+                labelStyle: TextStyle(color: context.scheme.onSurfaceVariant),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: NebulaColors.primary),
+                  borderSide: BorderSide(color: context.scheme.primary),
                 ),
               ),
             ),
@@ -775,14 +775,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             TextField(
               controller: confirmPasswordController,
               obscureText: true,
-              style: const TextStyle(color: NebulaColors.textPrimary),
+              style: TextStyle(color: context.scheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Confirm Password',
-                labelStyle: const TextStyle(color: NebulaColors.textSecondary),
+                labelStyle: TextStyle(color: context.scheme.onSurfaceVariant),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: NebulaColors.primary),
+                  borderSide: BorderSide(color: context.scheme.primary),
                 ),
               ),
             ),
@@ -791,7 +791,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: NebulaColors.primary,
+                  backgroundColor: context.scheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -837,26 +837,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: NebulaColors.surfaceCard,
-        title: const Text(
+        backgroundColor: context.scheme.surfaceContainerHighest,
+        title: Text(
           'Log Out?',
-          style: TextStyle(color: NebulaColors.textPrimary, fontWeight: FontWeight.bold),
+          style: TextStyle(color: context.scheme.onSurface, fontWeight: FontWeight.bold),
         ),
-        content: const Text(
+        content: Text(
           'Are you sure you want to log out? You will need to sign in again.',
-          style: TextStyle(color: NebulaColors.textSecondary),
+          style: TextStyle(color: context.scheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: NebulaColors.textSecondary)),
+            child: Text('Cancel', style: TextStyle(color: context.scheme.onSurfaceVariant)),
           ),
           TextButton(
             onPressed: () {
               Navigator.of(ctx).pop();
               ref.read(authProvider.notifier).logout();
             },
-            child: const Text('Log Out', style: TextStyle(color: NebulaColors.critical)),
+            child: Text('Log Out', style: TextStyle(color: context.dl.critical)),
           ),
         ],
       ),
@@ -866,41 +866,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void _showAboutBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: NebulaColors.surfaceCard,
+      backgroundColor: context.scheme.surfaceContainerHighest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => const Padding(
-        padding: EdgeInsets.all(24),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'About InternalX Dropwing',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NebulaColors.textPrimary),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.scheme.onSurface),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Dropwing Groups',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: NebulaColors.textSecondary),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: context.scheme.onSurfaceVariant),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'InternalX is your all-in-one platform for project management, team collaboration, and business intelligence.',
-              style: TextStyle(fontSize: 13, color: NebulaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: context.scheme.onSurfaceVariant),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             Text(
               'Contact Support',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: NebulaColors.textSecondary),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: context.scheme.onSurfaceVariant),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'dev2@dropwinggroups.com',
               style: TextStyle(
                 fontSize: 13,
-                color: NebulaColors.primary,
+                color: context.scheme.primary,
                 decoration: TextDecoration.underline,
               ),
             ),

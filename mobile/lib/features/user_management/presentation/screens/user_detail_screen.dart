@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/network_info_provider.dart';
-import '../../../../core/rbac/access_level.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/rbac/permissions.dart';
 import '../../../../core/rbac/rbac_widgets.dart';
 import '../../../../core/theme/nebula_colors.dart';
@@ -240,7 +240,7 @@ class _FactsCard extends StatelessWidget {
       if (user.phone != null) ('Phone', Mono(user.phone!)),
       (
         'Access level',
-        _Prose('L${user.accessLevel} · ${AccessLevel.nameOf(user.accessLevel)}'),
+        _Prose('L${user.accessLevel} · ${AccessLevels.nameOf(user.accessLevel)}'),
       ),
       if (user.levelDescription != null)
         ('What that means', _Prose(user.levelDescription!)),

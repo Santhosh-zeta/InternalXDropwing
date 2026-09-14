@@ -3,10 +3,38 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import '../../../../core/constants/access_levels.dart';
+
+import '../../../../core/rbac/permissions.dart';
+import '../../../../core/rbac/rbac_widgets.dart';
 import '../../../../core/theme/nebula_colors.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/theme/nebula_spacing.dart';
+import '../../../../core/theme/nebula_typography.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/data_display.dart';
+import '../../../../core/widgets/motion.dart';
+import '../../../../core/widgets/primitives.dart';
+import '../../../../core/widgets/state_views.dart';
+import '../../data/models/calendar_model.dart';
 import '../providers/calendar_provider.dart';
+
+/// Where a day sits relative to today, at day granularity.
+///
+/// The API returns dates at midnight, so classifying with the 15-minute live
+/// window would make every one of today's events read as overdue by lunchtime.
+TimeState _dayState(DateTime day, DateTime today, {bool completed = false}) {
+  if (completed) return TimeState.past;
+  final d = DateTime(day.year, day.month, day.day);
+  if (d.isBefore(today)) return TimeState.past;
+  if (d == today) return TimeState.now;
+  return TimeState.next;
+}
+
+/// Hue means venture. An event inherits the colour of the project it belongs
+/// to; group-wide entries with no project get the neutral accent.
+Color _eventColor(BuildContext context, CalendarEvent event) =>
+    event.projectId == null
+        ? context.scheme.primary
+        : NebulaColors.forVentureId(event.projectId);
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -16,441 +44,552 @@ class CalendarScreen extends ConsumerStatefulWidget {
 }
 
 class _CalendarScreenState extends ConsumerState<CalendarScreen> {
-  late DateTime _currentMonth;
+  late DateTime _month;
 
   @override
   void initState() {
     super.initState();
-    _currentMonth = DateTime(DateTime.now().year, DateTime.now().month);
-    // Initialize calendar on first load
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month);
     Future.microtask(() {
-      ref.read(calendarNotifierProvider.notifier).initialize();
+      if (mounted) ref.read(calendarNotifierProvider.notifier).initialize();
     });
   }
 
-  void _previousMonth() {
-    setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month - 1);
-    });
-    ref.read(calendarNotifierProvider.notifier).changeMonth(_currentMonth.month, _currentMonth.year);
-  }
-
-  void _nextMonth() {
-    setState(() {
-      _currentMonth = DateTime(_currentMonth.year, _currentMonth.month + 1);
-    });
-    ref.read(calendarNotifierProvider.notifier).changeMonth(_currentMonth.month, _currentMonth.year);
+  void _shiftMonth(int delta) {
+    setState(() => _month = DateTime(_month.year, _month.month + delta));
+    ref
+        .read(calendarNotifierProvider.notifier)
+        .changeMonth(_month.month, _month.year);
   }
 
   @override
   Widget build(BuildContext context) {
-    final events = ref.watch(calendarNotifierProvider);
-    final authState = ref.watch(authProvider);
-
     return Scaffold(
-      backgroundColor: NebulaColors.background,
       appBar: AppBar(
-        title: const Text(
-          'Calendar',
-          style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary),
-        ),
-        backgroundColor: NebulaColors.surfaceCard,
-        elevation: 0,
+        title: const Text('Calendar'),
         centerTitle: false,
       ),
-      body: events.when(
-        data: (eventList) {
-          return SingleChildScrollView(
-            child: Column(
-              children: [
-                // Month/Year Picker
-                Container(
-                  color: NebulaColors.surfaceCard,
-                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(LucideIcons.chevronLeft, color: NebulaColors.textPrimary),
-                        onPressed: _previousMonth,
-                      ),
-                      Text(
-                        DateFormat('MMMM yyyy').format(_currentMonth),
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: NebulaColors.textPrimary,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(LucideIcons.chevronRight, color: NebulaColors.textPrimary),
-                        onPressed: _nextMonth,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                // Weekday headers
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  color: NebulaColors.surfaceCard,
-                  child: Row(
-                    children: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-                        .map((day) => Expanded(
-                              child: Container(
-                                alignment: Alignment.center,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                child: Text(
-                                  day,
-                                  style: const TextStyle(
-                                    color: NebulaColors.textSecondary,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                // Calendar Grid
-                Container(
-                  color: NebulaColors.surfaceCard,
-                  padding: const EdgeInsets.all(12),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 7,
-                      childAspectRatio: 1,
-                      mainAxisSpacing: 8,
-                      crossAxisSpacing: 8,
-                    ),
-                    itemCount: _getDaysInMonth(_currentMonth),
-                    itemBuilder: (context, index) {
-                      final day = index + 1;
-                      final date = DateTime(_currentMonth.year, _currentMonth.month, day);
-                      final dayEvents = eventList
-                          .where((e) =>
-                              e.date.year == date.year &&
-                              e.date.month == date.month &&
-                              e.date.day == date.day)
-                          .toList();
-                      final isToday =
-                          date.year == DateTime.now().year &&
-                          date.month == DateTime.now().month &&
-                          date.day == DateTime.now().day;
-
-                      return GestureDetector(
-                        onTap: dayEvents.isNotEmpty
-                            ? () => _showDayEvents(context, date, dayEvents, authState, ref)
-                            : null,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            border: isToday
-                                ? Border.all(color: NebulaColors.primary, width: 2)
-                                : null,
-                            borderRadius: BorderRadius.circular(8),
-                            color: isToday
-                                ? NebulaColors.primary.withValues(alpha: 0.1)
-                                : NebulaColors.background,
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                day.toString(),
-                                style: TextStyle(
-                                  color: NebulaColors.textPrimary,
-                                  fontWeight: isToday ? FontWeight.bold : FontWeight.w500,
-                                  fontSize: 14,
-                                ),
-                              ),
-                              if (dayEvents.isNotEmpty) const SizedBox(height: 4),
-                              if (dayEvents.isNotEmpty)
-                                SizedBox(
-                                  height: 12,
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: dayEvents.take(2).map((event) {
-                                      final color = _getEventColor(event.type);
-                                      return Container(
-                                        width: 6,
-                                        height: 6,
-                                        margin: const EdgeInsets.symmetric(horizontal: 2),
-                                        decoration: BoxDecoration(
-                                          color: color,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      );
-                                    }).toList(),
-                                  ),
-                                ),
-                              if (dayEvents.length > 2)
-                                const Text(
-                                  '...',
-                                  style: TextStyle(
-                                    color: NebulaColors.textSecondary,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
+      body: PermissionScope(
+        permission: Permission.viewCalendar,
+        what: 'the calendar',
+        child: Column(
+          children: [
+            _MonthBar(
+              month: _month,
+              onPrevious: () => _shiftMonth(-1),
+              onNext: () => _shiftMonth(1),
             ),
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stack) => Center(
-          child: Text('Error: $error', style: const TextStyle(color: NebulaColors.textPrimary)),
+            Expanded(child: _body()),
+          ],
         ),
       ),
     );
   }
 
-  int _getDaysInMonth(DateTime month) {
-    if (month.month == 12) {
-      return DateTime(month.year + 1, 1, 0).day;
-    } else {
-      return DateTime(month.year, month.month + 1, 0).day;
-    }
-  }
+  Widget _body() {
+    final eventsAsync = ref.watch(calendarNotifierProvider);
 
-  Color _getEventColor(String type) {
-    switch (type) {
-      case 'milestone':
-        return NebulaColors.primary;
-      case 'deadline':
-        return NebulaColors.highlight;
-      case 'event':
-      default:
-        return NebulaColors.success;
-    }
-  }
-
-  void _showDayEvents(
-    BuildContext context,
-    DateTime date,
-    List<dynamic> dayEvents,
-    dynamic authState,
-    WidgetRef ref,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: NebulaColors.surfaceCard,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    return eventsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(NebulaSpacing.md),
+        child: ListSkeleton(count: 4),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+      error: (error, _) => ErrorStateView(
+        message: readableError(error),
+        onRetry: () => ref.read(calendarNotifierProvider.notifier).initialize(),
+      ),
+      data: (events) {
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        final sorted = [...events]..sort((a, b) => a.date.compareTo(b.date));
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(
+            NebulaSpacing.md,
+            0,
+            NebulaSpacing.md,
+            NebulaSpacing.lg,
+          ),
           children: [
-            Text(
-              DateFormat('EEEE, MMMM d, yyyy').format(date),
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: NebulaColors.textPrimary,
+            _MonthGrid(
+              month: _month,
+              today: today,
+              events: events,
+              onDayTap: (date, dayEvents) =>
+                  _showDay(context, date, dayEvents, today),
+            ),
+            const SizedBox(height: NebulaSpacing.md),
+            SectionHeader(
+              DateFormat('MMMM').format(_month),
+              trailing: Mono(
+                '${events.length}',
+                size: 11,
+                color: context.dl.textTertiary,
               ),
             ),
-            const SizedBox(height: 16),
-            SingleChildScrollView(
-              child: Column(
-                children: dayEvents.map<Widget>((event) {
-                  // Milestones live on projects, which `PUT /api/projects/:id`
-                  // gates at requireLevel(4) — CXO and above. Lower number
-                  // means more access.
-                  final canMarkComplete =
-                      authState.maybeWhen(
-                        authenticated: (user) => AccessLevels.hasAtLeast(
-                            user.accessLevel, ApiAccess.updateProject),
-                        orElse: () => false,
-                      ) &&
-                      event.type == 'milestone';
-
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: NebulaColors.background,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: _getEventColor(event.type),
-                        width: 1,
+            if (sorted.isEmpty)
+              const EmptyStateView(
+                icon: LucideIcons.calendarDays,
+                title: 'Nothing scheduled',
+                message: 'No milestones, deadlines or events this month.',
+              )
+            else
+              for (var i = 0; i < sorted.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: NebulaSpacing.sm),
+                  child: StaggerIn(
+                    index: i,
+                    child: _EventRow(
+                      event: sorted[i],
+                      today: today,
+                      onTap: () => _showDay(
+                        context,
+                        sorted[i].date,
+                        events
+                            .where((e) => _sameDay(e.date, sorted[i].date))
+                            .toList(),
+                        today,
                       ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    event.title,
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.bold,
-                                      color: NebulaColors.textPrimary,
-                                    ),
-                                  ),
-                                  if (event.projectName != null) ...[
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      event.projectName,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: NebulaColors.textSecondary,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: _getEventColor(event.type).withValues(alpha: 0.2),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                event.type.toUpperCase(),
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: _getEventColor(event.type),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (event.description != null && event.description!.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            event.description!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: NebulaColors.textSecondary,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            GestureDetector(
-                              onTap: event.projectId != null
-                                  ? () {
-                                      Navigator.pop(ctx);
-                                      context.push('/projects/${event.projectId}');
-                                    }
-                                  : null,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: NebulaColors.primary.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: const Row(
-                                  children: [
-                                    Icon(LucideIcons.externalLink, size: 12, color: NebulaColors.primary),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      'View Project',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: NebulaColors.primary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            if (canMarkComplete)
-                              GestureDetector(
-                                onTap: !event.completed
-                                    ? () async {
-                                        try {
-                                          await ref
-                                              .read(calendarNotifierProvider.notifier)
-                                              .markMilestoneComplete(event.id);
-                                          if (context.mounted) {
-                                            Navigator.pop(ctx);
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Milestone marked as complete'),
-                                              ),
-                                            );
-                                          }
-                                        } catch (e) {
-                                          if (context.mounted) {
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              SnackBar(content: Text('Error: $e')),
-                                            );
-                                          }
-                                        }
-                                      }
-                                    : null,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: event.completed
-                                        ? NebulaColors.success.withValues(alpha: 0.2)
-                                        : NebulaColors.highlight.withValues(alpha: 0.2),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        event.completed
-                                            ? LucideIcons.checkCircle2
-                                            : LucideIcons.check,
-                                        size: 12,
-                                        color: event.completed
-                                            ? NebulaColors.success
-                                            : NebulaColors.highlight,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        event.completed ? 'Completed' : 'Mark Done',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: event.completed
-                                              ? NebulaColors.success
-                                              : NebulaColors.highlight,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
+                  ),
+                ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDay(
+    BuildContext context,
+    DateTime date,
+    List<CalendarEvent> dayEvents,
+    DateTime today,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => _DaySheet(
+        date: date,
+        events: dayEvents,
+        today: today,
+      ),
+    );
+  }
+}
+
+bool _sameDay(DateTime a, DateTime b) =>
+    a.year == b.year && a.month == b.month && a.day == b.day;
+
+class _MonthBar extends StatelessWidget {
+  const _MonthBar({
+    required this.month,
+    required this.onPrevious,
+    required this.onNext,
+  });
+
+  final DateTime month;
+  final VoidCallback onPrevious;
+  final VoidCallback onNext;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: NebulaSpacing.sm,
+        vertical: NebulaSpacing.xs,
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(LucideIcons.chevronLeft, size: 19),
+            onPressed: onPrevious,
+            tooltip: 'Previous month',
+          ),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  DateFormat('MMMM').format(month),
+                  style: context.text.titleMedium,
+                ),
+                const SizedBox(width: 7),
+                Mono(
+                  DateFormat('yyyy').format(month),
+                  size: 15,
+                  color: context.dl.textTertiary,
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(LucideIcons.chevronRight, size: 19),
+            onPressed: onNext,
+            tooltip: 'Next month',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MonthGrid extends StatelessWidget {
+  const _MonthGrid({
+    required this.month,
+    required this.today,
+    required this.events,
+    required this.onDayTap,
+  });
+
+  final DateTime month;
+  final DateTime today;
+  final List<CalendarEvent> events;
+  final void Function(DateTime date, List<CalendarEvent> dayEvents) onDayTap;
+
+  static const _weekdays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+  /// Days in [month], via the zeroth day of the following month.
+  int get _daysInMonth => DateTime(month.year, month.month + 1, 0).day;
+
+  /// Blank cells before the 1st. `DateTime.weekday` is Mon=1…Sun=7, and this
+  /// grid starts on Sunday.
+  ///
+  /// The previous implementation had no offset at all, so the 1st of every
+  /// month was drawn in the Sunday column and every date sat under the wrong
+  /// weekday for the rest of the month.
+  int get _leadingBlanks => DateTime(month.year, month.month, 1).weekday % 7;
+
+  @override
+  Widget build(BuildContext context) {
+    final dl = context.dl;
+    final cells = _leadingBlanks + _daysInMonth;
+
+    return DCard(
+      padding: const EdgeInsets.all(NebulaSpacing.sm + 2),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              for (var i = 0; i < _weekdays.length; i++)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      _weekdays[i],
+                      style: NebulaTypography.monoLabel(
+                        color: dl.textTertiary,
+                        fontSize: 9.5,
+                      ),
                     ),
-                  );
-                }).toList(),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate:
+                const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: 1,
+              mainAxisSpacing: 4,
+              crossAxisSpacing: 4,
+            ),
+            itemCount: cells,
+            itemBuilder: (context, index) {
+              if (index < _leadingBlanks) return const SizedBox.shrink();
+
+              final day = index - _leadingBlanks + 1;
+              final date = DateTime(month.year, month.month, day);
+              final dayEvents =
+                  events.where((e) => _sameDay(e.date, date)).toList();
+
+              return _DayCell(
+                day: day,
+                state: _dayState(date, today),
+                events: dayEvents,
+                onTap: dayEvents.isEmpty
+                    ? null
+                    : () => onDayTap(date, dayEvents),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayCell extends StatelessWidget {
+  const _DayCell({
+    required this.day,
+    required this.state,
+    required this.events,
+    this.onTap,
+  });
+
+  final int day;
+  final TimeState state;
+  final List<CalendarEvent> events;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dl = context.dl;
+    final isToday = state.isNow;
+
+    return PressScale(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isToday ? dl.surfaceRaised : null,
+          borderRadius: BorderRadius.circular(NebulaSpacing.radiusSm),
+          border: isToday ? Border.all(color: dl.borderStrong) : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Mono(
+              '$day',
+              size: 12.5,
+              weight: state.weight,
+              // Today is the single cell at full contrast; days already gone
+              // in this month recede.
+              color: state.foreground(context),
+            ),
+            const SizedBox(height: 3),
+            SizedBox(
+              height: 6,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final event in events.take(3))
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                      child: Opacity(
+                        opacity: state == TimeState.past ? 0.45 : 1,
+                        child: VentureDot(_eventColor(context, event), size: 5),
+                      ),
+                    ),
+                ],
               ),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+class _EventRow extends StatelessWidget {
+  const _EventRow({required this.event, required this.today, this.onTap});
+
+  final CalendarEvent event;
+  final DateTime today;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final dl = context.dl;
+    final state = _dayState(event.date, today, completed: event.completed);
+
+    return EntityRow(
+      title: event.title,
+      timeState: state,
+      strikeThrough: event.completed,
+      onTap: onTap,
+      spineColor: _eventColor(context, event),
+      meta: [
+        Mono(
+          DateFormat('d MMM').format(event.date),
+          size: 10.5,
+          color: state.isNow ? dl.timeNow : dl.textTertiary,
+        ),
+        if (event.projectName != null && event.projectName!.isNotEmpty)
+          Text(event.projectName!, overflow: TextOverflow.ellipsis),
+      ],
+      trailing: DTag(
+        event.type,
+        tone: event.completed ? DTone.ok : DTone.neutral,
+      ),
+    );
+  }
+}
+
+class _DaySheet extends StatelessWidget {
+  const _DaySheet({
+    required this.date,
+    required this.events,
+    required this.today,
+  });
+
+  final DateTime date;
+  final List<CalendarEvent> events;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          NebulaSpacing.md,
+          NebulaSpacing.md,
+          NebulaSpacing.md,
+          NebulaSpacing.md,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SectionHeader(
+              DateFormat('EEEE').format(date),
+              trailing: Mono(
+                DateFormat('d MMM yyyy').format(date),
+                size: 11,
+                color: context.dl.textTertiary,
+              ),
+            ),
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: events.length,
+                separatorBuilder: (_, __) =>
+                    const SizedBox(height: NebulaSpacing.sm),
+                itemBuilder: (context, index) => _DayEventCard(
+                  event: events[index],
+                  today: today,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DayEventCard extends ConsumerWidget {
+  const _DayEventCard({required this.event, required this.today});
+
+  final CalendarEvent event;
+  final DateTime today;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final dl = context.dl;
+    final state = _dayState(event.date, today, completed: event.completed);
+
+    return DCard(
+      accent: _eventColor(context, event),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
+                  event.title,
+                  style: context.text.titleSmall?.copyWith(
+                    color: state.isNow ? dl.timeNow : null,
+                    fontWeight: state.weight,
+                    decoration:
+                        event.completed ? TextDecoration.lineThrough : null,
+                    decorationColor: dl.textTertiary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: NebulaSpacing.sm),
+              DTag(
+                event.type,
+                tone: event.completed ? DTone.ok : DTone.neutral,
+              ),
+            ],
+          ),
+          if (event.projectName != null && event.projectName!.isNotEmpty) ...[
+            const SizedBox(height: 5),
+            Text(
+              event.projectName!,
+              style: context.text.bodySmall?.copyWith(color: dl.textTertiary),
+            ),
+          ],
+          if (event.description != null && event.description!.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Text(
+              event.description!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: context.text.bodySmall,
+            ),
+          ],
+          const SizedBox(height: NebulaSpacing.sm + 2),
+          Row(
+            children: [
+              if (event.projectId != null)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push('/projects/${event.projectId}');
+                  },
+                  icon: const Icon(LucideIcons.externalLink, size: 13),
+                  label: const Text('View project'),
+                ),
+              const Spacer(),
+              // Milestones live on projects, and `PUT /api/projects/:id` is
+              // requireLevel(4) — CXO and above. Lower number means more
+              // access, so this is `<=` inside Rbac, never `>= 4`.
+              if (event.type == 'milestone' && !event.completed)
+                PermissionGate(
+                  permission: Permission.updateProject,
+                  child: FilledButton.icon(
+                    onPressed: () => _markComplete(context, ref),
+                    icon: const Icon(LucideIcons.check, size: 13),
+                    label: const Text('Mark done'),
+                  ),
+                ),
+              if (event.completed)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(LucideIcons.circleCheck, size: 13, color: dl.success),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Completed',
+                      style: context.text.bodySmall?.copyWith(
+                        color: dl.success,
+                      ),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _markComplete(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    try {
+      await ref
+          .read(calendarNotifierProvider.notifier)
+          .markMilestoneComplete(event.id);
+      navigator.pop();
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Milestone marked complete'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(readableError(error)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }

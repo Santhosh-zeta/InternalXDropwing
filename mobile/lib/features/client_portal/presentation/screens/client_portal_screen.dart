@@ -4,9 +4,9 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/constants/access_levels.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/client_portal_provider.dart';
+import '../../../../core/theme/theme_context.dart';
 
 class ClientPortalScreen extends ConsumerStatefulWidget {
   const ClientPortalScreen({super.key});
@@ -43,40 +43,40 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
 
     if (!isL9) {
       return Scaffold(
-        backgroundColor: NebulaColors.background,
+        backgroundColor: context.scheme.surface,
         appBar: AppBar(
-          title: const Text(
+          title: Text(
             'Client Portal',
-            style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary),
+            style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface),
           ),
-          backgroundColor: NebulaColors.surfaceCard,
+          backgroundColor: context.scheme.surfaceContainerHighest,
           elevation: 0,
           centerTitle: false,
         ),
-        body: const Center(
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 LucideIcons.lock,
                 size: 48,
-                color: NebulaColors.critical,
+                color: context.dl.critical,
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
                 'Client Portal (L9 Only)',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: NebulaColors.textPrimary,
+                  color: context.scheme.onSurface,
                 ),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'You do not have access to this feature.',
                 style: TextStyle(
                   fontSize: 14,
-                  color: NebulaColors.textSecondary,
+                  color: context.scheme.onSurfaceVariant,
                 ),
               ),
             ],
@@ -86,20 +86,20 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
     }
 
     return Scaffold(
-      backgroundColor: NebulaColors.background,
+      backgroundColor: context.scheme.surface,
       appBar: AppBar(
-        title: const Text(
+        title: Text(
           'Client Portal',
-          style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary),
+          style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface),
         ),
-        backgroundColor: NebulaColors.surfaceCard,
+        backgroundColor: context.scheme.surfaceContainerHighest,
         elevation: 0,
         centerTitle: false,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: NebulaColors.primary,
-          labelColor: NebulaColors.primary,
-          unselectedLabelColor: NebulaColors.textSecondary,
+          indicatorColor: context.scheme.primary,
+          labelColor: context.scheme.primary,
+          unselectedLabelColor: context.scheme.onSurfaceVariant,
           tabs: const [
             Tab(text: 'Projects'),
             Tab(text: 'Deliverables'),
@@ -125,7 +125,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
         error: (error, stack) => Center(
           child: Text(
             'Error: $error',
-            style: const TextStyle(color: NebulaColors.textPrimary),
+            style: TextStyle(color: context.scheme.onSurface),
           ),
         ),
       ),
@@ -139,11 +139,11 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
         children: projects.isEmpty
             ? [
                 const SizedBox(height: 80),
-                const Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
+                Icon(LucideIcons.inbox, size: 48, color: context.scheme.onSurfaceVariant),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'No projects',
-                  style: TextStyle(color: NebulaColors.textSecondary, fontSize: 16),
+                  style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 16),
                 ),
               ]
             : projects.map<Widget>((project) {
@@ -151,7 +151,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: NebulaColors.surfaceCard,
+                    color: context.scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -163,10 +163,10 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                           Expanded(
                             child: Text(
                               project.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: NebulaColors.textPrimary,
+                                color: context.scheme.onSurface,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -195,19 +195,19 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'Progress',
                                 style: TextStyle(
                                   fontSize: 12,
-                                  color: NebulaColors.textSecondary,
+                                  color: context.scheme.onSurfaceVariant,
                                 ),
                               ),
                               Text(
                                 '${project.progress.toInt()}%',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
-                                  color: NebulaColors.textPrimary,
+                                  color: context.scheme.onSurface,
                                 ),
                               ),
                             ],
@@ -218,21 +218,21 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                             child: LinearProgressIndicator(
                               value: project.progress / 100,
                               minHeight: 6,
-                              backgroundColor: NebulaColors.background,
+                              backgroundColor: context.scheme.surface,
                               valueColor:
-                                  const AlwaysStoppedAnimation<Color>(NebulaColors.primary),
+                                  AlwaysStoppedAnimation<Color>(context.scheme.primary),
                             ),
                           ),
                         ],
                       ),
                       if (project.deliverables.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Deliverables',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: NebulaColors.textSecondary,
+                            color: context.scheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -243,14 +243,14 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                             return Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: NebulaColors.highlight.withValues(alpha: 0.15),
+                                color: context.scheme.secondary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
                                 deliv,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 11,
-                                  color: NebulaColors.highlight,
+                                  color: context.scheme.secondary,
                                 ),
                               ),
                             );
@@ -259,12 +259,12 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                       ],
                       if (project.teamMembers.isNotEmpty) ...[
                         const SizedBox(height: 12),
-                        const Text(
+                        Text(
                           'Team',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: NebulaColors.textSecondary,
+                            color: context.scheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -275,12 +275,12 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                               message: '${member.name}\n${member.email ?? ''}',
                               child: CircleAvatar(
                                 radius: 16,
-                                backgroundColor: NebulaColors.primary.withValues(alpha: 0.3),
+                                backgroundColor: context.scheme.primary.withValues(alpha: 0.3),
                                 child: Text(
                                   member.name.isNotEmpty ? member.name[0].toUpperCase() : '?',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: NebulaColors.primary,
+                                    color: context.scheme.primary,
                                   ),
                                 ),
                               ),
@@ -295,7 +295,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                           onPressed: () {
                             showModalBottomSheet(
                               context: context,
-                              backgroundColor: NebulaColors.surfaceCard,
+                              backgroundColor: context.scheme.surfaceContainerHighest,
                               shape: const RoundedRectangleBorder(
                                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
                               ),
@@ -307,39 +307,39 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                                   children: [
                                     Text(
                                       project.name,
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: NebulaColors.textPrimary,
+                                        color: context.scheme.onSurface,
                                       ),
                                     ),
                                     const SizedBox(height: 12),
                                     if (project.description != null &&
                                         project.description!.isNotEmpty) ...[
-                                      const Text(
+                                      Text(
                                         'Description',
                                         style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
-                                          color: NebulaColors.textSecondary,
+                                          color: context.scheme.onSurfaceVariant,
                                         ),
                                       ),
                                       const SizedBox(height: 6),
                                       Text(
                                         project.description!,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 13,
-                                          color: NebulaColors.textPrimary,
+                                          color: context.scheme.onSurface,
                                         ),
                                       ),
                                       const SizedBox(height: 16),
                                     ],
-                                    const Text(
+                                    Text(
                                       'Status',
                                       style: TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.bold,
-                                        color: NebulaColors.textSecondary,
+                                        color: context.scheme.onSurfaceVariant,
                                       ),
                                     ),
                                     const SizedBox(height: 6),
@@ -381,11 +381,11 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
         children: deliverables.isEmpty
             ? [
                 const SizedBox(height: 80),
-                const Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
+                Icon(LucideIcons.inbox, size: 48, color: context.scheme.onSurfaceVariant),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'No deliverables',
-                  style: TextStyle(color: NebulaColors.textSecondary, fontSize: 16),
+                  style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 16),
                 ),
               ]
             : deliverables.map<Widget>((deliv) {
@@ -393,7 +393,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: NebulaColors.surfaceCard,
+                    color: context.scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _getDeliverableStatusColor(deliv.status),
@@ -420,19 +420,19 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                                     children: [
                                       Text(
                                         deliv.name,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 14,
                                           fontWeight: FontWeight.bold,
-                                          color: NebulaColors.textPrimary,
+                                          color: context.scheme.onSurface,
                                         ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
                                         'Due: ${DateFormat('MMM d, yyyy').format(deliv.dueDate)}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 11,
-                                          color: NebulaColors.textSecondary,
+                                          color: context.scheme.onSurfaceVariant,
                                         ),
                                       ),
                                     ],
@@ -462,9 +462,9 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                         const SizedBox(height: 12),
                         Text(
                           deliv.description!,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: NebulaColors.textSecondary,
+                            color: context.scheme.onSurfaceVariant,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -485,11 +485,11 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
         children: invoices.isEmpty
             ? [
                 const SizedBox(height: 80),
-                const Icon(LucideIcons.inbox, size: 48, color: NebulaColors.textSecondary),
+                Icon(LucideIcons.inbox, size: 48, color: context.scheme.onSurfaceVariant),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'No invoices',
-                  style: TextStyle(color: NebulaColors.textSecondary, fontSize: 16),
+                  style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 16),
                 ),
               ]
             : invoices.map<Widget>((invoice) {
@@ -497,7 +497,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: NebulaColors.surfaceCard,
+                    color: context.scheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Column(
@@ -511,18 +511,18 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                               children: [
                                 Text(
                                   invoice.invoiceNumber,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
-                                    color: NebulaColors.textPrimary,
+                                    color: context.scheme.onSurface,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   DateFormat('MMM d, yyyy').format(invoice.date),
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 12,
-                                    color: NebulaColors.textSecondary,
+                                    color: context.scheme.onSurfaceVariant,
                                   ),
                                 ),
                               ],
@@ -533,10 +533,10 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                             children: [
                               Text(
                                 '₹${invoice.amount.toStringAsFixed(0)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
-                                  color: NebulaColors.textPrimary,
+                                  color: context.scheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -588,7 +588,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
   void _showInvoiceDetails(BuildContext context, dynamic invoice) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: NebulaColors.surfaceCard,
+      backgroundColor: context.scheme.surfaceContainerHighest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -600,10 +600,10 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
           children: [
             Text(
               invoice.invoiceNumber,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: NebulaColors.textPrimary,
+                color: context.scheme.onSurface,
               ),
             ),
             const SizedBox(height: 16),
@@ -616,20 +616,20 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
             ),
             if (invoice.description != null && invoice.description!.isNotEmpty) ...[
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Description',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: NebulaColors.textSecondary,
+                  color: context.scheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 invoice.description!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: NebulaColors.textPrimary,
+                  color: context.scheme.onSurface,
                 ),
               ),
             ],
@@ -668,10 +668,10 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
           children: [
             Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: NebulaColors.textSecondary,
+                color: context.scheme.onSurfaceVariant,
               ),
             ),
             Text(
@@ -679,7 +679,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: valueColor ?? NebulaColors.textPrimary,
+                color: valueColor ?? context.scheme.onSurface,
               ),
             ),
           ],
@@ -692,39 +692,39 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
   Color _getStatusColor(String status) {
     switch (status) {
       case 'active':
-        return NebulaColors.success;
+        return context.dl.success;
       case 'completed':
-        return NebulaColors.highlight;
+        return context.scheme.secondary;
       case 'archived':
-        return NebulaColors.textSecondary;
+        return context.scheme.onSurfaceVariant;
       default:
-        return NebulaColors.textSecondary;
+        return context.scheme.onSurfaceVariant;
     }
   }
 
   Color _getDeliverableStatusColor(String status) {
     switch (status) {
       case 'completed':
-        return NebulaColors.success;
+        return context.dl.success;
       case 'pending':
-        return NebulaColors.warning;
+        return context.dl.warning;
       case 'overdue':
-        return NebulaColors.critical;
+        return context.dl.critical;
       default:
-        return NebulaColors.textSecondary;
+        return context.scheme.onSurfaceVariant;
     }
   }
 
   Color _getInvoiceStatusColor(String status) {
     switch (status) {
       case 'paid':
-        return NebulaColors.success;
+        return context.dl.success;
       case 'pending':
-        return NebulaColors.warning;
+        return context.dl.warning;
       case 'overdue':
-        return NebulaColors.critical;
+        return context.dl.critical;
       default:
-        return NebulaColors.textSecondary;
+        return context.scheme.onSurfaceVariant;
     }
   }
 

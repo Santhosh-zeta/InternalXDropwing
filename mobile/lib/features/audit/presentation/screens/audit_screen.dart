@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/constants/access_levels.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/audit_model.dart';
 import '../../data/audit_provider.dart';
+import '../../../../core/theme/theme_context.dart';
 
 class AuditScreen extends ConsumerWidget {
   const AuditScreen({super.key});
@@ -22,11 +22,11 @@ class AuditScreen extends ConsumerWidget {
     // Super Admin only.
     if (level != AccessLevels.superAdmin) {
       return Scaffold(
-        backgroundColor: NebulaColors.background,
+        backgroundColor: context.scheme.surface,
         appBar: AppBar(
-          title: const Text('Audit Logs',
-              style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
-          backgroundColor: NebulaColors.surfaceCard,
+          title: Text('Audit Logs',
+              style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface)),
+          backgroundColor: context.scheme.surfaceContainerHighest,
           elevation: 0,
           centerTitle: false,
         ),
@@ -35,24 +35,24 @@ class AuditScreen extends ConsumerWidget {
             margin: const EdgeInsets.all(24),
             padding: const EdgeInsets.all(32),
             decoration: BoxDecoration(
-              color: NebulaColors.surfaceCard,
+              color: context.scheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: NebulaColors.critical.withValues(alpha: 0.3)),
+              border: Border.all(color: context.dl.critical.withValues(alpha: 0.3)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.shieldOff, size: 56, color: NebulaColors.critical.withValues(alpha: 0.7)),
+                Icon(LucideIcons.shieldOff, size: 56, color: context.dl.critical.withValues(alpha: 0.7)),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Super Admin Access Only',
                   style: TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.w700, color: NebulaColors.textPrimary),
+                      fontSize: 20, fontWeight: FontWeight.w700, color: context.scheme.onSurface),
                 ),
                 const SizedBox(height: 8),
-                const Text(
+                Text(
                   'Audit logs are restricted to Super Administrators only.',
-                  style: TextStyle(fontSize: 14, color: NebulaColors.textSecondary),
+                  style: TextStyle(fontSize: 14, color: context.scheme.onSurfaceVariant),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -76,16 +76,16 @@ class _AuditLogsContent extends ConsumerWidget {
     final actionFilter = ref.watch(auditActionFilterProvider);
 
     return Scaffold(
-      backgroundColor: NebulaColors.background,
+      backgroundColor: context.scheme.surface,
       appBar: AppBar(
-        title: const Text('Audit Logs',
-            style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
-        backgroundColor: NebulaColors.surfaceCard,
+        title: Text('Audit Logs',
+            style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface)),
+        backgroundColor: context.scheme.surfaceContainerHighest,
         elevation: 0,
         centerTitle: false,
         actions: [
           IconButton(
-            icon: const Icon(LucideIcons.refreshCw, color: NebulaColors.primary),
+            icon: Icon(LucideIcons.refreshCw, color: context.scheme.primary),
             onPressed: () => ref.invalidate(auditLogsProvider),
             tooltip: 'Refresh',
           ),
@@ -95,23 +95,23 @@ class _AuditLogsContent extends ConsumerWidget {
         children: [
           // Search bar
           Container(
-            color: NebulaColors.surfaceCard,
+            color: context.scheme.surfaceContainerHighest,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: TextField(
-              style: const TextStyle(color: NebulaColors.textPrimary, fontSize: 14),
+              style: TextStyle(color: context.scheme.onSurface, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Search by user or action…',
-                hintStyle: const TextStyle(color: NebulaColors.textSecondary, fontSize: 14),
-                prefixIcon: const Icon(LucideIcons.search, color: NebulaColors.textSecondary, size: 18),
+                hintStyle: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 14),
+                prefixIcon: Icon(LucideIcons.search, color: context.scheme.onSurfaceVariant, size: 18),
                 suffixIcon: search.isNotEmpty
                     ? IconButton(
-                        icon: const Icon(LucideIcons.x, color: NebulaColors.textSecondary, size: 16),
+                        icon: Icon(LucideIcons.x, color: context.scheme.onSurfaceVariant, size: 16),
                         onPressed: () =>
                             ref.read(auditSearchProvider.notifier).state = '',
                       )
                     : null,
                 filled: true,
-                fillColor: NebulaColors.surface,
+                fillColor: context.scheme.surface,
                 contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -123,7 +123,7 @@ class _AuditLogsContent extends ConsumerWidget {
           ),
           // Filter chips
           Container(
-            color: NebulaColors.surfaceCard,
+            color: context.scheme.surfaceContainerHighest,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -132,42 +132,42 @@ class _AuditLogsContent extends ConsumerWidget {
                   _ActionChip(
                     label: 'All',
                     isSelected: actionFilter == null,
-                    color: NebulaColors.primary,
+                    color: context.scheme.primary,
                     onTap: () => ref.read(auditActionFilterProvider.notifier).state = null,
                   ),
                   const SizedBox(width: 8),
                   _ActionChip(
                     label: 'CREATE',
                     isSelected: actionFilter == 'CREATE',
-                    color: NebulaColors.success,
+                    color: context.dl.success,
                     onTap: () => ref.read(auditActionFilterProvider.notifier).state = 'CREATE',
                   ),
                   const SizedBox(width: 8),
                   _ActionChip(
                     label: 'UPDATE',
                     isSelected: actionFilter == 'UPDATE',
-                    color: NebulaColors.warning,
+                    color: context.dl.warning,
                     onTap: () => ref.read(auditActionFilterProvider.notifier).state = 'UPDATE',
                   ),
                   const SizedBox(width: 8),
                   _ActionChip(
                     label: 'DELETE',
                     isSelected: actionFilter == 'DELETE',
-                    color: NebulaColors.critical,
+                    color: context.dl.critical,
                     onTap: () => ref.read(auditActionFilterProvider.notifier).state = 'DELETE',
                   ),
                   const SizedBox(width: 8),
                   _ActionChip(
                     label: 'LOGIN',
                     isSelected: actionFilter == 'LOGIN',
-                    color: NebulaColors.highlight,
+                    color: context.scheme.secondary,
                     onTap: () => ref.read(auditActionFilterProvider.notifier).state = 'LOGIN',
                   ),
                   const SizedBox(width: 8),
                   _ActionChip(
                     label: 'LOGOUT',
                     isSelected: actionFilter == 'LOGOUT',
-                    color: const Color(0xFF8B5CF6),
+                    color: context.scheme.primary,
                     onTap: () => ref.read(auditActionFilterProvider.notifier).state = 'LOGOUT',
                   ),
                 ],
@@ -178,15 +178,15 @@ class _AuditLogsContent extends ConsumerWidget {
           Expanded(
             child: filteredAsync.when(
               loading: () =>
-                  const Center(child: CircularProgressIndicator(color: NebulaColors.primary)),
+                  Center(child: CircularProgressIndicator(color: context.scheme.primary)),
               error: (e, _) => Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(LucideIcons.alertCircle, size: 48, color: NebulaColors.critical),
+                    Icon(LucideIcons.alertCircle, size: 48, color: context.dl.critical),
                     const SizedBox(height: 12),
-                    const Text('Failed to load audit logs',
-                        style: TextStyle(color: NebulaColors.textPrimary, fontSize: 16)),
+                    Text('Failed to load audit logs',
+                        style: TextStyle(color: context.scheme.onSurface, fontSize: 16)),
                     const SizedBox(height: 16),
                     ElevatedButton.icon(
                       onPressed: () => ref.invalidate(auditLogsProvider),
@@ -203,10 +203,10 @@ class _AuditLogsContent extends ConsumerWidget {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(LucideIcons.clipboardList,
-                            size: 64, color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
+                            size: 64, color: context.scheme.onSurfaceVariant.withValues(alpha: 0.4)),
                         const SizedBox(height: 16),
-                        const Text('No logs found',
-                            style: TextStyle(color: NebulaColors.textSecondary, fontSize: 16)),
+                        Text('No logs found',
+                            style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 16)),
                       ],
                     ),
                   );
@@ -243,17 +243,17 @@ class _AuditLogTileState extends State<_AuditLogTile> {
   Color get _actionColor {
     switch (widget.log.action) {
       case 'CREATE':
-        return NebulaColors.success;
+        return context.dl.success;
       case 'DELETE':
-        return NebulaColors.critical;
+        return context.dl.critical;
       case 'UPDATE':
-        return NebulaColors.warning;
+        return context.dl.warning;
       case 'LOGIN':
-        return NebulaColors.highlight;
+        return context.scheme.secondary;
       case 'LOGOUT':
-        return const Color(0xFF8B5CF6);
+        return context.scheme.primary;
       default:
-        return NebulaColors.textSecondary;
+        return context.scheme.onSurfaceVariant;
     }
   }
 
@@ -279,7 +279,7 @@ class _AuditLogTileState extends State<_AuditLogTile> {
       onTap: () => setState(() => _expanded = !_expanded),
       child: Container(
         decoration: BoxDecoration(
-          color: NebulaColors.surfaceCard,
+          color: context.scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
           border: Border(left: BorderSide(color: color, width: 3)),
         ),
@@ -306,12 +306,12 @@ class _AuditLogTileState extends State<_AuditLogTile> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                     decoration: BoxDecoration(
-                      color: NebulaColors.surface,
+                      color: context.scheme.surface,
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       log.entityType!,
-                      style: const TextStyle(fontSize: 10, color: NebulaColors.textSecondary),
+                      style: TextStyle(fontSize: 10, color: context.scheme.onSurfaceVariant),
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -319,13 +319,13 @@ class _AuditLogTileState extends State<_AuditLogTile> {
                 const Spacer(),
                 Text(
                   _timeAgo(log.createdAt),
-                  style: const TextStyle(fontSize: 11, color: NebulaColors.textSecondary),
+                  style: TextStyle(fontSize: 11, color: context.scheme.onSurfaceVariant),
                 ),
                 const SizedBox(width: 6),
                 Icon(
                   _expanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
                   size: 14,
-                  color: NebulaColors.textSecondary,
+                  color: context.scheme.onSurfaceVariant,
                 ),
               ],
             ),
@@ -333,20 +333,20 @@ class _AuditLogTileState extends State<_AuditLogTile> {
             if (log.userName != null)
               Row(
                 children: [
-                  const Icon(LucideIcons.user, size: 12, color: NebulaColors.textSecondary),
+                  Icon(LucideIcons.user, size: 12, color: context.scheme.onSurfaceVariant),
                   const SizedBox(width: 4),
                   Text(
                     log.userName!,
-                    style: const TextStyle(
+                    style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
-                        color: NebulaColors.textPrimary),
+                        color: context.scheme.onSurface),
                   ),
                 ],
               ),
             if (_expanded) ...[
               const SizedBox(height: 10),
-              const Divider(color: NebulaColors.surface, height: 1),
+              Divider(color: context.scheme.surface, height: 1),
               const SizedBox(height: 10),
               if (log.entityId != null)
                 _DetailRow(label: 'Entity ID', value: '#${log.entityId}'),
@@ -376,14 +376,14 @@ class _DetailRow extends StatelessWidget {
           SizedBox(
             width: 80,
             child: Text(label,
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: NebulaColors.textSecondary)),
+                    color: context.scheme.onSurfaceVariant)),
           ),
           Expanded(
             child: Text(value,
-                style: const TextStyle(fontSize: 12, color: NebulaColors.textPrimary)),
+                style: TextStyle(fontSize: 12, color: context.scheme.onSurface)),
           ),
         ],
       ),
@@ -411,7 +411,7 @@ class _ActionChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.2) : NebulaColors.surface,
+          color: isSelected ? color.withValues(alpha: 0.2) : context.scheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? color : Colors.transparent,
@@ -423,7 +423,7 @@ class _ActionChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
-            color: isSelected ? color : NebulaColors.textSecondary,
+            color: isSelected ? color : context.scheme.onSurfaceVariant,
           ),
         ),
       ),
