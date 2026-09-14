@@ -2,42 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/rbac/permissions.dart';
+import '../../../../core/rbac/rbac_widgets.dart';
 import '../../../../core/theme/nebula_spacing.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/theme/nebula_typography.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/motion.dart';
+import '../../../../core/widgets/primitives.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../data/invoice_model.dart';
 import '../../data/invoice_provider.dart';
-import '../widgets/state_views.dart';
 import 'invoices_screen.dart';
 
-/// Full breakdown of one invoice: header, billed timesheet line items, totals.
+/// One invoice, read as a document: identity, the billed line items, totals.
 ///
-/// Access matches [InvoicesScreen.canView]; the backend additionally refuses a
-/// client (Level 9) reading another venture's invoice, and that 403 surfaces in
-/// the error state rather than being hidden.
+/// Access mirrors the list — [Permission.viewInvoices]. The backend
+/// additionally refuses a client reading another venture's invoice, and that
+/// 403 surfaces in the error state rather than being swallowed.
 class InvoiceDetailScreen extends ConsumerWidget {
-  final String invoiceId;
-
   const InvoiceDetailScreen({super.key, required this.invoiceId});
+
+  final String invoiceId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final accessLevel = ref.watch(authProvider).maybeWhen<int?>(
-          authenticated: (user) => user.accessLevel,
-          orElse: () => null,
-        );
-
-    if (accessLevel == null || !InvoicesScreen.canView(accessLevel)) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Invoice')),
-        body: const RestrictedStateView(
-          moduleName: 'Invoices',
-          requirement: 'Level 3 (Admin) or above, or a client account',
-        ),
-      );
-    }
-
-    final detailAsync = ref.watch(invoiceDetailProvider(invoiceId));
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Invoice'),
@@ -49,89 +37,129 @@ class InvoiceDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(
-            child: detailAsync.when(
-              loading: () => const _DetailSkeleton(),
-              error: (error, _) => RefreshableMessage(
-                child: ErrorStateView(
-                  title: 'Could not load this invoice',
-                  error: error,
-                  onRetry: () =>
-                      ref.invalidate(invoiceDetailProvider(invoiceId)),
-                ),
-              ),
-              data: (invoice) => RefreshIndicator(
-                onRefresh: () async =>
-                    ref.refresh(invoiceDetailProvider(invoiceId).future),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(NebulaSpacing.md,
-                      NebulaSpacing.md, NebulaSpacing.md, NebulaSpacing.xl),
-                  children: [
-                    _InvoiceHeader(invoice: invoice),
-                    const SizedBox(height: NebulaSpacing.md),
-                    _LineItems(invoice: invoice),
-                    const SizedBox(height: NebulaSpacing.md),
-                    _Totals(invoice: invoice),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
+      body: PermissionScope(
+        permission: Permission.viewInvoices,
+        what: 'invoices',
+        child: _InvoiceDetailBody(invoiceId: invoiceId),
       ),
     );
   }
 }
 
-class _InvoiceHeader extends StatelessWidget {
-  final InvoiceDetail invoice;
+class _InvoiceDetailBody extends ConsumerWidget {
+  const _InvoiceDetailBody({required this.invoiceId});
 
-  const _InvoiceHeader({required this.invoice});
+  final String invoiceId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(invoiceDetailProvider(invoiceId));
+
+    return Column(
+      children: [
+        const OfflineStrip(),
+        Expanded(
+          child: detailAsync.when(
+            loading: () => const _DetailSkeleton(),
+            error: (error, _) => ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: NebulaSpacing.xl),
+                  child: ErrorStateView(
+                    message: readableError(error),
+                    onRetry: () =>
+                        ref.invalidate(invoiceDetailProvider(invoiceId)),
+                  ),
+                ),
+              ],
+            ),
+            data: (invoice) => RefreshIndicator(
+              onRefresh: () async =>
+                  ref.refresh(invoiceDetailProvider(invoiceId).future),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  NebulaSpacing.md,
+                  NebulaSpacing.md,
+                  NebulaSpacing.md,
+                  NebulaSpacing.xl,
+                ),
+                children: [
+                  StaggerIn(index: 0, child: _Masthead(invoice: invoice)),
+                  const SizedBox(height: NebulaSpacing.lg),
+                  StaggerIn(index: 1, child: _LineItems(invoice: invoice)),
+                  const SizedBox(height: NebulaSpacing.lg),
+                  StaggerIn(index: 2, child: _Totals(invoice: invoice)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Invoice number, who it bills, and the figure everything else adds up to.
+class _Masthead extends StatelessWidget {
+  const _Masthead({required this.invoice});
+
+  final InvoiceDetail invoice;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final dl = context.dl;
+
+    return DCard(
+      emphasised: true,
       padding: const EdgeInsets.all(NebulaSpacing.md),
-      decoration: BoxDecoration(
-        color: cardSurface(context),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-        border: Border.all(color: hairline(context)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(invoice.invoiceNumber,
-              style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: NebulaSpacing.xs),
-          Text(
-            invoice.ventureName,
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: textSecondary(context)),
+          Mono(
+            invoice.invoiceNumber,
+            size: 15,
+            weight: FontWeight.w600,
+            color: dl.timeNext,
           ),
+          const SizedBox(height: 3),
+          Text(invoice.ventureName, style: context.text.titleMedium),
+          const SizedBox(height: NebulaSpacing.md),
+          Text(
+            'TOTAL',
+            style: NebulaTypography.monoLabel(color: dl.textTertiary),
+          ),
+          const SizedBox(height: 4),
+          Mono(
+            formatMoney(invoice.totalAmount),
+            size: 30,
+            weight: FontWeight.w600,
+            color: dl.timeNext,
+          ),
+          const SizedBox(height: NebulaSpacing.md),
+          Container(height: 1, color: dl.border),
           const SizedBox(height: NebulaSpacing.md),
           Wrap(
             spacing: NebulaSpacing.lg,
-            runSpacing: NebulaSpacing.sm,
+            runSpacing: NebulaSpacing.md,
             children: [
-              _HeaderFact(
-                  label: 'Billing period',
-                  value: formatBillingMonth(invoice.month)),
+              _Fact(
+                label: 'Billing period',
+                value: formatBillingMonth(invoice.month),
+              ),
               if (invoice.issueDate.isNotEmpty)
-                _HeaderFact(
-                    label: 'Issued', value: formatInvoiceDate(invoice.issueDate)),
+                _Fact(
+                  label: 'Issued',
+                  value: formatInvoiceDate(invoice.issueDate),
+                ),
               if (invoice.dueDate.isNotEmpty)
-                _HeaderFact(
-                    label: 'Due', value: formatInvoiceDate(invoice.dueDate)),
+                _Fact(label: 'Due', value: formatInvoiceDate(invoice.dueDate)),
+              _Fact(label: 'Hours', value: formatHours(invoice.totalHours)),
               if (invoice.billingRate > 0)
-                _HeaderFact(
+                _Fact(
                   label: 'Rate',
-                  value: '${invoiceCurrency.format(invoice.billingRate)} / hr',
+                  value: '${formatMoney(invoice.billingRate)} / h',
                 ),
             ],
           ),
@@ -141,11 +169,11 @@ class _InvoiceHeader extends StatelessWidget {
   }
 }
 
-class _HeaderFact extends StatelessWidget {
+class _Fact extends StatelessWidget {
+  const _Fact({required this.label, required this.value});
+
   final String label;
   final String value;
-
-  const _HeaderFact({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -156,13 +184,15 @@ class _HeaderFact extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label,
-                style: Theme.of(context)
-                    .textTheme
-                    .labelSmall
-                    ?.copyWith(color: textSecondary(context))),
-            const SizedBox(height: 2),
-            Text(value, style: Theme.of(context).textTheme.titleSmall),
+            Text(
+              label.toUpperCase(),
+              style: NebulaTypography.monoLabel(
+                color: context.dl.textTertiary,
+                fontSize: 9,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Mono(value, size: 12.5),
           ],
         ),
       ),
@@ -170,53 +200,191 @@ class _HeaderFact extends StatelessWidget {
   }
 }
 
+/// The billed timesheet entries, as a table whose figures share a column edge.
 class _LineItems extends StatelessWidget {
-  final InvoiceDetail invoice;
-
   const _LineItems({required this.invoice});
+
+  final InvoiceDetail invoice;
 
   @override
   Widget build(BuildContext context) {
+    final dl = context.dl;
+
     if (invoice.items.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.all(NebulaSpacing.md),
-        decoration: BoxDecoration(
-          color: cardSurface(context),
-          borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-          border: Border.all(color: hairline(context)),
-        ),
-        child: const EmptyStateView(
-          icon: LucideIcons.fileText,
-          title: 'No billed hours',
-          message: 'This invoice has no approved timesheet entries for the '
-              'selected billing period.',
-        ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const SectionHeader('LINE ITEMS'),
+          DCard(
+            child: EmptyStateView(
+              icon: LucideIcons.fileText,
+              title: 'No billed hours',
+              message: 'This invoice has no approved timesheet entries for '
+                  '${formatBillingMonth(invoice.month)}.',
+            ),
+          ),
+        ],
       );
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(
-              left: NebulaSpacing.xs, bottom: NebulaSpacing.sm),
-          child: Text(
-            'Line items (${invoice.items.length})',
-            style: Theme.of(context).textTheme.titleSmall,
+        SectionHeader(
+          'LINE ITEMS',
+          trailing: Mono(
+            '${invoice.items.length}',
+            size: 10,
+            color: dl.textTertiary,
           ),
         ),
-        Container(
-          decoration: BoxDecoration(
-            color: cardSurface(context),
-            borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-            border: Border.all(color: hairline(context)),
+        DCard(
+          padding: const EdgeInsets.symmetric(
+            horizontal: NebulaSpacing.md,
+            vertical: NebulaSpacing.sm,
           ),
+          child: Table(
+            columnWidths: const {
+              0: FlexColumnWidth(),
+              1: IntrinsicColumnWidth(),
+              2: IntrinsicColumnWidth(),
+            },
+            defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+            border: TableBorder(
+              horizontalInside: BorderSide(color: dl.border),
+            ),
+            children: [
+              TableRow(
+                children: [
+                  _headCell(context, 'WORK', align: TextAlign.left),
+                  _headCell(context, 'HOURS'),
+                  _headCell(context, 'AMOUNT'),
+                ],
+              ),
+              for (final item in invoice.items)
+                TableRow(children: _itemCells(context, item)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _headCell(
+    BuildContext context,
+    String label, {
+    TextAlign align = TextAlign.right,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: NebulaSpacing.sm, left: 10),
+      child: Text(
+        label,
+        textAlign: align,
+        style: NebulaTypography.monoLabel(
+          color: context.dl.textTertiary,
+          fontSize: 9,
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _itemCells(BuildContext context, InvoiceLineItem item) {
+    final dl = context.dl;
+    const rowPadding = EdgeInsets.symmetric(vertical: 11);
+
+    return [
+      Padding(
+        padding: rowPadding.copyWith(right: NebulaSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              item.developer,
+              style: context.text.titleSmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (item.project.isNotEmpty || item.task != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                [item.project, item.task]
+                    .whereType<String>()
+                    .where((s) => s.isNotEmpty)
+                    .join(' · '),
+                style: context.text.bodySmall?.copyWith(fontSize: 11),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if (item.date.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Mono(
+                formatInvoiceDate(item.date),
+                size: 10,
+                color: dl.textTertiary,
+              ),
+            ],
+          ],
+        ),
+      ),
+      Padding(
+        padding: rowPadding.copyWith(left: 10),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Mono(
+            formatHours(item.hours),
+            size: 12,
+            color: context.scheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+      Padding(
+        padding: rowPadding.copyWith(left: 10),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Mono(formatMoney(item.amount), size: 12.5),
+        ),
+      ),
+    ];
+  }
+}
+
+/// Subtotal and total due — the block the reader's eye lands on last.
+class _Totals extends StatelessWidget {
+  const _Totals({required this.invoice});
+
+  final InvoiceDetail invoice;
+
+  @override
+  Widget build(BuildContext context) {
+    final dl = context.dl;
+    final hours = formatHours(invoice.totalHours);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader('TOTALS'),
+        DCard(
           child: Column(
             children: [
-              for (var i = 0; i < invoice.items.length; i++) ...[
-                if (i > 0) Divider(height: 1, color: hairline(context)),
-                _LineItemRow(item: invoice.items[i]),
-              ],
+              _TotalRow(
+                label: invoice.billingRate > 0
+                    ? 'Subtotal · $hours @ ${formatMoney(invoice.billingRate)}/h'
+                    : 'Subtotal · $hours',
+                value: formatMoney(invoice.totalAmount),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  vertical: NebulaSpacing.sm + 2,
+                ),
+                child: Container(height: 1, color: dl.border),
+              ),
+              _TotalRow(
+                label: 'Total due',
+                value: formatMoney(invoice.totalAmount),
+                emphasised: true,
+              ),
             ],
           ),
         ),
@@ -225,167 +393,36 @@ class _LineItems extends StatelessWidget {
   }
 }
 
-class _LineItemRow extends StatelessWidget {
-  final InvoiceLineItem item;
-
-  const _LineItemRow({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    final hoursLabel = item.hours == item.hours.roundToDouble()
-        ? item.hours.toStringAsFixed(0)
-        : item.hours.toStringAsFixed(2);
-
-    return Semantics(
-      label: '${item.developer}, ${item.project}, $hoursLabel hours, '
-          '${invoiceCurrency.format(item.amount)}',
-      child: ExcludeSemantics(
-        child: Padding(
-          padding: const EdgeInsets.all(NebulaSpacing.md),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.developer,
-                        style: Theme.of(context).textTheme.titleSmall),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.project,
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: textSecondary(context)),
-                    ),
-                    if (item.task != null) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        item.task!,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: textSecondary(context)),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                    if (item.date.isNotEmpty) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        formatInvoiceDate(item.date),
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: textSecondary(context)),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              const SizedBox(width: NebulaSpacing.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text('$hoursLabel hrs',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodySmall
-                          ?.copyWith(color: textSecondary(context))),
-                  const SizedBox(height: 2),
-                  Text(invoiceCurrency.format(item.amount),
-                      style: Theme.of(context).textTheme.titleSmall),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Totals extends StatelessWidget {
-  final InvoiceDetail invoice;
-
-  const _Totals({required this.invoice});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final hoursLabel = invoice.totalHours == invoice.totalHours.roundToDouble()
-        ? invoice.totalHours.toStringAsFixed(0)
-        : invoice.totalHours.toStringAsFixed(2);
-
-    return Container(
-      padding: const EdgeInsets.all(NebulaSpacing.md),
-      decoration: BoxDecoration(
-        color: cardSurface(context),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        children: [
-          _TotalRow(
-            label: invoice.billingRate > 0
-                ? 'Subtotal ($hoursLabel hrs @ '
-                    '${invoiceCurrency.format(invoice.billingRate)}/hr)'
-                : 'Subtotal ($hoursLabel hrs)',
-            value: invoiceCurrency.format(invoice.totalAmount),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: NebulaSpacing.sm),
-            child: Divider(height: 1, color: hairline(context)),
-          ),
-          _TotalRow(
-            label: 'Total due',
-            value: invoiceCurrency.format(invoice.totalAmount),
-            emphasised: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _TotalRow extends StatelessWidget {
-  final String label;
-  final String value;
-  final bool emphasised;
-
   const _TotalRow({
     required this.label,
     required this.value,
     this.emphasised = false,
   });
 
+  final String label;
+  final String value;
+  final bool emphasised;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Text(
             label,
             style: emphasised
-                ? Theme.of(context).textTheme.titleSmall
-                : Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: textSecondary(context)),
+                ? context.text.titleSmall
+                : context.text.bodySmall?.copyWith(fontSize: 11.5),
           ),
         ),
         const SizedBox(width: NebulaSpacing.sm),
-        Text(
+        Mono(
           value,
-          style: emphasised
-              ? Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: scheme.primary,
-                    fontWeight: FontWeight.w800,
-                  )
-              : Theme.of(context).textTheme.titleSmall,
+          size: emphasised ? 19 : 13,
+          weight: emphasised ? FontWeight.w600 : FontWeight.w500,
+          color: emphasised ? context.dl.timeNext : null,
         ),
       ],
     );
@@ -404,10 +441,12 @@ class _DetailSkeleton extends StatelessWidget {
         padding: const EdgeInsets.all(NebulaSpacing.md),
         physics: const NeverScrollableScrollPhysics(),
         children: const [
-          ShimmerBox(height: 140, radius: NebulaSpacing.radiusMd),
-          SizedBox(height: NebulaSpacing.md),
-          ShimmerBox(height: 220, radius: NebulaSpacing.radiusMd),
-          SizedBox(height: NebulaSpacing.md),
+          ShimmerBox(height: 190, radius: NebulaSpacing.radiusMd),
+          SizedBox(height: NebulaSpacing.lg),
+          ShimmerBox(width: 90, height: 10),
+          SizedBox(height: NebulaSpacing.sm),
+          ShimmerBox(height: 210, radius: NebulaSpacing.radiusMd),
+          SizedBox(height: NebulaSpacing.lg),
           ShimmerBox(height: 96, radius: NebulaSpacing.radiusMd),
         ],
       ),

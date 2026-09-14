@@ -3,25 +3,35 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/network/network_info_provider.dart';
+import '../../../../core/rbac/access_level.dart';
+import '../../../../core/rbac/permissions.dart';
+import '../../../../core/rbac/rbac_widgets.dart';
+import '../../../../core/theme/nebula_colors.dart';
 import '../../../../core/theme/nebula_spacing.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/data_display.dart';
+import '../../../../core/widgets/motion.dart';
+import '../../../../core/widgets/primitives.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../data/user_management_model.dart';
 import '../../data/user_management_provider.dart';
-import '../widgets/state_views.dart';
 import 'user_editor_screen.dart';
 
 /// Read view of one user plus their recent task activity, from
 /// `GET /api/team-members/:id`.
 class UserDetailScreen extends ConsumerWidget {
-  final int userId;
-
-  /// Whether the signed-in admin outranks this user; drives the edit action.
-  final bool canEdit;
-
   const UserDetailScreen({
     super.key,
     required this.userId,
     required this.canEdit,
   });
+
+  final int userId;
+
+  /// Whether the signed-in admin outranks this user. The route refuses edits
+  /// to a peer or a senior, so the action is hidden rather than offered.
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -33,13 +43,21 @@ class UserDetailScreen extends ConsumerWidget {
         actions: [
           if (canEdit)
             detailAsync.maybeWhen(
-              data: (detail) => IconButton(
-                tooltip: 'Edit user',
-                icon: const Icon(LucideIcons.pencil, size: 20),
-                onPressed: () => Navigator.of(context).push<bool>(
-                  MaterialPageRoute(
-                    builder: (_) => UserEditorScreen(existing: detail.user),
-                  ),
+              data: (detail) => PermissionGate(
+                permission: Permission.updateUser,
+                child: IconButton(
+                  tooltip: 'Edit user',
+                  icon: const Icon(LucideIcons.pencil, size: 20),
+                  onPressed: () async {
+                    final saved = await Navigator.of(context).push<bool>(
+                      MaterialPageRoute(
+                        builder: (_) => UserEditorScreen(existing: detail.user),
+                      ),
+                    );
+                    if (saved == true) {
+                      ref.invalidate(managedUserDetailProvider(userId));
+                    }
+                  },
                 ),
               ),
               orElse: () => const SizedBox.shrink(),
@@ -51,205 +69,208 @@ class UserDetailScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(
-            child: detailAsync.when(
-              loading: () => const ListSkeleton(itemCount: 4, itemHeight: 96),
-              error: (error, _) => RefreshableMessage(
-                child: ErrorStateView(
-                  title: 'Could not load this user',
-                  error: error,
-                  onRetry: () =>
-                      ref.invalidate(managedUserDetailProvider(userId)),
-                ),
+      body: PermissionScope(
+        permission: Permission.viewUsers,
+        what: 'user management',
+        child: _UserDetailBody(userId: userId),
+      ),
+    );
+  }
+}
+
+class _UserDetailBody extends ConsumerWidget {
+  const _UserDetailBody({required this.userId});
+
+  final int userId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final detailAsync = ref.watch(managedUserDetailProvider(userId));
+    final online = ref.watch(networkInfoProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => true,
+        );
+
+    return Column(
+      children: [
+        if (!online) const OfflineBanner(),
+        Expanded(
+          child: detailAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.all(NebulaSpacing.md),
+              child: ListSkeleton(count: 4),
+            ),
+            error: (error, _) => RefreshIndicator(
+              onRefresh: () async =>
+                  ref.refresh(managedUserDetailProvider(userId).future),
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: ErrorStateView(
+                      message: readableError(error),
+                      onRetry: () =>
+                          ref.invalidate(managedUserDetailProvider(userId)),
+                    ),
+                  ),
+                ],
               ),
-              data: (detail) => RefreshIndicator(
-                onRefresh: () async =>
-                    ref.refresh(managedUserDetailProvider(userId).future),
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(NebulaSpacing.md,
-                      NebulaSpacing.md, NebulaSpacing.md, NebulaSpacing.xl),
-                  children: [
-                    _ProfileCard(user: detail.user),
-                    const SizedBox(height: NebulaSpacing.md),
-                    _FactsCard(user: detail.user),
-                    const SizedBox(height: NebulaSpacing.md),
-                    _ActivityCard(activity: detail.activity),
-                  ],
+            ),
+            data: (detail) => RefreshIndicator(
+              onRefresh: () async =>
+                  ref.refresh(managedUserDetailProvider(userId).future),
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  NebulaSpacing.md,
+                  NebulaSpacing.md,
+                  NebulaSpacing.md,
+                  NebulaSpacing.xl,
                 ),
+                children: [
+                  StaggerIn(index: 0, child: _ProfileCard(user: detail.user)),
+                  const SizedBox(height: NebulaSpacing.md),
+                  StaggerIn(index: 1, child: _FactsCard(user: detail.user)),
+                  const SizedBox(height: NebulaSpacing.md),
+                  StaggerIn(
+                    index: 2,
+                    child: _ActivityCard(activity: detail.activity),
+                  ),
+                ],
               ),
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _ProfileCard extends StatelessWidget {
-  final ManagedUser user;
-
   const _ProfileCard({required this.user});
 
+  final ManagedUser user;
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(NebulaSpacing.md),
-      decoration: BoxDecoration(
-        color: cardSurface(context),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-        border: Border.all(color: hairline(context)),
-      ),
-      child: Row(
+    final ventureColor = user.ventureId == null
+        ? null
+        : NebulaColors.forVentureId(user.ventureId);
+
+    return DCard(
+      accent: ventureColor,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 56,
-            height: 56,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-            ),
-            child: Text(
-              user.initials,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleMedium
-                  ?.copyWith(color: scheme.primary),
-            ),
-          ),
-          const SizedBox(width: NebulaSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(user.fullName,
-                    style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 2),
-                Text(
-                  user.email,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: textSecondary(context)),
-                ),
-                const SizedBox(height: NebulaSpacing.sm),
-                Wrap(
-                  spacing: NebulaSpacing.sm,
-                  runSpacing: NebulaSpacing.xs,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DAvatar(user.fullName, size: 56, imageUrl: user.avatarUrl),
+              const SizedBox(width: NebulaSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Pill(
-                      label: 'L${user.accessLevel} · ${user.levelName}',
-                      color: scheme.primary,
+                    Text(user.fullName, style: context.text.titleMedium),
+                    const SizedBox(height: 3),
+                    Text(
+                      user.email,
+                      style: context.text.bodySmall,
                     ),
-                    _Pill(
-                      label: user.isActive ? 'Active' : 'Inactive',
-                      color: user.isActive ? scheme.tertiary : scheme.error,
-                    ),
+                    if (user.designation != null) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        user.designation!,
+                        style: context.text.bodySmall
+                            ?.copyWith(color: context.dl.textTertiary),
+                      ),
+                    ],
                   ],
                 ),
-              ],
-            ),
+              ),
+            ],
+          ),
+          const SizedBox(height: NebulaSpacing.sm + 4),
+          Wrap(
+            spacing: NebulaSpacing.sm,
+            runSpacing: NebulaSpacing.xs,
+            children: [
+              DTag('L${user.accessLevel} · ${user.levelName}',
+                  tone: DTone.accent),
+              DTag(
+                user.isActive ? 'Active' : 'Deactivated',
+                tone: user.isActive ? DTone.ok : DTone.critical,
+              ),
+              if (user.ventureName != null && ventureColor != null)
+                DTag.venture(user.ventureName!, color: ventureColor),
+            ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  final String label;
-  final Color color;
-
-  const _Pill({required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: NebulaSpacing.sm, vertical: NebulaSpacing.xs),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusFull),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: color, fontWeight: FontWeight.w600),
       ),
     );
   }
 }
 
 class _FactsCard extends StatelessWidget {
-  final ManagedUser user;
-
   const _FactsCard({required this.user});
 
-  String? _formatDate(String? raw) {
+  final ManagedUser user;
+
+  static String? _formatDate(String? raw) {
     if (raw == null) return null;
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) return raw;
-    return DateFormat('d MMM yyyy, HH:mm').format(parsed.toLocal());
+    return DateFormat('d MMM yyyy · HH:mm').format(parsed.toLocal());
   }
 
   @override
   Widget build(BuildContext context) {
-    final rows = <(String, String)>[
-      if (user.employeeId != null) ('Employee ID', user.employeeId!),
-      if (user.ventureName != null) ('Venture', user.ventureName!),
-      if (user.department != null) ('Department', user.department!),
-      if (user.designation != null) ('Designation', user.designation!),
-      if (user.phone != null) ('Phone', user.phone!),
-      if (user.levelDescription != null) ('Level', user.levelDescription!),
-      if (_formatDate(user.lastLogin) != null)
-        ('Last login', _formatDate(user.lastLogin)!),
-      if (_formatDate(user.createdAt) != null)
-        ('Joined', _formatDate(user.createdAt)!),
+    final lastLogin = _formatDate(user.lastLogin);
+    final joined = _formatDate(user.createdAt);
+
+    // Identifiers and instants are mono; prose stays proportional.
+    final rows = <(String, Widget)>[
+      ('User ID', Mono('#${user.id}')),
+      if (user.employeeId != null) ('Employee ID', Mono(user.employeeId!)),
+      if (user.ventureName != null)
+        ('Venture', _Prose(user.ventureName!)),
+      if (user.department != null) ('Department', _Prose(user.department!)),
+      if (user.designation != null) ('Designation', _Prose(user.designation!)),
+      if (user.phone != null) ('Phone', Mono(user.phone!)),
+      (
+        'Access level',
+        _Prose('L${user.accessLevel} · ${AccessLevel.nameOf(user.accessLevel)}'),
+      ),
+      if (user.levelDescription != null)
+        ('What that means', _Prose(user.levelDescription!)),
+      if (lastLogin != null) ('Last login', Mono(lastLogin, size: 12)),
+      if (joined != null) ('Joined', Mono(joined, size: 12)),
     ];
 
-    if (rows.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      padding: const EdgeInsets.all(NebulaSpacing.md),
-      decoration: BoxDecoration(
-        color: cardSurface(context),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-        border: Border.all(color: hairline(context)),
-      ),
+    return DCard(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SectionHeader('Details'),
           for (var i = 0; i < rows.length; i++) ...[
-            if (i > 0) Divider(height: NebulaSpacing.md, color: hairline(context)),
+            if (i > 0)
+              Divider(height: NebulaSpacing.md, color: context.dl.border),
             Semantics(
-              label: '${rows[i].$1}: ${rows[i].$2}',
-              child: ExcludeSemantics(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 112,
-                      child: Text(
-                        rows[i].$1,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: textSecondary(context)),
-                      ),
+              label: rows[i].$1,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 116,
+                    child: Text(
+                      rows[i].$1,
+                      style: context.text.bodySmall
+                          ?.copyWith(color: context.dl.textTertiary),
                     ),
-                    Expanded(
-                      child: Text(rows[i].$2,
-                          style: Theme.of(context).textTheme.bodySmall),
-                    ),
-                  ],
-                ),
+                  ),
+                  Expanded(child: rows[i].$2),
+                ],
               ),
             ),
           ],
@@ -259,62 +280,87 @@ class _FactsCard extends StatelessWidget {
   }
 }
 
+/// Non-numeric fact value — kept proportional so figures stand out by contrast.
+class _Prose extends StatelessWidget {
+  const _Prose(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(text, style: context.text.bodySmall);
+}
+
 class _ActivityCard extends StatelessWidget {
+  const _ActivityCard({required this.activity});
+
   final List<UserActivityEntry> activity;
 
-  const _ActivityCard({required this.activity});
+  static const _closed = {'completed', 'done', 'closed', 'archived'};
+
+  static DTone _statusTone(String? status) {
+    final value = status?.toLowerCase() ?? '';
+    if (_closed.contains(value)) return DTone.ok;
+    if (value == 'blocked' || value == 'cancelled') return DTone.critical;
+    if (value == 'in_progress' || value == 'in progress') return DTone.accent;
+    return DTone.neutral;
+  }
+
+  static String? _formatDate(String? raw) {
+    if (raw == null) return null;
+    final parsed = DateTime.tryParse(raw);
+    if (parsed == null) return null;
+    return DateFormat('d MMM yyyy').format(parsed.toLocal());
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(NebulaSpacing.md),
-      decoration: BoxDecoration(
-        color: cardSurface(context),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-        border: Border.all(color: hairline(context)),
-      ),
+    return DCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recent tasks', style: Theme.of(context).textTheme.titleSmall),
-          const SizedBox(height: NebulaSpacing.sm),
+          SectionHeader(
+            'Recent tasks',
+            trailing: Mono('${activity.length}', size: 11),
+          ),
           if (activity.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: NebulaSpacing.md),
+              padding: const EdgeInsets.symmetric(vertical: NebulaSpacing.sm),
               child: Text(
                 'No tasks assigned to or created by this user yet.',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: textSecondary(context)),
+                style: context.text.bodySmall
+                    ?.copyWith(color: context.dl.textTertiary),
               ),
             )
           else
             for (var i = 0; i < activity.length; i++) ...[
-              if (i > 0) Divider(height: 1, color: hairline(context)),
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(vertical: NebulaSpacing.sm + 2),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(activity[i].title,
-                          style: Theme.of(context).textTheme.bodySmall,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                    if (activity[i].status != null) ...[
-                      const SizedBox(width: NebulaSpacing.sm),
-                      Text(
-                        activity[i].status!,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: textSecondary(context)),
-                      ),
+              if (i > 0) const SizedBox(height: NebulaSpacing.sm),
+              Builder(
+                builder: (context) {
+                  final entry = activity[i];
+                  final closed =
+                      _closed.contains(entry.status?.toLowerCase() ?? '');
+                  final updated = _formatDate(entry.updatedAt);
+                  return EntityRow(
+                    title: entry.title,
+                    timeState: closed ? TimeState.past : TimeState.next,
+                    strikeThrough: closed,
+                    meta: [
+                      Mono('#${entry.id}',
+                          size: 10, color: context.dl.textTertiary),
+                      if (updated != null)
+                        Mono(updated,
+                            size: 10, color: context.dl.textTertiary),
+                      if (entry.priority != null) Text(entry.priority!),
                     ],
-                  ],
-                ),
+                    trailing: entry.status == null
+                        ? null
+                        : DTag(
+                            entry.status!.replaceAll('_', ' '),
+                            tone: _statusTone(entry.status),
+                          ),
+                  );
+                },
               ),
             ],
         ],

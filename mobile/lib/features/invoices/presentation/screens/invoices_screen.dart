@@ -4,17 +4,44 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import '../../../../core/constants/access_levels.dart';
+import '../../../../core/network/network_info_provider.dart';
+import '../../../../core/rbac/permissions.dart';
+import '../../../../core/rbac/rbac_widgets.dart';
+import '../../../../core/theme/nebula_colors.dart';
 import '../../../../core/theme/nebula_spacing.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/data_display.dart';
+import '../../../../core/widgets/motion.dart';
+import '../../../../core/widgets/primitives.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../data/invoice_model.dart';
 import '../../data/invoice_provider.dart';
-import '../widgets/state_views.dart';
 
-/// Invoices are billed in USD at the rate the backend applies to approved
-/// timesheet hours.
-final NumberFormat invoiceCurrency =
-    NumberFormat.currency(locale: 'en_US', symbol: '\$', decimalDigits: 2);
+// ── Money and figures ────────────────────────────────────────────────────────
+//
+// Every figure in this module is rendered with [Mono]; these helpers only
+// produce the string. Amounts are rupees in Indian digit grouping (1,60,000),
+// matching the seeded ventures and the `.in` domains they bill from.
+
+final NumberFormat _rupeeWhole =
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+final NumberFormat _rupeePaise =
+    NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2);
+
+/// Formats an amount as rupees. Paise are shown only when the figure actually
+/// carries them, so a column of round totals stays narrow but a real 1,160.50
+/// is never quietly rounded away.
+String formatMoney(double amount) => amount == amount.roundToDouble()
+    ? _rupeeWhole.format(amount)
+    : _rupeePaise.format(amount);
+
+/// Hours with the unit attached — `8 h`, `6.5 h`.
+String formatHours(double hours) {
+  final value = hours == hours.roundToDouble()
+      ? hours.toStringAsFixed(0)
+      : hours.toStringAsFixed(2);
+  return '$value h';
+}
 
 /// Formats a `YYYY-MM` billing period as `January 2026`.
 String formatBillingMonth(String month) {
@@ -30,42 +57,72 @@ String formatInvoiceDate(String raw) {
   return DateFormat('d MMM yyyy').format(parsed);
 }
 
+// ── Status ───────────────────────────────────────────────────────────────────
+//
+// The live controller emits `Unpaid` for every generated invoice; the seeded
+// and demo data also carry `paid`, `pending` and `overdue`. Anything else falls
+// through to a neutral pill rather than being coloured on a guess.
+
+/// Semantic tone for an invoice status pill.
+DTone invoiceTone(String status) {
+  switch (status.trim().toLowerCase()) {
+    case 'paid':
+      return DTone.ok;
+    case 'overdue':
+      return DTone.critical;
+    case 'pending':
+    case 'unpaid':
+    case 'due':
+    case 'sent':
+      return DTone.warn;
+    default:
+      return DTone.neutral;
+  }
+}
+
+/// Where an invoice sits on the time axis: settled invoices recede, an overdue
+/// one takes the critical hue.
+TimeState invoiceTimeState(String status) {
+  switch (status.trim().toLowerCase()) {
+    case 'paid':
+      return TimeState.past;
+    case 'overdue':
+      return TimeState.overdue;
+    default:
+      return TimeState.next;
+  }
+}
+
+/// Sort order for the status groups — what needs chasing sits at the top.
+int _groupRank(String status) {
+  switch (status.trim().toLowerCase()) {
+    case 'overdue':
+      return 0;
+    case 'pending':
+    case 'unpaid':
+    case 'due':
+    case 'sent':
+      return 1;
+    case 'paid':
+      return 3;
+    default:
+      return 2;
+  }
+}
+
 final _invoiceSearchProvider = StateProvider.autoDispose<String>((ref) => '');
 
 /// Lists every invoice the signed-in user is allowed to see.
 ///
-/// Access: Level 3 (Admin) and above, plus Level 9 (Client) who sees only their
-/// own venture's invoices — this mirrors the web dashboard's menu map and the
-/// venture filtering the controller applies. Lower level number = more access.
+/// Invoices are generated server-side from *approved* timesheets, so this
+/// screen never mutates anything — `/api/invoices` exposes only the two GET
+/// routes. Reading is gated on [Permission.viewInvoices], which mirrors the
+/// backend; remember that a lower access level number means more access.
 class InvoicesScreen extends ConsumerWidget {
   const InvoicesScreen({super.key});
 
-  static bool canView(int accessLevel) =>
-      AccessLevels.hasAtLeast(accessLevel, AccessLevels.admin) ||
-      accessLevel == AccessLevels.client;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Null when no user is resolved yet — treated as no access rather than
-    // defaulting to a real level.
-    final accessLevel = ref.watch(authProvider).maybeWhen<int?>(
-          authenticated: (user) => user.accessLevel,
-          orElse: () => null,
-        );
-
-    if (accessLevel == null || !canView(accessLevel)) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Invoices')),
-        body: const RestrictedStateView(
-          moduleName: 'Invoices',
-          requirement: 'Level 3 (Admin) or above, or a client account',
-        ),
-      );
-    }
-
-    final invoicesAsync = ref.watch(invoicesProvider);
-    final query = ref.watch(_invoiceSearchProvider).trim().toLowerCase();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Invoices'),
@@ -77,181 +134,208 @@ class InvoicesScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(
-                NebulaSpacing.md, NebulaSpacing.md, NebulaSpacing.md, NebulaSpacing.sm),
-            child: TextField(
-              onChanged: (value) =>
-                  ref.read(_invoiceSearchProvider.notifier).state = value,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                hintText: 'Search invoice number, venture or month',
-                prefixIcon: const Icon(LucideIcons.search, size: 18),
-                suffixIcon: query.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Clear search',
-                        icon: const Icon(LucideIcons.x, size: 18),
-                        onPressed: () =>
-                            ref.read(_invoiceSearchProvider.notifier).state = '',
-                      ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: invoicesAsync.when(
-              loading: () => const ListSkeleton(itemHeight: 104),
-              error: (error, _) => RefreshableMessage(
-                child: ErrorStateView(
-                  title: 'Could not load invoices',
-                  error: error,
-                  onRetry: () => ref.invalidate(invoicesProvider),
-                ),
-              ),
-              data: (invoices) {
-                final filtered = invoices.where((invoice) {
-                  if (query.isEmpty) return true;
-                  return invoice.invoiceNumber.toLowerCase().contains(query) ||
-                      invoice.ventureName.toLowerCase().contains(query) ||
-                      invoice.month.toLowerCase().contains(query) ||
-                      formatBillingMonth(invoice.month)
-                          .toLowerCase()
-                          .contains(query);
-                }).toList();
-
-                return RefreshIndicator(
-                  onRefresh: () async => ref.refresh(invoicesProvider.future),
-                  child: filtered.isEmpty
-                      ? RefreshableMessage(
-                          child: EmptyStateView(
-                            icon: LucideIcons.receipt,
-                            title: invoices.isEmpty
-                                ? 'No invoices yet'
-                                : 'No matching invoices',
-                            message: invoices.isEmpty
-                                ? 'Invoices are generated from approved '
-                                    'timesheets. Once a month of timesheets is '
-                                    'approved it will appear here.'
-                                : 'No invoice matches "$query". Try a different '
-                                    'invoice number, venture or month.',
-                          ),
-                        )
-                      : ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(NebulaSpacing.md,
-                              NebulaSpacing.sm, NebulaSpacing.md, NebulaSpacing.lg),
-                          physics: const AlwaysScrollableScrollPhysics(),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: NebulaSpacing.sm + 2),
-                          itemBuilder: (context, index) =>
-                              _InvoiceCard(invoice: filtered[index]),
-                        ),
-                );
-              },
-            ),
-          ),
-        ],
+      body: const PermissionScope(
+        permission: Permission.viewInvoices,
+        what: 'invoices',
+        child: _InvoicesBody(),
       ),
     );
   }
 }
 
-class _InvoiceCard extends StatelessWidget {
-  final InvoiceSummary invoice;
+class _InvoicesBody extends ConsumerWidget {
+  const _InvoicesBody();
 
-  const _InvoiceCard({required this.invoice});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final invoicesAsync = ref.watch(invoicesProvider);
+    final query = ref.watch(_invoiceSearchProvider).trim().toLowerCase();
+
+    return Column(
+      children: [
+        const OfflineStrip(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(
+            NebulaSpacing.md,
+            NebulaSpacing.md,
+            NebulaSpacing.md,
+            NebulaSpacing.sm,
+          ),
+          child: TextField(
+            onChanged: (value) =>
+                ref.read(_invoiceSearchProvider.notifier).state = value,
+            textInputAction: TextInputAction.search,
+            decoration: InputDecoration(
+              hintText: 'Search invoice number, venture or month',
+              prefixIcon: const Icon(LucideIcons.search, size: 18),
+              suffixIcon: query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Clear search',
+                      icon: const Icon(LucideIcons.x, size: 18),
+                      onPressed: () =>
+                          ref.read(_invoiceSearchProvider.notifier).state = '',
+                    ),
+            ),
+          ),
+        ),
+        Expanded(
+          child: invoicesAsync.when(
+            loading: () => const Padding(
+              padding: EdgeInsets.fromLTRB(
+                NebulaSpacing.md,
+                NebulaSpacing.sm,
+                NebulaSpacing.md,
+                NebulaSpacing.md,
+              ),
+              child: ListSkeleton(count: 6),
+            ),
+            error: (error, _) => _Refreshable(
+              child: ErrorStateView(
+                message: readableError(error),
+                onRetry: () => ref.invalidate(invoicesProvider),
+              ),
+            ),
+            data: (invoices) {
+              final filtered = invoices.where((invoice) {
+                if (query.isEmpty) return true;
+                return invoice.invoiceNumber.toLowerCase().contains(query) ||
+                    invoice.ventureName.toLowerCase().contains(query) ||
+                    invoice.month.toLowerCase().contains(query) ||
+                    formatBillingMonth(invoice.month)
+                        .toLowerCase()
+                        .contains(query);
+              }).toList();
+
+              return RefreshIndicator(
+                onRefresh: () async => ref.refresh(invoicesProvider.future),
+                child: filtered.isEmpty
+                    ? _Refreshable(
+                        child: EmptyStateView(
+                          icon: LucideIcons.receipt,
+                          title: invoices.isEmpty
+                              ? 'No invoices yet'
+                              : 'No matching invoices',
+                          message: invoices.isEmpty
+                              ? 'Invoices are generated from approved '
+                                  'timesheets. Once a month of timesheets is '
+                                  'approved it will appear here.'
+                              : 'No invoice matches "$query". Try a different '
+                                  'invoice number, venture or month.',
+                        ),
+                      )
+                    : _InvoiceList(invoices: filtered),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Invoices grouped by status, each group introduced by a [GroupHeader].
+class _InvoiceList extends StatelessWidget {
+  const _InvoiceList({required this.invoices});
+
+  final List<InvoiceSummary> invoices;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final hours = invoice.totalHours;
-    final hoursLabel =
-        '${hours == hours.roundToDouble() ? hours.toStringAsFixed(0) : hours.toStringAsFixed(2)} hrs';
+    final byStatus = <String, List<InvoiceSummary>>{};
+    for (final invoice in invoices) {
+      final key = invoice.status.trim().isEmpty
+          ? 'Unspecified'
+          : invoice.status.trim();
+      byStatus.putIfAbsent(key, () => []).add(invoice);
+    }
+
+    final keys = byStatus.keys.toList()
+      ..sort((a, b) {
+        final rank = _groupRank(a).compareTo(_groupRank(b));
+        return rank != 0 ? rank : a.toLowerCase().compareTo(b.toLowerCase());
+      });
+
+    // One flat child list so the group headers scroll with their rows.
+    final children = <Widget>[];
+    var index = 0;
+    for (final key in keys) {
+      final group = byStatus[key]!
+        ..sort((a, b) => b.month.compareTo(a.month));
+      children.add(
+        GroupHeader(key, count: group.length, tone: invoiceTone(key)),
+      );
+      for (final invoice in group) {
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: NebulaSpacing.sm),
+            child: StaggerIn(
+              index: index++,
+              child: _InvoiceRow(invoice: invoice),
+            ),
+          ),
+        );
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(
+        NebulaSpacing.md,
+        0,
+        NebulaSpacing.md,
+        NebulaSpacing.lg,
+      ),
+      physics: const AlwaysScrollableScrollPhysics(),
+      children: children,
+    );
+  }
+}
+
+class _InvoiceRow extends StatelessWidget {
+  const _InvoiceRow({required this.invoice});
+
+  final InvoiceSummary invoice;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = invoiceTimeState(invoice.status);
+    final tone = invoiceTone(invoice.status);
 
     return Semantics(
       button: true,
       label: 'Invoice ${invoice.invoiceNumber}, ${invoice.ventureName}, '
           '${formatBillingMonth(invoice.month)}, '
-          '${invoiceCurrency.format(invoice.totalAmount)}',
-      child: Material(
-        color: cardSurface(context),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
+          '${formatMoney(invoice.totalAmount)}, ${invoice.status}',
+      child: ExcludeSemantics(
+        child: EntityRow(
+          title: invoice.ventureName.isEmpty
+              ? invoice.invoiceNumber
+              : invoice.ventureName,
+          spineColor: NebulaColors.forVentureId(invoice.ventureId),
+          timeState: state,
           onTap: () => context.push('/invoices/${invoice.id}'),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 96),
-            padding: const EdgeInsets.all(NebulaSpacing.md),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-              border: Border.all(color: hairline(context)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        invoice.invoiceNumber,
-                        style: Theme.of(context).textTheme.titleSmall,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (invoice.status.isNotEmpty) _StatusChip(status: invoice.status),
-                  ],
-                ),
-                const SizedBox(height: NebulaSpacing.xs),
-                Text(
-                  invoice.ventureName,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: textSecondary(context)),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: NebulaSpacing.sm + 2),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            formatBillingMonth(invoice.month),
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: textSecondary(context)),
-                          ),
-                          Text(
-                            hoursLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodySmall
-                                ?.copyWith(color: textSecondary(context)),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      invoiceCurrency.format(invoice.totalAmount),
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w800,
-                          ),
-                    ),
-                    const SizedBox(width: NebulaSpacing.xs),
-                    Icon(LucideIcons.chevronRight,
-                        size: 18, color: textSecondary(context)),
-                  ],
-                ),
+          meta: [
+            Mono(invoice.invoiceNumber, size: 10.5),
+            Mono(formatBillingMonth(invoice.month), size: 10.5),
+            Mono(formatHours(invoice.totalHours), size: 10.5),
+          ],
+          trailing: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Mono(
+                formatMoney(invoice.totalAmount),
+                size: 14,
+                weight: FontWeight.w600,
+                color: state == TimeState.overdue
+                    ? context.dl.critical
+                    : context.scheme.onSurface,
+              ),
+              if (invoice.status.trim().isNotEmpty) ...[
+                const SizedBox(height: 5),
+                DTag(invoice.status, tone: tone),
               ],
-            ),
+            ],
           ),
         ),
       ),
@@ -259,36 +343,40 @@ class _InvoiceCard extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  final String status;
+/// Keeps pull-to-refresh alive behind a non-scrolling state view.
+class _Refreshable extends StatelessWidget {
+  const _Refreshable({required this.child});
 
-  const _StatusChip({required this.status});
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final normalised = status.toLowerCase();
-    final color = normalised == 'paid'
-        ? scheme.tertiary
-        : normalised == 'overdue'
-            ? scheme.error
-            : scheme.secondary;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(
-          horizontal: NebulaSpacing.sm, vertical: NebulaSpacing.xs),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusFull),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(
-        status,
-        style: Theme.of(context)
-            .textTheme
-            .labelSmall
-            ?.copyWith(color: color, fontWeight: FontWeight.w600),
+    return LayoutBuilder(
+      builder: (context, constraints) => ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: child,
+          ),
+        ],
       ),
     );
+  }
+}
+
+/// Shows the kit's [OfflineBanner] only while the device reports no
+/// connectivity — the core banner itself is unconditional.
+class OfflineStrip extends ConsumerWidget {
+  const OfflineStrip({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final online = ref.watch(networkInfoProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => true,
+        );
+    if (online) return const SizedBox.shrink();
+    return const OfflineBanner();
   }
 }

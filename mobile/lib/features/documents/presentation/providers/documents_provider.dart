@@ -18,10 +18,18 @@ class DocumentsNotifier extends AsyncNotifier<List<DocumentModel>> {
     await future;
   }
 
-  Future<bool> uploadDocument(String filePath, String fileName) async {
+  Future<bool> uploadDocument(
+    String filePath,
+    String fileName, {
+    void Function(int sent, int total)? onSendProgress,
+  }) async {
     try {
       final dataSource = ref.read(documentsRemoteDataSourceProvider);
-      final newDoc = await dataSource.uploadDocument(filePath, fileName);
+      final newDoc = await dataSource.uploadDocument(
+        filePath,
+        fileName,
+        onSendProgress: onSendProgress,
+      );
       final current = state.value ?? [];
       state = AsyncData([newDoc, ...current]);
       return true;
