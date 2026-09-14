@@ -62,13 +62,13 @@ class ProjectDetailScreen extends ConsumerWidget {
   }
 }
 
-class _ProjectDetailBody extends StatelessWidget {
+class _ProjectDetailBody extends ConsumerWidget {
   const _ProjectDetailBody({required this.project});
 
   final ProjectModel project;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dl = context.dl;
     final ventureColor = projectVentureColor(project);
     final start = formatApiDate(project.startDate);
@@ -76,8 +76,7 @@ class _ProjectDetailBody extends StatelessWidget {
     final hasDates = start != null || end != null;
 
     return RefreshIndicator(
-      onRefresh: () async {},
-      notificationPredicate: (_) => false,
+      onRefresh: () async => ref.invalidate(projectDetailProvider(project.id)),
       child: ListView(
         padding: const EdgeInsets.fromLTRB(
           NebulaSpacing.md,

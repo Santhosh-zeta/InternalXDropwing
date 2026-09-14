@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'state_views.dart';
+import '../../../../core/widgets/state_views.dart';
 
 /// Renders a query/table result as a horizontally- and vertically-scrollable
 /// grid. Every value is stringified defensively since a raw SQL result can

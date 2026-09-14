@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/rbac/permissions.dart';
 import '../../../../core/rbac/rbac_widgets.dart';
 import '../../../../core/theme/nebula_spacing.dart';
@@ -133,6 +134,15 @@ class _DocumentRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final dl = context.dl;
 
+    // `DELETE /api/documents/:id` lets levels 1-5 remove anything and levels
+    // 6-9 remove only what they uploaded themselves (lower number = more
+    // access, so the test is `<=`). Matching that here keeps the UI from
+    // offering a delete that comes straight back as a 403.
+    final user = ref.watch(currentUserProvider);
+    final mayDelete = user != null &&
+        (AccessLevels.satisfies(user.accessLevel, AccessLevels.manager) ||
+            doc.uploadedBy == user.id);
+
     return EntityRow(
       title: doc.originalName,
       onTap: () => _open(context),
@@ -157,15 +167,16 @@ class _DocumentRow extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           DTag(_typeLabel),
-          PermissionGate(
-            permission: Permission.manageDocuments,
-            child: IconButton(
-              icon: Icon(LucideIcons.trash2, size: 17, color: dl.critical),
-              tooltip: 'Delete',
-              visualDensity: VisualDensity.compact,
-              onPressed: () => _confirmDelete(context, ref),
+          if (mayDelete)
+            PermissionGate(
+              permission: Permission.manageDocuments,
+              child: IconButton(
+                icon: Icon(LucideIcons.trash2, size: 17, color: dl.critical),
+                tooltip: 'Delete',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _confirmDelete(context, ref),
+              ),
             ),
-          ),
         ],
       ),
     );

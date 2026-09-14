@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/constants/access_levels.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/strategy_model.dart';
 import '../../data/strategy_provider.dart';
+import '../../../../core/theme/theme_context.dart';
 
 class StrategyScreen extends ConsumerWidget {
   const StrategyScreen({super.key});
@@ -22,8 +22,8 @@ class StrategyScreen extends ConsumerWidget {
     // Strategy is for CXO (4) and above; Manager (5) and below are restricted.
     if (!AccessLevels.hasAtLeast(level, AccessLevels.cxo)) {
       return Scaffold(
-        backgroundColor: NebulaColors.background,
-        appBar: _buildAppBar(),
+        backgroundColor: context.scheme.surface,
+        appBar: _buildAppBar(context, ),
         body: const _AccessRestrictedView(
           icon: LucideIcons.lock,
           message: 'Access Restricted',
@@ -35,13 +35,13 @@ class StrategyScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: NebulaColors.background,
-        appBar: _buildAppBar(
-          bottom: const TabBar(
-            labelColor: NebulaColors.primary,
-            unselectedLabelColor: NebulaColors.textSecondary,
-            indicatorColor: NebulaColors.primary,
-            tabs: [
+        backgroundColor: context.scheme.surface,
+        appBar: _buildAppBar(context, 
+          bottom: TabBar(
+            labelColor: context.scheme.primary,
+            unselectedLabelColor: context.scheme.onSurfaceVariant,
+            indicatorColor: context.scheme.primary,
+            tabs: const [
               Tab(text: 'OKRs'),
               Tab(text: 'Risks'),
             ],
@@ -57,13 +57,13 @@ class StrategyScreen extends ConsumerWidget {
     );
   }
 
-  PreferredSizeWidget _buildAppBar({PreferredSizeWidget? bottom}) {
+  PreferredSizeWidget _buildAppBar(BuildContext context, {PreferredSizeWidget? bottom}) {
     return AppBar(
-      title: const Text(
+      title: Text(
         'Strategy',
-        style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary),
+        style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface),
       ),
-      backgroundColor: NebulaColors.surfaceCard,
+      backgroundColor: context.scheme.surfaceContainerHighest,
       elevation: 0,
       centerTitle: false,
       bottom: bottom,
@@ -81,7 +81,7 @@ class _OKRsTab extends ConsumerWidget {
     final strategyAsync = ref.watch(strategyProvider);
     return strategyAsync.when(
       loading: () =>
-          const Center(child: CircularProgressIndicator(color: NebulaColors.primary)),
+          Center(child: CircularProgressIndicator(color: context.scheme.primary)),
       error: (e, _) => _ErrorView(
         message: 'Failed to load OKRs',
         onRetry: () => ref.invalidate(strategyProvider),
@@ -111,14 +111,14 @@ class _OKRCard extends StatelessWidget {
   final OKRModel okr;
   const _OKRCard({required this.okr});
 
-  Color get _statusColor {
+  Color _statusColor(BuildContext context) {
     switch (okr.status) {
       case 'completed':
-        return NebulaColors.highlight;
+        return context.scheme.secondary;
       case 'paused':
-        return NebulaColors.warning;
+        return context.dl.warning;
       default:
-        return NebulaColors.success;
+        return context.dl.success;
     }
   }
 
@@ -127,9 +127,9 @@ class _OKRCard extends StatelessWidget {
     final progressVal = (okr.progress / 100).clamp(0.0, 1.0);
     return Container(
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
-        border: const Border(left: BorderSide(color: NebulaColors.primary, width: 3)),
+        border: Border(left: BorderSide(color: context.scheme.primary, width: 3)),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 4)),
         ],
@@ -145,22 +145,22 @@ class _OKRCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   okr.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: NebulaColors.textPrimary,
+                    color: context.scheme.onSurface,
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              _StatusChip(status: okr.status, color: _statusColor),
+              _StatusChip(status: okr.status, color: _statusColor(context)),
             ],
           ),
           if (okr.description != null && okr.description!.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
               okr.description!,
-              style: const TextStyle(fontSize: 13, color: NebulaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: context.scheme.onSurfaceVariant),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -173,26 +173,26 @@ class _OKRCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: NebulaColors.primary.withValues(alpha: 0.15),
+                    color: context.scheme.primary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '${okr.quarter}${okr.year != null ? ' ${okr.year}' : ''}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: NebulaColors.primary,
+                      color: context.scheme.primary,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
               ],
               if (okr.ownerName != null) ...[
-                const Icon(LucideIcons.user, size: 12, color: NebulaColors.textSecondary),
+                Icon(LucideIcons.user, size: 12, color: context.scheme.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Text(
                   okr.ownerName!,
-                  style: const TextStyle(fontSize: 12, color: NebulaColors.textSecondary),
+                  style: TextStyle(fontSize: 12, color: context.scheme.onSurfaceVariant),
                 ),
               ],
             ],
@@ -202,13 +202,13 @@ class _OKRCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Progress', style: TextStyle(fontSize: 12, color: NebulaColors.textSecondary)),
+              Text('Progress', style: TextStyle(fontSize: 12, color: context.scheme.onSurfaceVariant)),
               Text(
                 '${okr.progress}%',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: NebulaColors.primary,
+                  color: context.scheme.primary,
                 ),
               ),
             ],
@@ -218,19 +218,19 @@ class _OKRCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progressVal,
-              backgroundColor: NebulaColors.surface,
-              valueColor: const AlwaysStoppedAnimation<Color>(NebulaColors.primary),
+              backgroundColor: context.scheme.surface,
+              valueColor: AlwaysStoppedAnimation<Color>(context.scheme.primary),
               minHeight: 6,
             ),
           ),
           // Key Results
           if (okr.keyResults.isNotEmpty) ...[
             const SizedBox(height: 14),
-            const Divider(color: NebulaColors.surface, height: 1),
+            Divider(color: context.scheme.surface, height: 1),
             const SizedBox(height: 10),
-            const Text(
+            Text(
               'Key Results',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: NebulaColors.textSecondary, letterSpacing: 0.5),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: context.scheme.onSurfaceVariant, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             ...okr.keyResults.map((kr) => _KeyResultRow(kr: kr)),
@@ -258,14 +258,14 @@ class _KeyResultRow extends StatelessWidget {
               Expanded(
                 child: Text(
                   kr.title,
-                  style: const TextStyle(fontSize: 12, color: NebulaColors.textPrimary),
+                  style: TextStyle(fontSize: 12, color: context.scheme.onSurface),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               Text(
                 '${kr.currentValue.toStringAsFixed(0)}/${kr.targetValue.toStringAsFixed(0)}${kr.unit != null ? ' ${kr.unit}' : ''}',
-                style: const TextStyle(fontSize: 11, color: NebulaColors.textSecondary),
+                style: TextStyle(fontSize: 11, color: context.scheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -274,9 +274,9 @@ class _KeyResultRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(3),
             child: LinearProgressIndicator(
               value: kr.progress,
-              backgroundColor: NebulaColors.surface,
+              backgroundColor: context.scheme.surface,
               valueColor: AlwaysStoppedAnimation<Color>(
-                NebulaColors.primary.withValues(alpha: 0.7),
+                context.scheme.primary.withValues(alpha: 0.7),
               ),
               minHeight: 3,
             ),
@@ -297,7 +297,7 @@ class _RisksTab extends ConsumerWidget {
     final strategyAsync = ref.watch(strategyProvider);
     return strategyAsync.when(
       loading: () =>
-          const Center(child: CircularProgressIndicator(color: NebulaColors.primary)),
+          Center(child: CircularProgressIndicator(color: context.scheme.primary)),
       error: (e, _) => _ErrorView(
         message: 'Failed to load risks',
         onRetry: () => ref.invalidate(strategyProvider),
@@ -327,25 +327,27 @@ class _RiskCard extends StatelessWidget {
   final StrategicRiskModel risk;
   const _RiskCard({required this.risk});
 
-  Color get _severityColor {
+  Color _severityColor(BuildContext context) {
     switch (risk.severity) {
       case 'critical':
-        return NebulaColors.critical;
+        return context.dl.critical;
       case 'high':
-        return const Color(0xFFF97316); // orange
+        // 'high' sits between warning and critical; blend rather than
+        // introduce a fifth hue the palette does not define.
+        return Color.lerp(context.dl.warning, context.dl.critical, 0.5)!;
       case 'medium':
-        return NebulaColors.warning;
+        return context.dl.warning;
       default:
-        return NebulaColors.success;
+        return context.dl.success;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = _severityColor;
+    final color = _severityColor(context);
     return Container(
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         border: Border(left: BorderSide(color: color, width: 4)),
         boxShadow: [
@@ -361,10 +363,10 @@ class _RiskCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   risk.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: NebulaColors.textPrimary,
+                    color: context.scheme.onSurface,
                   ),
                 ),
               ),
@@ -386,7 +388,7 @@ class _RiskCard extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               risk.description!,
-              style: const TextStyle(fontSize: 13, color: NebulaColors.textSecondary),
+              style: TextStyle(fontSize: 13, color: context.scheme.onSurfaceVariant),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
             ),
@@ -396,30 +398,30 @@ class _RiskCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: NebulaColors.surface,
+                color: context.scheme.surface,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(LucideIcons.shieldCheck, size: 14, color: NebulaColors.success),
+                  Icon(LucideIcons.shieldCheck, size: 14, color: context.dl.success),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Mitigation',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
-                            color: NebulaColors.success,
+                            color: context.dl.success,
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           risk.mitigation!,
-                          style: const TextStyle(fontSize: 12, color: NebulaColors.textSecondary),
+                          style: TextStyle(fontSize: 12, color: context.scheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -431,7 +433,7 @@ class _RiskCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Status: ${risk.status}',
-            style: const TextStyle(fontSize: 11, color: NebulaColors.textSecondary),
+            style: TextStyle(fontSize: 11, color: context.scheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -473,9 +475,9 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
+          Icon(icon, size: 64, color: context.scheme.onSurfaceVariant.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
-          Text(message, style: const TextStyle(color: NebulaColors.textSecondary, fontSize: 16)),
+          Text(message, style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 16)),
         ],
       ),
     );
@@ -493,9 +495,9 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(LucideIcons.alertCircle, size: 48, color: NebulaColors.critical),
+          Icon(LucideIcons.alertCircle, size: 48, color: context.dl.critical),
           const SizedBox(height: 12),
-          Text(message, style: const TextStyle(color: NebulaColors.textPrimary, fontSize: 16)),
+          Text(message, style: TextStyle(color: context.scheme.onSurface, fontSize: 16)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: onRetry,
@@ -525,27 +527,27 @@ class _AccessRestrictedView extends StatelessWidget {
         margin: const EdgeInsets.all(24),
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: NebulaColors.surfaceCard,
+          color: context.scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: NebulaColors.critical.withValues(alpha: 0.3)),
+          border: Border.all(color: context.dl.critical.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: NebulaColors.critical.withValues(alpha: 0.7)),
+            Icon(icon, size: 56, color: context.dl.critical.withValues(alpha: 0.7)),
             const SizedBox(height: 16),
             Text(
               message,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: NebulaColors.textPrimary,
+                color: context.scheme.onSurface,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               subtitle,
-              style: const TextStyle(fontSize: 14, color: NebulaColors.textSecondary),
+              style: TextStyle(fontSize: 14, color: context.scheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ],

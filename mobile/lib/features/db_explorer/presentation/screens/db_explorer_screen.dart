@@ -9,7 +9,7 @@ import '../../data/db_explorer_data_source.dart';
 import '../../data/db_explorer_model.dart';
 import '../../data/db_explorer_provider.dart';
 import '../widgets/result_table.dart';
-import '../widgets/state_views.dart';
+import '../../../../core/widgets/state_views.dart';
 
 /// Raw database access: table listing, table preview, and free-form SQL
 /// execution against `/api/database`.

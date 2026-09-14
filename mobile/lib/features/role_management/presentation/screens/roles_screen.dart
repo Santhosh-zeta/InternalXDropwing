@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/network_info_provider.dart';
-import '../../../../core/rbac/access_level.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/rbac/permissions.dart';
 import '../../../../core/rbac/rbac_widgets.dart';
 import '../../../../core/theme/nebula_colors.dart';
@@ -283,7 +283,7 @@ class _RoleRow extends ConsumerWidget {
         leading: _RoleGlyph(icon: role.icon, color: roleColor),
         meta: [
           DTag(
-            'L${role.baseLevel} · ${AccessLevel.nameOf(role.baseLevel)}',
+            'L${role.baseLevel} · ${AccessLevels.nameOf(role.baseLevel)}',
             tone: DTone.accent,
           ),
           if (role.ventureName != null)

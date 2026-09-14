@@ -2,8 +2,50 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/nebula_colors.dart';
 import '../../../../core/theme/nebula_spacing.dart';
-import 'state_views.dart';
+import '../../../../core/theme/nebula_typography.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/primitives.dart';
+
+/// The Reports chart kit.
+///
+/// These are the only real charts in the app and they stay hand-painted: a
+/// charting package would bring its own palette, its own type and its own idea
+/// of a card, and none of the three would match Dayline.
+///
+/// Two rules hold everywhere in this file:
+///
+///  * **No literal colours.** Bars, ticks, baselines and legends all resolve
+///    through `context.scheme.*` / `context.dl.*`, or through a venture hex the
+///    API actually sent, so every chart is legible on both grounds.
+///  * **Every figure is mono.** Axis ticks, value labels and legend figures use
+///    [NebulaTypography.mono] / [NebulaTypography.monoLabel], so a column of
+///    numbers lines up and a changing value does not reflow its row.
+
+/// Parses a `#RRGGBB` / `#AARRGGBB` colour the API sent on a venture record.
+///
+/// Returns `null` — rather than a guess — when the field is missing or
+/// malformed, so the caller falls back to a theme colour instead of rendering
+/// an invented brand colour.
+Color? apiColor(String? hex) {
+  if (hex == null) return null;
+  var value = hex.trim().replaceFirst('#', '');
+  if (value.isEmpty) return null;
+  if (value.length == 6) value = 'FF$value';
+  if (value.length != 8) return null;
+  if (int.tryParse(value, radix: 16) == null) return null;
+  return NebulaColors.parseHex(hex);
+}
+
+/// Categorical colours for slices that are not ventures carrying their own hex.
+///
+/// Drawn from the venture fallbacks, because every categorical series on this
+/// screen *is* a venture split — using the semantic error/success colours as
+/// chart categories would make hue mean two different things at once.
+List<Color> _categoricalPalette(BuildContext context) => const [
+      ...NebulaColors.ventureFallbacks,
+    ];
 
 /// One labelled value in a chart series.
 class ChartDatum {
@@ -31,24 +73,17 @@ class ReportCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(NebulaSpacing.md),
-      decoration: BoxDecoration(
-        color: cardSurface(context),
-        borderRadius: BorderRadius.circular(NebulaSpacing.radiusMd),
-        border: Border.all(color: hairline(context)),
-      ),
+    return DCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleSmall),
+          SectionHeader(title, padding: EdgeInsets.zero),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: Theme.of(context)
-                .textTheme
-                .labelSmall
-                ?.copyWith(color: textSecondary(context)),
+            style: context.text.bodySmall?.copyWith(
+              color: context.dl.textTertiary,
+            ),
           ),
           const SizedBox(height: NebulaSpacing.md),
           child,
@@ -58,8 +93,7 @@ class ReportCard extends StatelessWidget {
   }
 }
 
-/// A single-series column chart, drawn with [CustomPaint] like the existing
-/// analytics charts so no extra charting dependency is pulled in.
+/// A single-series column chart.
 class ColumnChart extends StatelessWidget {
   final List<ChartDatum> data;
   final double height;
@@ -76,7 +110,6 @@ class ColumnChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Semantics(
       label: semanticsLabel,
       image: true,
@@ -87,10 +120,10 @@ class ColumnChart extends StatelessWidget {
           child: CustomPaint(
             painter: _ColumnChartPainter(
               data: data,
-              barColor: scheme.primary,
-              labelColor: textSecondary(context),
-              valueColor: scheme.onSurface,
-              gridColor: hairline(context),
+              barColor: context.scheme.primary,
+              labelColor: context.scheme.onSurfaceVariant,
+              valueColor: context.scheme.onSurface,
+              gridColor: context.dl.border,
               textDirection: Directionality.of(context),
             ),
           ),
@@ -158,22 +191,25 @@ class _ColumnChartPainter extends CustomPainter {
         );
       }
 
-      // Value above the bar
+      // Value above the bar — a figure, so mono.
       painter
         ..text = TextSpan(
-          text: _formatValue(datum.value),
-          style: TextStyle(
-              color: valueColor, fontSize: 11, fontWeight: FontWeight.w600),
+          text: formatChartValue(datum.value),
+          style: NebulaTypography.mono(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: valueColor,
+          ),
         )
         ..layout(maxWidth: slot)
         ..paint(canvas,
             Offset(centreX - painter.width / 2, top - valueHeight + 2));
 
-      // Category label below the baseline
+      // Category tick below the baseline.
       painter
         ..text = TextSpan(
-          text: datum.label,
-          style: TextStyle(color: labelColor, fontSize: 10),
+          text: datum.label.toUpperCase(),
+          style: NebulaTypography.monoLabel(color: labelColor, fontSize: 9),
         )
         ..layout(maxWidth: slot)
         ..paint(canvas,
@@ -213,7 +249,10 @@ class GroupedColumnChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final scheme = context.scheme;
+    final totalA = seriesA.fold<double>(0, (s, v) => s + v);
+    final totalB = seriesB.fold<double>(0, (s, v) => s + v);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -231,8 +270,8 @@ class GroupedColumnChart extends StatelessWidget {
                   seriesB: seriesB,
                   colorA: scheme.primary,
                   colorB: scheme.secondary,
-                  labelColor: textSecondary(context),
-                  gridColor: hairline(context),
+                  labelColor: scheme.onSurfaceVariant,
+                  gridColor: context.dl.border,
                   textDirection: Directionality.of(context),
                 ),
               ),
@@ -244,8 +283,16 @@ class GroupedColumnChart extends StatelessWidget {
           spacing: NebulaSpacing.md,
           runSpacing: NebulaSpacing.xs,
           children: [
-            ChartLegendSwatch(color: scheme.primary, label: seriesALabel),
-            ChartLegendSwatch(color: scheme.secondary, label: seriesBLabel),
+            ChartLegendSwatch(
+              color: scheme.primary,
+              label: seriesALabel,
+              value: formatChartValue(totalA),
+            ),
+            ChartLegendSwatch(
+              color: scheme.secondary,
+              label: seriesBLabel,
+              value: formatChartValue(totalB),
+            ),
           ],
         ),
       ],
@@ -325,8 +372,8 @@ class _GroupedColumnPainter extends CustomPainter {
 
       painter
         ..text = TextSpan(
-          text: categories[i],
-          style: TextStyle(color: labelColor, fontSize: 10),
+          text: categories[i].toUpperCase(),
+          style: NebulaTypography.monoLabel(color: labelColor, fontSize: 9),
         )
         ..layout(maxWidth: slot)
         ..paint(canvas,
@@ -362,15 +409,7 @@ class DonutChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final palette = <Color>[
-      scheme.primary,
-      scheme.secondary,
-      scheme.tertiary,
-      scheme.error,
-      scheme.primary.withValues(alpha: 0.55),
-      scheme.secondary.withValues(alpha: 0.55),
-    ];
+    final palette = _categoricalPalette(context);
     final resolved = <Color>[
       for (var i = 0; i < data.length; i++)
         data[i].color ?? palette[i % palette.length],
@@ -393,20 +432,25 @@ class DonutChart extends StatelessWidget {
                     painter: _DonutPainter(
                       values: data.map((d) => d.value).toList(),
                       colors: resolved,
-                      trackColor: mutedSurface(context),
+                      trackColor: context.dl.surfaceRaised,
                     ),
                   ),
                   Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(centreValue,
-                          style: Theme.of(context).textTheme.titleLarge),
+                      Mono(
+                        centreValue,
+                        size: 22,
+                        weight: FontWeight.w600,
+                        color: context.dl.timeNow,
+                      ),
+                      const SizedBox(height: 2),
                       Text(
-                        centreLabel,
-                        style: Theme.of(context)
-                            .textTheme
-                            .labelSmall
-                            ?.copyWith(color: textSecondary(context)),
+                        centreLabel.toUpperCase(),
+                        style: NebulaTypography.monoLabel(
+                          color: context.dl.textTertiary,
+                          fontSize: 9,
+                        ),
                       ),
                     ],
                   ),
@@ -424,7 +468,8 @@ class DonutChart extends StatelessWidget {
             for (var i = 0; i < data.length; i++)
               ChartLegendSwatch(
                 color: resolved[i],
-                label: '${data[i].label} · ${_formatValue(data[i].value)}',
+                label: data[i].label,
+                value: formatChartValue(data[i].value),
               ),
           ],
         ),
@@ -488,12 +533,20 @@ class _DonutPainter extends CustomPainter {
       old.trackColor != trackColor;
 }
 
-/// Coloured square plus caption, used by the chart legends.
+/// Coloured square, caption and — where there is one — a mono figure.
 class ChartLegendSwatch extends StatelessWidget {
   final Color color;
   final String label;
 
-  const ChartLegendSwatch({super.key, required this.color, required this.label});
+  /// The series' figure. Rendered mono; omit when the swatch is a pure key.
+  final String? value;
+
+  const ChartLegendSwatch({
+    super.key,
+    required this.color,
+    required this.label,
+    this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -511,11 +564,15 @@ class ChartLegendSwatch extends StatelessWidget {
         const SizedBox(width: NebulaSpacing.xs + 2),
         Text(
           label,
-          style: Theme.of(context)
-              .textTheme
-              .labelSmall
-              ?.copyWith(color: textSecondary(context)),
+          style: context.text.bodySmall?.copyWith(
+            fontSize: 11.5,
+            color: context.scheme.onSurfaceVariant,
+          ),
         ),
+        if (value != null) ...[
+          const SizedBox(width: 6),
+          Mono(value!, size: 11.5, weight: FontWeight.w600),
+        ],
       ],
     );
   }
@@ -538,6 +595,8 @@ class ProportionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final share = fraction.isNaN ? 0.0 : fraction.clamp(0.0, 1.0);
+
     return Semantics(
       label: '$label: $valueLabel',
       child: ExcludeSemantics(
@@ -548,28 +607,38 @@ class ProportionBar extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  VentureDot(color),
+                  const SizedBox(width: 7),
                   Expanded(
-                    child: Text(label,
-                        style: Theme.of(context).textTheme.bodySmall,
-                        overflow: TextOverflow.ellipsis),
+                    child: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: context.text.titleSmall,
+                    ),
                   ),
                   const SizedBox(width: NebulaSpacing.sm),
-                  Text(valueLabel,
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                            color: color,
-                            fontWeight: FontWeight.w700,
-                          )),
+                  Mono(valueLabel, size: 12, weight: FontWeight.w600),
                 ],
               ),
               const SizedBox(height: NebulaSpacing.xs + 2),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: fraction.clamp(0.0, 1.0),
-                  minHeight: 6,
-                  backgroundColor: mutedSurface(context),
-                  valueColor: AlwaysStoppedAnimation<Color>(color),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: ProgressTrack(value: share, color: color, height: 6),
+                  ),
+                  const SizedBox(width: NebulaSpacing.sm),
+                  SizedBox(
+                    width: 38,
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Mono(
+                        '${(share * 100).round()}%',
+                        size: 10.5,
+                        color: context.dl.textTertiary,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -580,7 +649,7 @@ class ProportionBar extends StatelessWidget {
 }
 
 /// Renders whole numbers without a trailing `.0`.
-String _formatValue(double value) {
+String formatChartValue(double value) {
   if (value == value.roundToDouble()) return value.toStringAsFixed(0);
   return value.toStringAsFixed(1);
 }

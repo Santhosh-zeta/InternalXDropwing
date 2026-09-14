@@ -37,6 +37,11 @@ String projectStatusLabel(String status) {
       return 'Completed';
     case 'archived':
       return 'Archived';
+    case 'pending':
+      return 'Pending';
+    case 'in_progress':
+    case 'in-progress':
+      return 'In progress';
     default:
       return status;
   }

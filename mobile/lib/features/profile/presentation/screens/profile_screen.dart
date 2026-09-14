@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 import 'package:file_picker/file_picker.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/theme/theme_mode_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -15,11 +16,11 @@ class ProfileScreen extends ConsumerWidget {
     final profileState = ref.watch(profileProvider);
 
     return Scaffold(
-      backgroundColor: NebulaColors.background,
+      backgroundColor: context.scheme.surface,
       appBar: AppBar(
-        title: const Text('Profile',
-            style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
-        backgroundColor: NebulaColors.surfaceCard,
+        title: Text('Profile',
+            style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface)),
+        backgroundColor: context.scheme.surfaceContainerHighest,
         elevation: 0,
         centerTitle: false,
       ),
@@ -30,7 +31,7 @@ class ProfileScreen extends ConsumerWidget {
               children: [
                 // User Card
                 Container(
-                  color: NebulaColors.surfaceCard,
+                  color: context.scheme.surfaceContainerHighest,
                   padding: const EdgeInsets.all(24.0),
                   child: Row(
                     children: [
@@ -69,8 +70,8 @@ class ProfileScreen extends ConsumerWidget {
                               },
                               child: Container(
                                 padding: const EdgeInsets.all(6),
-                                decoration: const BoxDecoration(
-                                  color: NebulaColors.primary,
+                                decoration: BoxDecoration(
+                                  color: context.scheme.primary,
                                   shape: BoxShape.circle,
                                 ),
                                 child: const Icon(LucideIcons.camera, size: 16, color: Colors.white),
@@ -86,10 +87,10 @@ class ProfileScreen extends ConsumerWidget {
                           children: [
                             Text(
                               user.fullName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 22,
                                   fontWeight: FontWeight.bold,
-                                  color: NebulaColors.textPrimary),
+                                  color: context.scheme.onSurface),
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -102,13 +103,13 @@ class ProfileScreen extends ConsumerWidget {
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                const Icon(LucideIcons.building,
-                                    size: 14, color: NebulaColors.textSecondary),
+                                Icon(LucideIcons.building,
+                                    size: 14, color: context.scheme.onSurfaceVariant),
                                 const SizedBox(width: 4),
                                 Text(
                                   user.department ?? 'No Department',
-                                  style: const TextStyle(
-                                      fontSize: 14, color: NebulaColors.textSecondary),
+                                  style: TextStyle(
+                                      fontSize: 14, color: context.scheme.onSurfaceVariant),
                                 ),
                               ],
                             ),
@@ -121,18 +122,14 @@ class ProfileScreen extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // Sections
-                _buildSectionGroup([
+                _buildSectionGroup(context, [
                   _SectionItem(
                       title: 'My Profile',
                       icon: LucideIcons.user,
                       onTap: () => _showEditProfileSheet(context, ref, user.fullName, user.phone)),
-                  _SectionItem(
-                      title: 'My Performance',
-                      icon: LucideIcons.barChart,
-                      onTap: () {}),
                 ]),
                 const SizedBox(height: 16),
-                _buildSectionGroup([
+                _buildSectionGroup(context, [
                   _SectionItem(
                       title: 'Notifications',
                       icon: LucideIcons.bell,
@@ -145,11 +142,11 @@ class ProfileScreen extends ConsumerWidget {
                       title: 'Help', icon: LucideIcons.helpCircle, onTap: () => _showHelpDialog(context)),
                 ]),
                 const SizedBox(height: 16),
-                _buildSectionGroup([
+                _buildSectionGroup(context, [
                   _SectionItem(
                     title: 'Logout',
                     icon: LucideIcons.logOut,
-                    color: Colors.red,
+                    color: context.dl.critical,
                     onTap: () {
                       ref.read(authProvider.notifier).logout();
                     },
@@ -172,7 +169,7 @@ class ProfileScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: NebulaColors.surfaceCard,
+      backgroundColor: context.scheme.surfaceContainerHighest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -185,19 +182,19 @@ class ProfileScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Edit Profile',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NebulaColors.textPrimary)),
+            Text('Edit Profile',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.scheme.onSurface)),
             const SizedBox(height: 20),
             TextField(
               controller: nameController,
-              style: const TextStyle(color: NebulaColors.textPrimary),
+              style: TextStyle(color: context.scheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Full Name',
-                labelStyle: const TextStyle(color: NebulaColors.textSecondary),
+                labelStyle: TextStyle(color: context.scheme.onSurfaceVariant),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: NebulaColors.primary),
+                  borderSide: BorderSide(color: context.scheme.primary),
                 ),
               ),
             ),
@@ -205,14 +202,14 @@ class ProfileScreen extends ConsumerWidget {
             TextField(
               controller: phoneController,
               keyboardType: TextInputType.phone,
-              style: const TextStyle(color: NebulaColors.textPrimary),
+              style: TextStyle(color: context.scheme.onSurface),
               decoration: InputDecoration(
                 labelText: 'Phone',
-                labelStyle: const TextStyle(color: NebulaColors.textSecondary),
+                labelStyle: TextStyle(color: context.scheme.onSurfaceVariant),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: NebulaColors.primary),
+                  borderSide: BorderSide(color: context.scheme.primary),
                 ),
               ),
             ),
@@ -221,7 +218,7 @@ class ProfileScreen extends ConsumerWidget {
               width: double.infinity,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: NebulaColors.primary,
+                  backgroundColor: context.scheme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -258,7 +255,7 @@ class ProfileScreen extends ConsumerWidget {
   void _showSettingsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: NebulaColors.surfaceCard,
+      backgroundColor: context.scheme.surfaceContainerHighest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -268,19 +265,34 @@ class ProfileScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Settings',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: NebulaColors.textPrimary)),
+            Text('Settings',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: context.scheme.onSurface)),
             const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(LucideIcons.moon, color: NebulaColors.textSecondary),
-              title: const Text('Dark Mode', style: TextStyle(color: NebulaColors.textPrimary)),
-              trailing: const Icon(LucideIcons.check, color: NebulaColors.primary, size: 18),
-              onTap: () {},
-            ),
-            ListTile(
-              leading: const Icon(LucideIcons.globe, color: NebulaColors.textSecondary),
-              title: const Text('Language: English', style: TextStyle(color: NebulaColors.textPrimary)),
-              onTap: () {},
+            Consumer(
+              builder: (context, ref, _) {
+                final mode = ref.watch(themeModeProvider);
+                return SwitchListTile(
+                  secondary: Icon(LucideIcons.moon,
+                      color: context.scheme.onSurfaceVariant),
+                  title: Text('Dark mode',
+                      style: TextStyle(color: context.scheme.onSurface)),
+                  subtitle: Text(
+                    mode == ThemeMode.system
+                        ? 'Following your device'
+                        : mode == ThemeMode.dark
+                            ? 'Always dark'
+                            : 'Always light',
+                    style: TextStyle(color: context.scheme.onSurfaceVariant),
+                  ),
+                  value: mode == ThemeMode.dark ||
+                      (mode == ThemeMode.system &&
+                          MediaQuery.platformBrightnessOf(context) ==
+                              Brightness.dark),
+                  onChanged: (on) => ref
+                      .read(themeModeProvider.notifier)
+                      .setThemeMode(on ? ThemeMode.dark : ThemeMode.light),
+                );
+              },
             ),
             const SizedBox(height: 8),
           ],
@@ -293,25 +305,25 @@ class ProfileScreen extends ConsumerWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: NebulaColors.surfaceCard,
-        title: const Text('Help & Support', style: TextStyle(color: NebulaColors.textPrimary)),
-        content: const Text(
+        backgroundColor: context.scheme.surfaceContainerHighest,
+        title: Text('Help & Support', style: TextStyle(color: context.scheme.onSurface)),
+        content: Text(
           'For support, contact IT Admin at dev2@dropwinggroups.com',
-          style: TextStyle(color: NebulaColors.textSecondary),
+          style: TextStyle(color: context.scheme.onSurfaceVariant),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close', style: TextStyle(color: NebulaColors.primary)),
+            child: Text('Close', style: TextStyle(color: context.scheme.primary)),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSectionGroup(List<_SectionItem> items) {
+  Widget _buildSectionGroup(BuildContext context, List<_SectionItem> items) {
     return Container(
-      color: NebulaColors.surfaceCard,
+      color: context.scheme.surfaceContainerHighest,
       child: Column(
         children: items.asMap().entries.map((entry) {
           final index = entry.key;
@@ -322,25 +334,25 @@ class ProfileScreen extends ConsumerWidget {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: (item.color ?? Colors.blue).withValues(alpha: 0.1),
+                    color: (item.color ?? context.scheme.primary).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(item.icon,
-                      color: item.color ?? Colors.blue, size: 20),
+                      color: item.color ?? context.scheme.primary, size: 20),
                 ),
                 title: Text(
                   item.title,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
-                    color: item.color ?? NebulaColors.textPrimary,
+                    color: item.color ?? context.scheme.onSurface,
                   ),
                 ),
-                trailing: const Icon(LucideIcons.chevronRight, color: NebulaColors.textSecondary),
+                trailing: Icon(LucideIcons.chevronRight, color: context.scheme.onSurfaceVariant),
                 onTap: item.onTap,
               ),
               if (index < items.length - 1)
-                const Divider(height: 1, indent: 64, color: Color(0xFFF1F5F9)),
+                Divider(height: 1, indent: 64, color: context.dl.border),
             ],
           );
         }).toList(),

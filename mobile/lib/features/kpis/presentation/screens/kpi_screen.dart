@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/constants/access_levels.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/kpi_model.dart';
 import '../../data/kpi_provider.dart';
+import '../../../../core/theme/theme_context.dart';
 
 class KpiScreen extends ConsumerWidget {
   const KpiScreen({super.key});
@@ -22,11 +22,11 @@ class KpiScreen extends ConsumerWidget {
     // CXO (4) and above only — remember lower number means more access.
     if (!AccessLevels.hasAtLeast(level, AccessLevels.cxo)) {
       return Scaffold(
-        backgroundColor: NebulaColors.background,
+        backgroundColor: context.scheme.surface,
         appBar: AppBar(
-          title: const Text('KPI Dashboard',
-              style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
-          backgroundColor: NebulaColors.surfaceCard,
+          title: Text('KPI Dashboard',
+              style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface)),
+          backgroundColor: context.scheme.surfaceContainerHighest,
           elevation: 0,
           centerTitle: false,
         ),
@@ -40,18 +40,18 @@ class KpiScreen extends ConsumerWidget {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: NebulaColors.background,
+        backgroundColor: context.scheme.surface,
         appBar: AppBar(
-          title: const Text('KPI Dashboard',
-              style: TextStyle(fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
-          backgroundColor: NebulaColors.surfaceCard,
+          title: Text('KPI Dashboard',
+              style: TextStyle(fontWeight: FontWeight.w600, color: context.scheme.onSurface)),
+          backgroundColor: context.scheme.surfaceContainerHighest,
           elevation: 0,
           centerTitle: false,
-          bottom: const TabBar(
-            labelColor: NebulaColors.primary,
-            unselectedLabelColor: NebulaColors.textSecondary,
-            indicatorColor: NebulaColors.primary,
-            tabs: [
+          bottom: TabBar(
+            labelColor: context.scheme.primary,
+            unselectedLabelColor: context.scheme.onSurfaceVariant,
+            indicatorColor: context.scheme.primary,
+            tabs: const [
               Tab(text: 'HR Overview'),
               Tab(text: 'Departments'),
             ],
@@ -78,7 +78,7 @@ class _HROverviewTab extends ConsumerWidget {
     final hrAsync = ref.watch(hrKpiProvider);
     return hrAsync.when(
       loading: () =>
-          const Center(child: CircularProgressIndicator(color: NebulaColors.primary)),
+          Center(child: CircularProgressIndicator(color: context.scheme.primary)),
       error: (e, _) => _ErrorView(
         message: 'Failed to load HR KPIs',
         onRetry: () => ref.invalidate(hrKpiProvider),
@@ -96,7 +96,7 @@ class _HROverviewTab extends ConsumerWidget {
                     label: 'Total Employees',
                     value: data.totalEmployees.toString(),
                     icon: LucideIcons.users,
-                    color: NebulaColors.primary,
+                    color: context.scheme.primary,
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -105,7 +105,7 @@ class _HROverviewTab extends ConsumerWidget {
                     label: 'Active Projects',
                     value: data.activeProjects.toString(),
                     icon: LucideIcons.briefcase,
-                    color: NebulaColors.highlight,
+                    color: context.scheme.secondary,
                   ),
                 ),
               ],
@@ -115,18 +115,18 @@ class _HROverviewTab extends ConsumerWidget {
               label: 'Avg Completion Rate',
               value: '${data.avgCompletionRate.toStringAsFixed(1)}%',
               icon: LucideIcons.trendingUp,
-              color: NebulaColors.success,
+              color: context.dl.success,
               wide: true,
             ),
             const SizedBox(height: 20),
             // Venture breakdown
             if (data.ventureBreakdown.isNotEmpty) ...[
-              const Text(
+              Text(
                 'Venture Breakdown',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: NebulaColors.textPrimary,
+                  color: context.scheme.onSurface,
                 ),
               ),
               const SizedBox(height: 12),
@@ -159,7 +159,7 @@ class _StatCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
@@ -183,7 +183,7 @@ class _StatCard extends StatelessWidget {
                     Text(value,
                         style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800, color: color)),
                     Text(label,
-                        style: const TextStyle(fontSize: 13, color: NebulaColors.textSecondary)),
+                        style: TextStyle(fontSize: 13, color: context.scheme.onSurfaceVariant)),
                   ],
                 ),
               ],
@@ -204,7 +204,7 @@ class _StatCard extends StatelessWidget {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: color)),
                 const SizedBox(height: 2),
                 Text(label,
-                    style: const TextStyle(fontSize: 12, color: NebulaColors.textSecondary)),
+                    style: TextStyle(fontSize: 12, color: context.scheme.onSurfaceVariant)),
               ],
             ),
     );
@@ -221,14 +221,14 @@ class _VentureRow extends StatelessWidget {
     final fraction = total > 0 ? (venture.count / total).clamp(0.0, 1.0) : 0.0;
     final barColor = venture.color != null
         ? Color(int.tryParse(venture.color!.replaceFirst('#', '0xFF')) ?? 0xFF7C3AED)
-        : NebulaColors.primary;
+        : context.scheme.primary;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: NebulaColors.surfaceCard,
+          color: context.scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -237,8 +237,8 @@ class _VentureRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(venture.name,
-                    style: const TextStyle(
-                        fontSize: 13, fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
+                    style: TextStyle(
+                        fontSize: 13, fontWeight: FontWeight.w600, color: context.scheme.onSurface)),
                 Text('${venture.count}',
                     style: TextStyle(
                         fontSize: 13, fontWeight: FontWeight.bold, color: barColor)),
@@ -249,7 +249,7 @@ class _VentureRow extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: fraction,
-                backgroundColor: NebulaColors.surface,
+                backgroundColor: context.scheme.surface,
                 valueColor: AlwaysStoppedAnimation<Color>(barColor),
                 minHeight: 5,
               ),
@@ -271,21 +271,21 @@ class _DepartmentsTab extends ConsumerWidget {
     final deptAsync = ref.watch(departmentKpiProvider);
     return deptAsync.when(
       loading: () =>
-          const Center(child: CircularProgressIndicator(color: NebulaColors.primary)),
+          Center(child: CircularProgressIndicator(color: context.scheme.primary)),
       error: (e, _) => _ErrorView(
         message: 'Failed to load department KPIs',
         onRetry: () => ref.invalidate(departmentKpiProvider),
       ),
       data: (departments) {
         if (departments.isEmpty) {
-          return const Center(
+          return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(LucideIcons.building2, size: 64, color: Colors.white24),
-                SizedBox(height: 16),
+                const Icon(LucideIcons.building2, size: 64, color: Colors.white24),
+                const SizedBox(height: 16),
                 Text('No department data available',
-                    style: TextStyle(color: NebulaColors.textSecondary, fontSize: 16)),
+                    style: TextStyle(color: context.scheme.onSurfaceVariant, fontSize: 16)),
               ],
             ),
           );
@@ -308,20 +308,20 @@ class _DeptCard extends StatelessWidget {
   final DeptKPIData dept;
   const _DeptCard({required this.dept});
 
-  Color get _completionColor {
-    if (dept.taskCompletionRate >= 80) return NebulaColors.success;
-    if (dept.taskCompletionRate >= 60) return NebulaColors.warning;
-    return NebulaColors.critical;
+  Color _completionColor(BuildContext context) {
+    if (dept.taskCompletionRate >= 80) return context.dl.success;
+    if (dept.taskCompletionRate >= 60) return context.dl.warning;
+    return context.dl.critical;
   }
 
   @override
   Widget build(BuildContext context) {
-    final color = _completionColor;
+    final color = _completionColor(context);
     final fraction = (dept.taskCompletionRate / 100).clamp(0.0, 1.0);
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
@@ -336,19 +336,19 @@ class _DeptCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   dept.department,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
-                    color: NebulaColors.textPrimary,
+                    color: context.scheme.onSurface,
                   ),
                 ),
               ),
               Row(
                 children: [
-                  const Icon(LucideIcons.users, size: 13, color: NebulaColors.textSecondary),
+                  Icon(LucideIcons.users, size: 13, color: context.scheme.onSurfaceVariant),
                   const SizedBox(width: 4),
                   Text('${dept.headcount}',
-                      style: const TextStyle(fontSize: 13, color: NebulaColors.textSecondary)),
+                      style: TextStyle(fontSize: 13, color: context.scheme.onSurfaceVariant)),
                 ],
               ),
             ],
@@ -357,8 +357,8 @@ class _DeptCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Task Completion',
-                  style: TextStyle(fontSize: 12, color: NebulaColors.textSecondary)),
+              Text('Task Completion',
+                  style: TextStyle(fontSize: 12, color: context.scheme.onSurfaceVariant)),
               Text(
                 '${dept.taskCompletionRate.toStringAsFixed(1)}%',
                 style: TextStyle(
@@ -374,7 +374,7 @@ class _DeptCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: fraction,
-              backgroundColor: NebulaColors.surface,
+              backgroundColor: context.scheme.surface,
               valueColor: AlwaysStoppedAnimation<Color>(color),
               minHeight: 6,
             ),
@@ -382,11 +382,11 @@ class _DeptCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(LucideIcons.clock, size: 12, color: NebulaColors.textSecondary),
+              Icon(LucideIcons.clock, size: 12, color: context.scheme.onSurfaceVariant),
               const SizedBox(width: 4),
               Text(
                 '${dept.avgHoursPerWeek.toStringAsFixed(1)} hrs/week avg',
-                style: const TextStyle(fontSize: 12, color: NebulaColors.textSecondary),
+                style: TextStyle(fontSize: 12, color: context.scheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -410,21 +410,21 @@ class _RestrictedView extends StatelessWidget {
         margin: const EdgeInsets.all(24),
         padding: const EdgeInsets.all(32),
         decoration: BoxDecoration(
-          color: NebulaColors.surfaceCard,
+          color: context.scheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: NebulaColors.critical.withValues(alpha: 0.3)),
+          border: Border.all(color: context.dl.critical.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.lock, size: 56, color: NebulaColors.critical.withValues(alpha: 0.7)),
+            Icon(LucideIcons.lock, size: 56, color: context.dl.critical.withValues(alpha: 0.7)),
             const SizedBox(height: 16),
             Text(message,
-                style: const TextStyle(
-                    fontSize: 20, fontWeight: FontWeight.w700, color: NebulaColors.textPrimary)),
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.w700, color: context.scheme.onSurface)),
             const SizedBox(height: 8),
             Text(subtitle,
-                style: const TextStyle(fontSize: 14, color: NebulaColors.textSecondary),
+                style: TextStyle(fontSize: 14, color: context.scheme.onSurfaceVariant),
                 textAlign: TextAlign.center),
           ],
         ),
@@ -444,10 +444,10 @@ class _ErrorView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(LucideIcons.alertCircle, size: 48, color: NebulaColors.critical),
+          Icon(LucideIcons.alertCircle, size: 48, color: context.dl.critical),
           const SizedBox(height: 12),
           Text(message,
-              style: const TextStyle(color: NebulaColors.textPrimary, fontSize: 16)),
+              style: TextStyle(color: context.scheme.onSurface, fontSize: 16)),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: onRetry,

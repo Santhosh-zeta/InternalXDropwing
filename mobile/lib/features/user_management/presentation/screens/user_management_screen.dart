@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
 import '../../../../core/network/network_info_provider.dart';
-import '../../../../core/rbac/access_level.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/rbac/permissions.dart';
 import '../../../../core/rbac/rbac_widgets.dart';
 import '../../../../core/theme/nebula_colors.dart';
@@ -26,7 +26,7 @@ final _userSearchProvider = StateProvider.autoDispose<String>((ref) => '');
 /// Distinct from the read-only `team` feature: `team` lets anyone see their
 /// colleagues, this lets an administrator create, edit and delete accounts.
 /// **Lower level number = more access**, so every comparison here is `<=`,
-/// routed through [AccessLevel.satisfies].
+/// routed through [AccessLevels.satisfies].
 class UserManagementScreen extends ConsumerWidget {
   const UserManagementScreen({super.key});
 
@@ -34,7 +34,7 @@ class UserManagementScreen extends ConsumerWidget {
   /// modify anyone; everyone else may only touch users strictly *below* their
   /// own level (a larger level number).
   static bool canModify(int viewerLevel, int targetLevel) {
-    if (AccessLevel.satisfies(viewerLevel, AccessLevel.managingDirector)) {
+    if (AccessLevels.satisfies(viewerLevel, AccessLevels.managingDirector)) {
       return true;
     }
     return targetLevel > viewerLevel;
@@ -82,7 +82,7 @@ class _UserManagementBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final usersAsync = ref.watch(managedUsersProvider);
     final query = ref.watch(_userSearchProvider).trim().toLowerCase();
-    final viewerLevel = ref.watch(accessLevelProvider) ?? AccessLevel.lowest;
+    final viewerLevel = ref.watch(accessLevelProvider) ?? AccessLevels.lowest;
     final online = ref.watch(networkInfoProvider).maybeWhen(
           data: (value) => value,
           orElse: () => true,
@@ -204,7 +204,7 @@ class _UserList extends StatelessWidget {
       final inLevel = users.where((u) => u.accessLevel == level).toList();
       children.add(
         GroupHeader(
-          'L$level · ${AccessLevel.nameOf(level)}',
+          'L$level · ${AccessLevels.nameOf(level)}',
           count: inLevel.length,
         ),
       );

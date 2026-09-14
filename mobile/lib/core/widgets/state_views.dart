@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../network/network_info_provider.dart';
+
+import '../theme/nebula_colors.dart';
 import '../theme/nebula_spacing.dart';
 import '../theme/theme_context.dart';
 
@@ -74,15 +78,30 @@ class _ShimmerBoxState extends State<ShimmerBox>
 /// Skeleton rows shaped like [EntityRow], so the layout does not jump when
 /// real data replaces it.
 class ListSkeleton extends StatelessWidget {
-  const ListSkeleton({super.key, this.count = 5});
+  const ListSkeleton({
+    super.key,
+    this.count = 5,
+    this.itemCount,
+    this.itemHeight,
+    this.padding = EdgeInsets.zero,
+  });
 
   final int count;
 
+  /// Older spelling kept so existing call sites keep working; wins over
+  /// [count] when supplied.
+  final int? itemCount;
+  final double? itemHeight;
+  final EdgeInsetsGeometry padding;
+
   @override
   Widget build(BuildContext context) {
-    return Column(
+    final n = itemCount ?? count;
+    return Padding(
+      padding: padding,
+      child: Column(
       children: [
-        for (var i = 0; i < count; i++)
+        for (var i = 0; i < n; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: NebulaSpacing.sm),
             child: Container(
@@ -111,6 +130,7 @@ class ListSkeleton extends StatelessWidget {
             ),
           ),
       ],
+      ),
     );
   }
 }
@@ -200,16 +220,29 @@ class EmptyStateView extends StatelessWidget {
 }
 
 class ErrorStateView extends StatelessWidget {
-  const ErrorStateView({super.key, required this.message, this.onRetry});
+  const ErrorStateView({
+    super.key,
+    this.message,
+    this.error,
+    this.title = 'Could not load this',
+    this.onRetry,
+  }) : assert(message != null || error != null,
+            'ErrorStateView needs either a message or an error');
 
-  final String message;
+  /// Ready-made copy.
+  final String? message;
+
+  /// A thrown object, rendered through [readableError].
+  final Object? error;
+
+  final String title;
   final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) => _StateFrame(
         icon: LucideIcons.triangleAlert,
-        title: 'Could not load this',
-        message: message,
+        title: title,
+        message: message ?? readableError(error!),
         tint: context.dl.critical,
         action: onRetry == null
             ? null
@@ -229,29 +262,43 @@ class RestrictedStateView extends StatelessWidget {
   const RestrictedStateView({
     super.key,
     required this.requirement,
-    this.what = 'this area',
+    this.what,
+    this.moduleName,
   });
 
   /// e.g. "Manager and above".
   final String requirement;
-  final String what;
+
+  final String? what;
+
+  /// Older spelling kept so existing call sites keep working.
+  final String? moduleName;
 
   @override
   Widget build(BuildContext context) => _StateFrame(
         icon: LucideIcons.lock,
         title: 'Restricted',
-        message: 'Access to $what is limited to $requirement. '
+        message: 'Access to ${what ?? moduleName ?? 'this area'} '
+            'is limited to $requirement. '
             'Ask an administrator if you need it.',
         tint: context.dl.warning,
       );
 }
 
 /// Persistent strip shown while the device has no connection.
-class OfflineBanner extends StatelessWidget {
+class OfflineBanner extends ConsumerWidget {
   const OfflineBanner({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Assume online until told otherwise: a banner shown because a provider
+    // has not resolved yet is worse than no banner.
+    final online = ref.watch(networkInfoProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => true,
+        );
+    if (online) return const SizedBox.shrink();
+
     final dl = context.dl;
     return Container(
       width: double.infinity,
@@ -283,4 +330,55 @@ String readableError(Object error) {
     return 'The server took too long to respond.';
   }
   return raw;
+}
+
+// ── Terse theme readers ──────────────────────────────────────────────────
+//
+// These came from the duplicated per-feature copies of this file, where they
+// were the reason those modules were the only ones in the app that rendered
+// correctly in both themes. Kept because they read better at the call site
+// than the full expression, and because making the correct thing the short
+// thing is how the hardcoded-colour problem stays fixed.
+
+/// Panel fill.
+Color cardSurface(BuildContext context) =>
+    context.scheme.surfaceContainerHighest;
+
+/// 1px divider / border.
+Color hairline(BuildContext context) => context.dl.border;
+
+/// One step above a card — chips, inputs, table headers.
+Color mutedSurface(BuildContext context) => context.dl.surfaceRaised;
+
+/// Body text.
+Color textPrimary(BuildContext context) => context.scheme.onSurface;
+
+/// Secondary text.
+Color textSecondary(BuildContext context) => context.scheme.onSurfaceVariant;
+
+/// Parses an API `#RRGGBB` string. Delegates to [NebulaColors.parseHex] so
+/// there is one hex parser in the app rather than seven.
+Color parseHexColor(String? hex, {Color fallback = NebulaColors.primary}) =>
+    NebulaColors.parseHex(hex, fallback: fallback);
+
+
+/// Wraps a state view so pull-to-refresh still works on a screen that is
+/// currently showing a message rather than a list.
+class RefreshableMessage extends StatelessWidget {
+  const RefreshableMessage({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) => SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: constraints.maxHeight),
+          child: child,
+        ),
+      ),
+    );
+  }
 }

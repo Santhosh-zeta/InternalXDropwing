@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+
+import '../../../../core/theme/theme_context.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -36,7 +39,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       next.maybeWhen(
         error: (message) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message), backgroundColor: Colors.red),
+            SnackBar(
+              content: Text(message),
+              backgroundColor: context.dl.critical,
+            ),
           );
         },
         unauthenticated: () {
@@ -46,7 +52,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                _success = true;
              });
              ScaffoldMessenger.of(context).showSnackBar(
-               const SnackBar(content: Text('Reset link sent to email.'), backgroundColor: Colors.green),
+               SnackBar(
+                 content: const Text('Reset link sent. Check your email.'),
+                 backgroundColor: context.dl.success,
+               ),
              );
           }
         },
@@ -68,7 +77,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(Icons.check_circle, color: Colors.green, size: 64),
+                Icon(LucideIcons.circleCheck, color: context.dl.success, size: 56),
                 const SizedBox(height: 16),
                 const Text(
                   'Check your email for the reset link.',

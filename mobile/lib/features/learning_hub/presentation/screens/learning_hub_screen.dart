@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/theme/nebula_colors.dart';
 import '../providers/learning_provider.dart';
 import '../../data/models/learning_models.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/rbac/permissions.dart';
+import '../../../../core/rbac/rbac_widgets.dart';
 
 class LearningHubScreen extends ConsumerStatefulWidget {
   const LearningHubScreen({super.key});
@@ -34,19 +36,19 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
     final stats = ref.watch(learningProgressStatsProvider);
 
     return Scaffold(
-      backgroundColor: NebulaColors.background,
+      backgroundColor: context.scheme.surface,
       appBar: AppBar(
-        title: const Text('Learning Hub',
+        title: Text('Learning Hub',
             style: TextStyle(
-                fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
-        backgroundColor: NebulaColors.surfaceCard,
+                fontWeight: FontWeight.w600, color: context.scheme.onSurface)),
+        backgroundColor: context.scheme.surfaceContainerHighest,
         elevation: 0,
         centerTitle: false,
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: NebulaColors.primary,
-          labelColor: NebulaColors.primary,
-          unselectedLabelColor: NebulaColors.textSecondary,
+          indicatorColor: context.scheme.primary,
+          labelColor: context.scheme.primary,
+          unselectedLabelColor: context.scheme.onSurfaceVariant,
           tabs: const [
             Tab(text: 'Checklist'),
             Tab(text: 'Resources'),
@@ -54,7 +56,10 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
           ],
         ),
       ),
-      body: Column(
+      body: PermissionScope(
+        permission: Permission.viewLearning,
+        what: 'the learning hub',
+        child: Column(
         children: [
           // Progress Banner
           if (stats.total > 0)
@@ -64,13 +69,13 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    NebulaColors.primary.withValues(alpha: 0.2),
-                    NebulaColors.highlight.withValues(alpha: 0.1),
+                    context.scheme.primary.withValues(alpha: 0.2),
+                    context.scheme.secondary.withValues(alpha: 0.1),
                   ],
                 ),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: NebulaColors.primary.withValues(alpha: 0.3)),
+                    color: context.scheme.primary.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -79,14 +84,14 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
                     height: 50,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: NebulaColors.primary.withValues(alpha: 0.1),
-                      border: Border.all(color: NebulaColors.primary, width: 2),
+                      color: context.scheme.primary.withValues(alpha: 0.1),
+                      border: Border.all(color: context.scheme.primary, width: 2),
                     ),
                     child: Center(
                       child: Text(
                         '${(stats.percentage * 100).toInt()}%',
-                        style: const TextStyle(
-                            color: NebulaColors.primary,
+                        style: TextStyle(
+                            color: context.scheme.primary,
                             fontWeight: FontWeight.bold,
                             fontSize: 12),
                       ),
@@ -99,8 +104,8 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
                       children: [
                         Text(
                           '${stats.completed} of ${stats.total} tasks completed',
-                          style: const TextStyle(
-                              color: NebulaColors.textPrimary,
+                          style: TextStyle(
+                              color: context.scheme.onSurface,
                               fontWeight: FontWeight.w600,
                               fontSize: 14),
                         ),
@@ -109,9 +114,9 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
                           borderRadius: BorderRadius.circular(4),
                           child: LinearProgressIndicator(
                             value: stats.percentage,
-                            backgroundColor: NebulaColors.surface,
-                            valueColor: const AlwaysStoppedAnimation<Color>(
-                                NebulaColors.primary),
+                            backgroundColor: context.scheme.surface,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                                context.scheme.primary),
                             minHeight: 6,
                           ),
                         ),
@@ -134,6 +139,7 @@ class _LearningHubScreenState extends ConsumerState<LearningHubScreen>
             ),
           ),
         ],
+        ),
       ),
     );
   }
@@ -151,9 +157,9 @@ class _ChecklistTab extends ConsumerWidget {
     return checklistAsync.when(
       data: (items) {
         if (items.isEmpty) {
-          return const Center(
+          return Center(
             child: Text('No checklist items',
-                style: TextStyle(color: NebulaColors.textSecondary)),
+                style: TextStyle(color: context.scheme.onSurfaceVariant)),
           );
         }
 
@@ -182,15 +188,15 @@ class _ChecklistTab extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: NebulaColors.primary)),
+      loading: () => Center(
+          child: CircularProgressIndicator(color: context.scheme.primary)),
       error: (e, st) => Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(e.toString(),
                 style:
-                    const TextStyle(color: NebulaColors.textSecondary)),
+                    TextStyle(color: context.scheme.onSurfaceVariant)),
             const SizedBox(height: 16),
             ElevatedButton(
                 onPressed: () =>
@@ -211,19 +217,19 @@ class _CategoryHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(LucideIcons.tag, size: 14, color: NebulaColors.primary),
+        Icon(LucideIcons.tag, size: 14, color: context.scheme.primary),
         const SizedBox(width: 6),
         Text(
           category,
-          style: const TextStyle(
-              color: NebulaColors.primary,
+          style: TextStyle(
+              color: context.scheme.primary,
               fontWeight: FontWeight.bold,
               fontSize: 13,
               letterSpacing: 0.5),
         ),
         const SizedBox(width: 8),
         Expanded(
-            child: Divider(color: NebulaColors.primary.withValues(alpha: 0.3))),
+            child: Divider(color: context.scheme.primary.withValues(alpha: 0.3))),
       ],
     );
   }
@@ -238,10 +244,10 @@ class _ChecklistItemTile extends ConsumerWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
         border: item.completed
-            ? Border.all(color: NebulaColors.success.withValues(alpha: 0.3))
+            ? Border.all(color: context.dl.success.withValues(alpha: 0.3))
             : null,
       ),
       child: ListTile(
@@ -257,18 +263,18 @@ class _ChecklistItemTile extends ConsumerWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: item.completed
-                  ? NebulaColors.success.withValues(alpha: 0.2)
-                  : NebulaColors.surface,
+                  ? context.dl.success.withValues(alpha: 0.2)
+                  : context.scheme.surface,
               border: Border.all(
                 color: item.completed
-                    ? NebulaColors.success
-                    : NebulaColors.textSecondary,
+                    ? context.dl.success
+                    : context.scheme.onSurfaceVariant,
                 width: 2,
               ),
             ),
             child: item.completed
-                ? const Icon(LucideIcons.check,
-                    size: 16, color: NebulaColors.success)
+                ? Icon(LucideIcons.check,
+                    size: 16, color: context.dl.success)
                 : null,
           ),
         ),
@@ -276,8 +282,8 @@ class _ChecklistItemTile extends ConsumerWidget {
           item.title,
           style: TextStyle(
             color: item.completed
-                ? NebulaColors.textSecondary
-                : NebulaColors.textPrimary,
+                ? context.scheme.onSurfaceVariant
+                : context.scheme.onSurface,
             fontWeight: FontWeight.w500,
             fontSize: 14,
             decoration: item.completed ? TextDecoration.lineThrough : null,
@@ -285,13 +291,13 @@ class _ChecklistItemTile extends ConsumerWidget {
         ),
         subtitle: item.description != null
             ? Text(item.description!,
-                style: const TextStyle(
-                    color: NebulaColors.textSecondary, fontSize: 12))
+                style: TextStyle(
+                    color: context.scheme.onSurfaceVariant, fontSize: 12))
             : null,
         trailing: item.dueDays != null
             ? Text('${item.dueDays}d',
-                style: const TextStyle(
-                    color: NebulaColors.warning, fontSize: 11))
+                style: TextStyle(
+                    color: context.dl.warning, fontSize: 11))
             : null,
       ),
     );
@@ -310,9 +316,9 @@ class _ResourcesTab extends ConsumerWidget {
     return resourcesAsync.when(
       data: (resources) {
         if (resources.isEmpty) {
-          return const Center(
+          return Center(
             child: Text('No resources available',
-                style: TextStyle(color: NebulaColors.textSecondary)),
+                style: TextStyle(color: context.scheme.onSurfaceVariant)),
           );
         }
 
@@ -336,11 +342,11 @@ class _ResourcesTab extends ConsumerWidget {
           }).toList(),
         );
       },
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: NebulaColors.primary)),
+      loading: () => Center(
+          child: CircularProgressIndicator(color: context.scheme.primary)),
       error: (e, st) => Center(
         child: Text(e.toString(),
-            style: const TextStyle(color: NebulaColors.textSecondary)),
+            style: TextStyle(color: context.scheme.onSurfaceVariant)),
       ),
     );
   }
@@ -368,7 +374,7 @@ class _ResourceTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
       ),
       child: ListTile(
@@ -376,25 +382,25 @@ class _ResourceTile extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: NebulaColors.highlight.withValues(alpha: 0.1),
+            color: context.scheme.secondary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(_icon(), size: 18, color: NebulaColors.highlight),
+          child: Icon(_icon(), size: 18, color: context.scheme.secondary),
         ),
         title: Text(resource.title,
-            style: const TextStyle(
-                color: NebulaColors.textPrimary,
+            style: TextStyle(
+                color: context.scheme.onSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 14)),
         subtitle: resource.description != null
             ? Text(resource.description!,
-                style: const TextStyle(
-                    color: NebulaColors.textSecondary, fontSize: 12),
+                style: TextStyle(
+                    color: context.scheme.onSurfaceVariant, fontSize: 12),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis)
             : null,
-        trailing: const Icon(LucideIcons.externalLink,
-            size: 16, color: NebulaColors.textSecondary),
+        trailing: Icon(LucideIcons.externalLink,
+            size: 16, color: context.scheme.onSurfaceVariant),
         onTap: () async {
           final uri = Uri.parse(resource.url);
           if (await canLaunchUrl(uri)) {
@@ -418,9 +424,9 @@ class _FeedbackTab extends ConsumerWidget {
     return feedbackAsync.when(
       data: (feedback) {
         if (feedback.isEmpty) {
-          return const Center(
+          return Center(
             child: Text('No feedback yet',
-                style: TextStyle(color: NebulaColors.textSecondary)),
+                style: TextStyle(color: context.scheme.onSurfaceVariant)),
           );
         }
         return ListView.separated(
@@ -430,11 +436,11 @@ class _FeedbackTab extends ConsumerWidget {
           itemBuilder: (context, i) => _FeedbackCard(feedback: feedback[i]),
         );
       },
-      loading: () => const Center(
-          child: CircularProgressIndicator(color: NebulaColors.primary)),
+      loading: () => Center(
+          child: CircularProgressIndicator(color: context.scheme.primary)),
       error: (e, st) => Center(
         child: Text(e.toString(),
-            style: const TextStyle(color: NebulaColors.textSecondary)),
+            style: TextStyle(color: context.scheme.onSurfaceVariant)),
       ),
     );
   }
@@ -449,7 +455,7 @@ class _FeedbackCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
+        color: context.scheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -459,7 +465,7 @@ class _FeedbackCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 16,
-                backgroundColor: NebulaColors.primary,
+                backgroundColor: context.scheme.primary,
                 child: Text(
                   feedback.managerName?.isNotEmpty == true
                       ? feedback.managerName![0].toUpperCase()
@@ -474,15 +480,15 @@ class _FeedbackCard extends StatelessWidget {
                 children: [
                   Text(
                     feedback.managerName ?? 'Manager',
-                    style: const TextStyle(
-                        color: NebulaColors.textPrimary,
+                    style: TextStyle(
+                        color: context.scheme.onSurface,
                         fontWeight: FontWeight.w600,
                         fontSize: 13),
                   ),
                   if (feedback.weekLabel != null)
                     Text(feedback.weekLabel!,
-                        style: const TextStyle(
-                            color: NebulaColors.textSecondary,
+                        style: TextStyle(
+                            color: context.scheme.onSurfaceVariant,
                             fontSize: 11)),
                 ],
               ),
@@ -495,7 +501,7 @@ class _FeedbackCard extends StatelessWidget {
                           ? Icons.star
                           : Icons.star_border,
                       size: 14,
-                      color: NebulaColors.warning,
+                      color: context.dl.warning,
                     );
                   }),
                 ),
@@ -503,8 +509,8 @@ class _FeedbackCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(feedback.note,
-              style: const TextStyle(
-                  color: NebulaColors.textSecondary,
+              style: TextStyle(
+                  color: context.scheme.onSurfaceVariant,
                   fontSize: 13,
                   height: 1.4)),
         ],
