@@ -109,8 +109,22 @@ const login = async (req, res) => {
       [hashOTP(otp), otpExpiresAt, user.id]
     );
 
-    // Send OTP via email
-    await sendOTPEmail(user.email, user.full_name, otp);
+    // Send OTP via email. The result used to be discarded entirely, so a
+    // misconfigured or absent SMTP setup (the default in a fresh checkout —
+    // backend/.env.example ships SMTP_* blank) failed completely silently:
+    // the API still claimed "OTP sent" and the user was stuck with a code
+    // that reached nobody and no way to find out why.
+    const emailResult = await sendOTPEmail(user.email, user.full_name, otp);
+    if (!emailResult.success) {
+      console.error(`[Auth] OTP email to ${user.email} failed to send: ${emailResult.error?.message || emailResult.error}`);
+      // Never do this in production — printing an OTP anywhere but the
+      // recipient's inbox defeats the point of it. In development it is the
+      // difference between a working local setup and one silently stuck at
+      // step 2 of login with no email server to blame.
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Auth] SMTP is not configured — using the console as the OTP channel for local development.\n[Auth] OTP for ${user.email}: ${otp}`);
+      }
+    }
 
     return res.json({
       success: true,
@@ -205,8 +219,14 @@ const forgotPassword = async (req, res) => {
     );
 
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
-    
-    await sendPasswordResetEmail(user.email, user.full_name, resetUrl);
+
+    const emailResult = await sendPasswordResetEmail(user.email, user.full_name, resetUrl);
+    if (!emailResult.success) {
+      console.error(`[Auth] Password reset email to ${user.email} failed to send: ${emailResult.error?.message || emailResult.error}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Auth] SMTP is not configured — using the console as the email channel for local development.\n[Auth] Reset link for ${user.email}: ${resetUrl}`);
+      }
+    }
 
     return res.json({ success: true, message: 'If that email address is in our database, we will send you an email to reset your password.' });
   } catch (err) {
