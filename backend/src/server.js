@@ -185,9 +185,23 @@ app.use(express.static(path.join(__dirname, '../public/frontend-build'), { exten
 // Redirect /index.html to / to prevent Next.js router from rendering a blank page
 app.get('/index.html', (req, res) => res.redirect(301, '/'));
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'InternalX API is running', timestamp: new Date().toISOString() });
+/**
+ * Health check.
+ *
+ * Used to unconditionally report "ok", which is exactly the failure mode a
+ * health check exists to prevent: an orchestrator or uptime monitor would
+ * see green while the database was completely unreachable and every
+ * DB-backed request was 500ing. It now actually asks Postgres, so a real
+ * outage shows up here as 503 instead of hiding behind a healthy-looking API
+ * process.
+ */
+app.get('/api/health', async (req, res) => {
+  try {
+    await pgPool.query('SELECT 1');
+    res.json({ status: 'ok', message: 'InternalX API is running', database: 'connected', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(503).json({ status: 'degraded', message: 'API is running but the database is unreachable', database: 'disconnected', timestamp: new Date().toISOString() });
+  }
 });
 
 // SPA Fallback for frontend
@@ -235,6 +249,7 @@ const { Server } = require('socket.io');
 const server = http.createServer(app);
 
 const jwt = require('jsonwebtoken');
+const cookie = require('cookie');
 const { pgPool } = require('./config/database.pg');
 const { isSessionActive } = require('./services/session.service');
 
@@ -245,11 +260,26 @@ const io = new Server(server, {
   }
 });
 
-// JWT authentication middleware for Socket.IO
+/**
+ * JWT authentication middleware for Socket.IO.
+ *
+ * Three ways a caller can prove who they are, tried in order:
+ *   1. `auth.token` on the handshake — what the mobile app sends, since it
+ *      holds the JWT itself in flutter_secure_storage.
+ *   2. An `Authorization: Bearer` header — the same shape the REST API
+ *      accepts, kept for any non-browser client.
+ *   3. The `internalx_token` cookie on the raw handshake request — what the
+ *      web client relies on. The web app never holds the JWT in JS at all
+ *      (see frontend/src/lib/api.ts): it's an `httpOnly` cookie the browser
+ *      sends automatically, on the WebSocket upgrade request exactly as it
+ *      would on any other same-origin request, which the `cookie` header
+ *      here is parsed out of the same way `authenticate()` does for REST.
+ */
 io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token ||
-                  socket.handshake.headers?.authorization?.replace('Bearer ', '');
+                  socket.handshake.headers?.authorization?.replace('Bearer ', '') ||
+                  cookie.parse(socket.handshake.headers?.cookie || '').internalx_token;
     if (!token) return next(new Error('Authentication required'));
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
@@ -305,6 +335,61 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {});
 });
+
+/**
+ * A promise that rejects with nothing listening for it, or a synchronous
+ * throw nothing catches, used to just crash the process silently or with a
+ * bare, unhelpful stack trace — the worst possible outcome for something
+ * running unattended. Log it plainly and exit non-zero so whatever is
+ * supervising the process (systemd, Docker, pm2) knows to restart it and
+ * an operator has something to grep for.
+ */
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection — exiting:', reason);
+  process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception — exiting:', err);
+  process.exit(1);
+});
+
+/**
+ * Graceful shutdown on SIGTERM/SIGINT (the signals a container orchestrator,
+ * `systemctl stop`, or Ctrl-C send). Without this, the process is killed
+ * mid-request — connections dropped, in-flight writes cut off — the moment
+ * a deploy or restart is requested, rather than finishing what it was doing
+ * first.
+ */
+let shuttingDown = false;
+const shutdown = (signal) => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`\n${signal} received — shutting down gracefully...`);
+
+  // Stop accepting new connections and requests; existing ones finish first.
+  io.close();
+  server.close(async (err) => {
+    if (err) console.error('Error while closing the HTTP server:', err.message);
+    try {
+      await pgPool.end();
+      console.log('Database pool closed. Goodbye.');
+      process.exit(err ? 1 : 0);
+    } catch (poolErr) {
+      console.error('Error while closing the database pool:', poolErr.message);
+      process.exit(1);
+    }
+  });
+
+  // A stuck connection or a slow client should not hang a deploy forever.
+  setTimeout(() => {
+    console.error('Graceful shutdown timed out after 10s — forcing exit.');
+    process.exit(1);
+  }, 10_000).unref();
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 const startServer = async () => {
   await testConnection();

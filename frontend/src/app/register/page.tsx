@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { register, googleLogin } from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
-import Cookies from 'js-cookie';
 import { Mail, Lock, User, Hexagon, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button, Field, Input, tint } from '@/components/ui';
@@ -97,10 +96,8 @@ export default function RegisterPage() {
     try {
       const data = await googleLogin(response.credential);
       if (data.success) {
-        localStorage.setItem('internalx_token', data.data.token);
-        localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
-        Cookies.set('internalx_token', data.data.token, { expires: 7 });
-        Cookies.set('internalx_user', JSON.stringify(data.data.user), { expires: 7 });
+        // Nothing to store: the backend already set the session as an
+        // httpOnly cookie in this same response.
         toast.success(`Welcome back, ${data.data.user.fullName}`);
         router.push('/dashboard');
       }

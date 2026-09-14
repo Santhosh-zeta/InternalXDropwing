@@ -11,6 +11,17 @@ import {
   Badge, Button, Card, EmptyState, Field, Select, SkeletonCard, SkeletonTable,
   Textarea, TextField, useConfirm,
 } from '@/components/ui';
+import api from '@/lib/api';
+
+/**
+ * axios throws on a non-2xx response (fetch, which this file used to use,
+ * only throws on a network failure) — a validation error from the backend
+ * now lands in a `catch`, not the `else` branch next to a success check, so
+ * every handler below needs this to still show the server's actual reason
+ * instead of a generic fallback.
+ */
+const errMessage = (err: unknown, fallback: string): string =>
+  (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
 
 interface LearningHubViewProps { currentUser: User; }
 
@@ -36,19 +47,16 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const apiHeaders = () => ({ 'Authorization': `Bearer ${localStorage.getItem('internalx_token')}` });
-
   const fetchData = async (tab: string) => {
     setLoading(true);
     try {
       const endpointMap: Record<string, string> = {
-        checklist: '/api/learning/checklist', manage_checklists: '/api/learning/checklist',
-        progress: '/api/learning/progress', resources: '/api/learning/resources', feedback: '/api/learning/feedback',
+        checklist: '/learning/checklist', manage_checklists: '/learning/checklist',
+        progress: '/learning/progress', resources: '/learning/resources', feedback: '/learning/feedback',
       };
       const ep = endpointMap[tab];
       if (!ep) { setLoading(false); return; }
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}${ep}`, { headers: apiHeaders() });
-      const data = await res.json();
+      const { data } = await api.get(ep);
       if (!data.success) return;
       if (tab === 'checklist' || tab === 'manage_checklists') setChecklists(data.data);
       else if (tab === 'progress') setProgressSummary(data.data);
@@ -60,25 +68,18 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
 
   const toggleProgress = async (id: number, current: boolean) => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/progress/${id}`, {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
-        body: JSON.stringify({ completed: !current }),
-      });
-      if ((await res.json()).success) setChecklists(p => p.map(c => c.id === id ? { ...c, completed: !current } : c));
+      const { data } = await api.patch(`/learning/progress/${id}`, { completed: !current });
+      if (data.success) setChecklists(p => p.map(c => c.id === id ? { ...c, completed: !current } : c));
     } catch { toast.error('Failed to update progress'); }
   };
 
   const createChecklist = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/checklist`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
-        body: JSON.stringify(newChecklist),
-      });
-      const data = await res.json();
+      const { data } = await api.post('/learning/checklist', newChecklist);
       if (data.success) { toast.success('Item created'); setNewChecklist({ title: '', description: '', category: 'General', due_days: '' }); fetchData('manage_checklists'); }
       else toast.error(data.message);
-    } catch { toast.error('Failed to create item'); }
+    } catch (err) { toast.error(errMessage(err, 'Failed to create item')); }
   };
 
   const deleteChecklist = async (id: number) => {
@@ -90,52 +91,41 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
     });
     if (!confirmed) return;
     try {
-      if ((await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/checklist/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
-        toast.success('Deleted'); fetchData('manage_checklists');
-      }
-    } catch { toast.error('Failed to delete'); }
+      const { data } = await api.delete(`/learning/checklist/${id}`);
+      if (data.success) { toast.success('Deleted'); fetchData('manage_checklists'); }
+    } catch (err) { toast.error(errMessage(err, 'Failed to delete')); }
   };
 
   const createResource = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/resources`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
-        body: JSON.stringify(newResource),
-      });
-      const data = await res.json();
+      const { data } = await api.post('/learning/resources', newResource);
       if (data.success) { toast.success('Resource added'); setNewResource({ title: '', description: '', url: '', category: 'General', resource_type: 'link' }); fetchData('resources'); }
       else toast.error(data.message);
-    } catch { toast.error('Failed to add resource'); }
+    } catch (err) { toast.error(errMessage(err, 'Failed to add resource')); }
   };
 
   const deleteResource = async (id: number) => {
     try {
-      if ((await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/resources/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
-        toast.success('Deleted'); fetchData('resources');
-      }
-    } catch { toast.error('Failed to delete'); }
+      const { data } = await api.delete(`/learning/resources/${id}`);
+      if (data.success) { toast.success('Deleted'); fetchData('resources'); }
+    } catch (err) { toast.error(errMessage(err, 'Failed to delete')); }
   };
 
   const createFeedback = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/feedback`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...apiHeaders() },
-        body: JSON.stringify(newFeedback),
-      });
-      const data = await res.json();
+      const { data } = await api.post('/learning/feedback', newFeedback);
       if (data.success) { toast.success('Feedback added'); setNewFeedback({ intern_id: '', note: '', rating: '', week_label: '' }); fetchData('feedback'); }
       else toast.error(data.message);
-    } catch { toast.error('Failed to add feedback'); }
+    } catch (err) { toast.error(errMessage(err, 'Failed to add feedback')); }
   };
 
   const deleteFeedback = async (id: number) => {
     try {
-      if ((await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/learning/feedback/${id}`, { method: 'DELETE', headers: apiHeaders() })).json()).success) {
-        toast.success('Deleted'); fetchData('feedback');
-      }
-    } catch { toast.error('Failed to delete'); }
+      const { data } = await api.delete(`/learning/feedback/${id}`);
+      if (data.success) { toast.success('Deleted'); fetchData('feedback'); }
+    } catch (err) { toast.error(errMessage(err, 'Failed to delete')); }
   };
 
   const TABS = isManager

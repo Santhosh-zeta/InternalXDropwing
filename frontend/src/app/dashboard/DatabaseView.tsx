@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Database, Zap, Table, Loader2, AlertCircle } from 'lucide-react';
 import { Button, EmptyState, useConfirm } from '@/components/ui';
+import api from '@/lib/api';
 
 export default function DatabaseView() {
   const confirm = useConfirm();
@@ -21,13 +22,10 @@ export default function DatabaseView() {
   useEffect(() => { fetchTables(); }, []);
   useEffect(() => { if (selectedTable) fetchTableData(selectedTable); }, [selectedTable]);
 
-  const authHeader = () => ({ 'Authorization': `Bearer ${localStorage.getItem('internalx_token')}` });
-
   const fetchTables = async () => {
     setLoadingTables(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/database/tables`, { headers: authHeader() });
-      const data = await res.json();
+      const { data } = await api.get('/database/tables');
       if (data.success) { setTables(data.tables); if (data.tables.length > 0 && !selectedTable) setSelectedTable(data.tables[0]); }
       else toast.error(data.message || 'Failed to fetch tables');
     } catch { toast.error('Network error'); }
@@ -37,8 +35,7 @@ export default function DatabaseView() {
   const fetchTableData = async (name: string) => {
     setLoadingTableData(true); setTableData(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/database/table/${name}`, { headers: authHeader() });
-      const data = await res.json();
+      const { data } = await api.get(`/database/table/${name}`);
       if (data.success) setTableData({ columns: data.columns, rows: data.rows, totalCount: data.totalCount });
       else toast.error(data.message || 'Failed to fetch table data');
     } catch { toast.error('Network error'); }
@@ -60,14 +57,19 @@ export default function DatabaseView() {
     }
     setLoadingQuery(true); setQueryError(null); setQueryResult(null);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/database/query`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeader() },
-        body: JSON.stringify({ query }),
-      });
-      const data = await res.json();
+      const { data } = await api.post('/database/query', { query });
       if (data.success) { setQueryResult({ results: data.results, fields: data.fields }); toast.success('Query executed'); }
       else { setQueryError(data.message || 'Query failed'); toast.error(data.message || 'Query failed'); }
-    } catch (err: any) { setQueryError(err.message || 'Network error'); toast.error('Network error'); }
+    } catch (err) {
+      // The read-only guard rejects anything but a single SELECT with a 400
+      // and a specific reason (chained statements, a write keyword, and so
+      // on) — axios throws on that, so surface its message here rather than
+      // a bare "Network error".
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || 'Network error';
+      setQueryError(message);
+      toast.error(message);
+    }
     finally { setLoadingQuery(false); }
   };
 
@@ -180,7 +182,7 @@ export default function DatabaseView() {
         <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl p-6 flex flex-col gap-5 shadow-sm">
           <div>
             <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-1 flex items-center gap-2"><Zap size={18} className="text-[var(--color-purple-glow)]" /> SQL Console</h3>
-            <p className="text-[13px] font-medium text-[var(--color-text-secondary)]">Execute raw MySQL queries directly against the connected database.</p>
+            <p className="text-[13px] font-medium text-[var(--color-text-secondary)]">Run a single read-only SELECT directly against the connected PostgreSQL database. No writes, no chained statements — see the API for exactly what&apos;s blocked and why.</p>
           </div>
 
           <div className="relative">

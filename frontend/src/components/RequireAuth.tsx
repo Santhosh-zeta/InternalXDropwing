@@ -4,11 +4,14 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Loader2, WifiOff } from 'lucide-react';
 import { getMe } from '@/lib/api';
 import { Button } from '@/components/ui';
+import { AuthUserContext } from '@/components/AuthUserContext';
+import type { User } from '@/lib/constants';
 
 type AuthState = 'checking' | 'authed' | 'unreachable';
 
 /**
- * Client-side session gate for the dashboard.
+ * Client-side session gate for the dashboard, and the one place the current
+ * user is fetched from the server.
  *
  * Context: `next.config.ts` sets `output: "export"`, and middleware does not
  * run in a static export — so `src/middleware.ts` never executed and
@@ -20,22 +23,34 @@ type AuthState = 'checking' | 'authed' | 'unreachable';
  * `authenticate` rejects unsigned or expired tokens server-side. This
  * component exists so a signed-out user gets sent to /login instead of
  * rendering an empty shell that 401s on every request.
+ *
+ * The verified user this fetches is also the *only* copy of "who is signed
+ * in" the dashboard uses — see `AuthUserContext`. It used to be read back
+ * out of `localStorage`/a client-writable cookie instead, which meant
+ * anyone with devtools open could edit their own `accessLevel` there and
+ * have every view in the app render as if they were a Super Admin. The real
+ * API was never fooled by this — every route re-checks the signed JWT — but
+ * the UI would happily show admin-only screens to whoever asked, which is
+ * exactly the kind of thing a client shouldn't be trusted to decide for
+ * itself.
  */
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>('checking');
+  const [user, setUser] = useState<User | null>(null);
 
   const check = useCallback(async () => {
     setState('checking');
     try {
-      await getMe();
+      const res = await getMe();
+      setUser(res.data as User);
       setState('authed');
     } catch (error: unknown) {
       const status = (error as { response?: { status?: number } })?.response?.status;
 
       if (status === 401 || status === 403) {
-        // The axios 401 interceptor in lib/api.ts already clears the session
-        // and redirects; `replace` keeps a dead dashboard entry out of history
-        // in case it does not.
+        // The axios 401 interceptor in lib/api.ts already redirects;
+        // `replace` keeps a dead dashboard entry out of history in case it
+        // does not.
         window.location.replace('/login');
         return;
       }
@@ -50,7 +65,13 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
     void check();
   }, [check]);
 
-  if (state === 'authed') return <>{children}</>;
+  if (state === 'authed' && user) {
+    return (
+      <AuthUserContext.Provider value={{ user, refresh: check }}>
+        {children}
+      </AuthUserContext.Provider>
+    );
+  }
 
   if (state === 'unreachable') {
     return (

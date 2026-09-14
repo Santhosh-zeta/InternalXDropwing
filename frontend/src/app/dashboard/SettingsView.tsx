@@ -12,6 +12,7 @@ import {
   Button, Card, CardHeader, Field, Input, TextField,
   Skeleton, SkeletonText, cn, useConfirm,
 } from '@/components/ui';
+import { useAuthUser } from '@/components/AuthUserContext';
 
 interface SettingsViewProps {
   currentUser: User;
@@ -26,6 +27,10 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 ];
 
 export default function SettingsView({ currentUser }: SettingsViewProps) {
+  // Refreshes the app-wide verified user after a save, so the sidebar,
+  // avatar, and every other view that reads `currentUser` pick up the
+  // change immediately without a full reload.
+  const { refresh } = useAuthUser();
   const [activeTab, setActiveTab] = useState<TabId>('profile');
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,24 +102,24 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
 
     try {
       setSaving(true);
-      const token = localStorage.getItem('internalx_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/team-members/me/avatar`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-      const res = await response.json();
+      // No manual auth header — the shared `api` client sends the session
+      // cookie automatically. Leave Content-Type unset so axios/the browser
+      // fill in the multipart boundary themselves.
+      const { data: res } = await api.post('/team-members/me/avatar', formData);
       if (res.success) {
         setAvatarUrl(res.data.avatar_url);
         toast.success('Avatar updated successfully');
-        const stored = JSON.parse(localStorage.getItem('internalx_user') || '{}');
-        stored.avatarUrl = res.data.avatar_url;
-        localStorage.setItem('internalx_user', JSON.stringify(stored));
+        await refresh();
       } else {
         toast.error(res.message || 'Failed to upload avatar');
       }
     } catch (err) {
-      toast.error('Error uploading avatar');
+      // axios throws on a non-2xx response — a rejected file type (the
+      // avatar allowlist is stricter than the document one: png/jpg/webp
+      // only) lands here, not in the `else` above.
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || 'Error uploading avatar';
+      toast.error(message);
     } finally {
       setSaving(false);
     }
@@ -131,10 +136,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
       });
       if (res.data.success) {
         toast.success('Profile updated successfully');
-        const stored = JSON.parse(localStorage.getItem('internalx_user') || '{}');
-        stored.fullName = fullName;
-        stored.phone = phone;
-        localStorage.setItem('internalx_user', JSON.stringify(stored));
+        await refresh();
       } else {
         toast.error(res.data.message || 'Failed to update profile');
       }

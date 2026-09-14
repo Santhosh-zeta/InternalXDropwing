@@ -545,7 +545,7 @@ verified token, never from the client payload — a client cannot spoof who a me
 | `ventures` | The four businesses — the tenancy root |
 | `access_levels` | L1–L9 definitions |
 | `users` | Employee ID, bcrypt hash, `access_level`, `venture_id` |
-| `sessions` | Reserved for server-side token revocation — table exists, JWTs are currently stateless |
+| `sessions` | Backs real server-side token revocation — checked on every authenticated request and the Socket.IO handshake |
 | `venture_roles` · `venture_role_assignments` | Custom roles layered on top of levels |
 | `projects` · `project_members` · `project_milestones` | Delivery |
 | `tasks` · `task_assignees` · `timesheets` | Execution, shared ownership, and time capture |
@@ -623,18 +623,21 @@ Implemented:
 | Control | Where |
 | :-- | :-- |
 | Password hashing — bcrypt, 12 rounds | `auth.controller.js` |
-| JWT sessions, 8 h expiry, httpOnly cookie | `auth.middleware.js` |
+| JWT sessions, 8 h expiry, httpOnly cookie — and a real server-side revocation check, so logout actually ends the session instead of waiting out the 8 hours | `auth.middleware.js`, `session.service.js` |
+| The session token never touches client-side JavaScript — no `localStorage`, no JS-writable cookie. The web app trusts only the server-verified `/api/auth/me` response for who's signed in, not a client-editable cache | `frontend/src/lib/api.ts`, `frontend/src/components/RequireAuth.tsx` |
+| OTPs hashed (HMAC-SHA256) and compared in constant time | `otp.js` |
 | Level-based route authorisation | `requireLevel()` |
 | Venture scoping enforced in SQL | every controller |
-| Socket.IO handshake authentication | `server.js` |
+| Socket.IO handshake authentication — token, header, or the same httpOnly cookie, revocation-checked | `server.js` |
+| Upload MIME/extension allowlist; authenticated, venture-scoped document downloads | `upload.middleware.js`, `uploads.routes.js` |
+| Read-only-enforced SQL console for L1 — single `SELECT`, no chaining, row cap, statement timeout, every attempt audit-logged | `sqlGuard.js`, `database.routes.js` |
 | Parameterised queries throughout (no ORM, no string-built SQL) | `database.pg.js` |
-| Security headers | `helmet` |
-| Rate limiting — 10 failed logins / 15 min, 5 account or reset requests / hour | `rateLimit.middleware.js` |
-| Request validation on the unauthenticated surface | `validate.middleware.js` |
+| A real Content-Security-Policy — see [SECURITY.md](SECURITY.md) for the specific, documented exceptions it needs | `server.js` |
+| Rate limiting across the whole API, tighter on uploads/the SQL console/reports, keyed on the verified user id | `rateLimit.middleware.js` |
+| Request validation on every mutating endpoint | `validate.middleware.js` |
 | CORS allowlist (single origin, credentials on) | `server.js` |
 | Forced HTTPS in production | `server.js` |
 | Audit logging of privileged actions | `audit.service.js` |
-| Email verification via OTP | `otp.js` |
 | Demo credentials stripped from production builds | `lib/constants.ts` |
 
 Reporting a vulnerability: **[SECURITY.md](SECURITY.md)**.
@@ -649,7 +652,9 @@ Reporting a vulnerability: **[SECURITY.md](SECURITY.md)**.
 
 - [ ] Automated test suite (Jest + Supertest for the API, Playwright for the web)
 - [ ] OpenAPI 3 specification generated from the route modules
-- [ ] Refresh tokens with rotation and server-side revocation
+- [ ] A nonce-based CSP — needs the frontend build to move off a static export so a nonce can be
+      stamped in per request; see [SECURITY.md](SECURITY.md) for what today's policy has to allow
+      without one
 - [ ] Redis adapter for Socket.IO, to scale past one API process
 - [ ] Per-venture theming in the client portal
 - [ ] Structured logging (pino) with request IDs end to end

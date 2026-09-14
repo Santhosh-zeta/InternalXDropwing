@@ -10,6 +10,21 @@ const pgPool = new Pool({
   idleTimeoutMillis: 30000,
 });
 
+/**
+ * A client sitting idle in the pool can still be dropped out from under it —
+ * the database restarting, a network blip, a failover — and `pg` emits that
+ * as an `'error'` event on the Pool rather than rejecting any in-flight
+ * query (there isn't one; the client was idle). Node treats an `'error'`
+ * event with no listener as fatal and crashes the whole process, which
+ * would take down every request being served, not just the one connection
+ * that had a problem. Active queries are unaffected either way — each one
+ * already runs through a try/catch in its own controller — so logging and
+ * carrying on is the correct response here, not `process.exit()`.
+ */
+pgPool.on('error', (err) => {
+  console.error('Unexpected error on an idle PostgreSQL client (pool recovers automatically):', err.message);
+});
+
 const formatQuery = (text, values) => {
   let newText = text;
   let flatValues = [];
