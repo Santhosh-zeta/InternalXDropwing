@@ -64,6 +64,14 @@ class AppTheme {
       surface: NebulaColors.surface,
       onSurface: NebulaColors.textPrimary,
       onSurfaceVariant: NebulaColors.textSecondary,
+      // Pinned: ColorScheme.fromSeed derives a purple-tinted grey ramp, but
+      // the widget kit paints every card from surfaceContainerHighest and
+      // must land on the Dayline token exactly.
+      surfaceContainerLowest: NebulaColors.background,
+      surfaceContainerLow: NebulaColors.surface,
+      surfaceContainer: NebulaColors.surface,
+      surfaceContainerHigh: NebulaColors.surfaceCard,
+      surfaceContainerHighest: NebulaColors.surfaceCard,
       outline: const Color(0xFF3A3F4B),
       outlineVariant: const Color(0xFF262B35),
       shadow: Colors.black,
@@ -87,6 +95,11 @@ class AppTheme {
       surface: NebulaColors.surfaceLight,
       onSurface: NebulaColors.textPrimaryLight,
       onSurfaceVariant: NebulaColors.textSecondaryLight,
+      surfaceContainerLowest: Colors.white,
+      surfaceContainerLow: NebulaColors.surfaceLight,
+      surfaceContainer: NebulaColors.surfaceLight,
+      surfaceContainerHigh: NebulaColors.surfaceCardLight,
+      surfaceContainerHighest: NebulaColors.surfaceCardLight,
       outline: const Color(0xFFCBD5E1),
       outlineVariant: NebulaColors.borderLight,
       shadow: Colors.black,
@@ -146,6 +159,11 @@ class AppTheme {
       useMaterial3: true,
       colorScheme: scheme,
       textTheme: text,
+      // Dayline tokens the ColorScheme has no slot for — time luminance,
+      // hairlines, the raised surface. Read via `context.dl`.
+      extensions: <ThemeExtension<dynamic>>[
+        brightness == Brightness.dark ? DaylineTokens.dark : DaylineTokens.light,
+      ],
       primaryColor: accent,
       scaffoldBackgroundColor: background,
       canvasColor: surface,
