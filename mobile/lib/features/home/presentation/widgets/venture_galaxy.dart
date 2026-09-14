@@ -6,7 +6,7 @@ import '../../data/models/home_models.dart';
 
 class VentureGalaxy extends StatefulWidget {
   final HomeData data;
-  const VentureGalaxy({Key? key, required this.data}) : super(key: key);
+  const VentureGalaxy({super.key, required this.data});
 
   @override
   State<VentureGalaxy> createState() => _VentureGalaxyState();
@@ -19,6 +19,10 @@ class _VentureGalaxyState extends State<VentureGalaxy> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
+    // `v.value` is the venture's active user headcount (see the backend's
+    // `userDistribution` query in analytics.routes.js) — there is no "venture
+    // health" concept anywhere in the API, so show the real headcount instead
+    // of a number invented from it.
     ventures = widget.data.analytics.userDistribution.map((v) {
       Color c = Colors.blue;
       try {
@@ -28,16 +32,14 @@ class _VentureGalaxyState extends State<VentureGalaxy> with SingleTickerProvider
       } catch (_) {}
       return {
         'name': v.name,
-        'health': v.value > 0 ? (v.value * 10) % 100 : 80,
+        'members': v.value,
         'color': c,
       };
     }).toList();
 
-    if (ventures.isEmpty) {
-      ventures = [
-        {'name': 'Dropwing', 'health': 98, 'color': Colors.blue},
-      ];
-    }
+    // No fabricated fallback venture: an empty result is a real, honest
+    // state (no ventures have active users yet), so just show the core node
+    // with nothing orbiting it rather than inventing one.
 
     _controller = AnimationController(
       vsync: this,
@@ -85,8 +87,8 @@ class _VentureGalaxyState extends State<VentureGalaxy> with SingleTickerProvider
                   // Orbiting Nodes
                   ...List.generate(ventures.length, (index) {
                     final angle = (index * math.pi / 2) + (_controller.value * 2 * math.pi);
-                    final radiusX = 120.0;
-                    final radiusY = 80.0;
+                    const radiusX = 120.0;
+                    const radiusY = 80.0;
                     
                     final x = math.cos(angle) * radiusX;
                     final y = math.sin(angle) * radiusY;
@@ -119,7 +121,7 @@ class _GalaxyPainter extends CustomPainter {
     final orbitPaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = Colors.white.withOpacity(0.05);
+      ..color = Colors.white.withValues(alpha: 0.05);
       
     final rect = Rect.fromCenter(center: center, width: 240, height: 160);
     canvas.drawOval(rect, orbitPaint);
@@ -128,7 +130,7 @@ class _GalaxyPainter extends CustomPainter {
     final linePaint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = NebulaColors.highlight.withOpacity(0.1 + (math.sin(progress * math.pi * 4).abs() * 0.1));
+      ..color = NebulaColors.highlight.withValues(alpha: 0.1 + (math.sin(progress * math.pi * 4).abs() * 0.1));
 
     for (int i = 0; i < 4; i++) {
       final angle = (i * math.pi / 2) + (progress * 2 * math.pi);
@@ -151,10 +153,10 @@ class _CenterNode extends StatelessWidget {
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: NebulaColors.surfaceCard,
-        border: Border.all(color: NebulaColors.primary.withOpacity(0.5), width: 2),
+        border: Border.all(color: NebulaColors.primary.withValues(alpha: 0.5), width: 2),
         boxShadow: [
           BoxShadow(
-            color: NebulaColors.primary.withOpacity(0.3),
+            color: NebulaColors.primary.withValues(alpha: 0.3),
             blurRadius: 20,
             spreadRadius: 2,
           )
@@ -211,10 +213,10 @@ class _OrbitNodeState extends State<_OrbitNode> {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: NebulaColors.surfaceCard,
-            border: Border.all(color: color.withOpacity(0.8), width: 1.5),
+            border: Border.all(color: color.withValues(alpha: 0.8), width: 1.5),
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 blurRadius: 10,
               )
             ],
@@ -232,7 +234,7 @@ class _OrbitNodeState extends State<_OrbitNode> {
                   ),
                 ),
                 Text(
-                  '${widget.venture['health']}%',
+                  '${widget.venture['members']}',
                   style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 8,

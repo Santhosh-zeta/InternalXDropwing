@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../data/models/home_models.dart';
-import '../../providers/home_provider.dart';
 import 'announcement_card_widget.dart';
 
 class AnnouncementsSection extends StatelessWidget {
@@ -8,15 +8,16 @@ class AnnouncementsSection extends StatelessWidget {
   final int accessLevel;
 
   const AnnouncementsSection({
-    Key? key,
+    super.key,
     required this.data,
     required this.accessLevel,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
-    if (accessLevel >= 4) {
-      return const SizedBox.shrink(); // MDs/Super Admin get Venture Summary instead, but maybe we can show both. User said "move the existing dashboard widgets into Home." 
+    // Admin (3) and above get the cross-venture summary instead.
+    if (AccessLevels.hasAtLeast(accessLevel, AccessLevels.admin)) {
+      return const SizedBox.shrink();
     }
 
     if (data.analytics.announcements.isEmpty) return const SizedBox.shrink();
@@ -34,7 +35,7 @@ class AnnouncementsSection extends StatelessWidget {
         const SizedBox(height: 12),
         ...data.analytics.announcements
             .map((a) => AnnouncementCardWidget(announcement: a))
-            .toList(),
+            ,
       ],
     );
   }

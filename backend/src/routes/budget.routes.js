@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 
 // GET /api/budget/summary — L2 MD sees all ventures, L4 CXO sees their venture
-router.get('/summary', authenticate, async (req, res) => {
+router.get('/summary', authenticate, reportLimiter, async (req, res) => {
   try {
     const { accessLevel, ventureId } = req.user;
     if (accessLevel > 4) {
@@ -76,7 +77,7 @@ router.get('/summary', authenticate, async (req, res) => {
 });
 
 // GET /api/budget/expenses — Expense line items from timesheets
-router.get('/expenses', authenticate, async (req, res) => {
+router.get('/expenses', authenticate, reportLimiter, async (req, res) => {
   try {
     const { accessLevel, ventureId } = req.user;
     if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });
@@ -125,7 +126,7 @@ router.get('/expenses', authenticate, async (req, res) => {
 });
 
 // GET /api/budget/monthly — Monthly spend trend (last 6 months)
-router.get('/monthly', authenticate, async (req, res) => {
+router.get('/monthly', authenticate, reportLimiter, async (req, res) => {
   try {
     const { accessLevel, ventureId } = req.user;
     if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });

@@ -6,9 +6,9 @@ class GreetingSection extends StatelessWidget {
   final User user;
 
   const GreetingSection({
-    Key? key,
+    super.key,
     required this.user,
-  }) : super(key: key);
+  });
 
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -38,9 +38,9 @@ class GreetingSection extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           decoration: BoxDecoration(
-            color: NebulaColors.highlight.withOpacity(0.1),
+            color: NebulaColors.highlight.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(100),
-            border: Border.all(color: NebulaColors.highlight.withOpacity(0.3)),
+            border: Border.all(color: NebulaColors.highlight.withValues(alpha: 0.3)),
           ),
           child: Text(
             user.levelName,

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/timesheet_model.dart';
@@ -26,9 +27,10 @@ class _TimesheetScreenState extends ConsumerState<TimesheetScreen>
     final authState = ref.read(authProvider);
     final level = authState.maybeWhen(
       authenticated: (user) => user.accessLevel,
-      orElse: () => 9,
+      orElse: () => AccessLevels.unknown,
     );
-    _isManager = level <= 5;
+    // The approve endpoint turns away level 6 and below.
+    _isManager = AccessLevels.hasAtLeast(level, ApiAccess.approveTimesheet);
     _tabController = TabController(length: _isManager ? 3 : 2, vsync: this);
   }
 
@@ -111,7 +113,7 @@ class _MyTimesheetsTab extends ConsumerWidget {
       body: timesheetsAsync.when(
         data: (entries) {
           if (entries.isEmpty) {
-            return _EmptyState(
+            return const _EmptyState(
               icon: LucideIcons.clock,
               title: 'No time logged yet',
               subtitle: 'Tap the button below to log your first entry.',
@@ -273,7 +275,7 @@ class _LogTimeBottomSheetState extends State<_LogTimeBottomSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: NebulaColors.primary.withOpacity(0.15),
+                  color: NebulaColors.primary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(LucideIcons.clock, color: NebulaColors.primary, size: 20),
@@ -408,7 +410,7 @@ class _WeekGroup extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: NebulaColors.primary.withOpacity(0.12),
+                  color: NebulaColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -484,7 +486,7 @@ class _TimesheetCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.15),
+                  color: _statusColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -513,7 +515,7 @@ class _PendingApprovalsTab extends ConsumerWidget {
       data: (entries) {
         final pending = entries.where((e) => e.status == 'pending').toList();
         if (pending.isEmpty) {
-          return _EmptyState(
+          return const _EmptyState(
             icon: LucideIcons.checkCircle,
             title: 'All caught up!',
             subtitle: 'No pending timesheets to review.',
@@ -614,7 +616,7 @@ class _PendingApprovalCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: NebulaColors.warning.withOpacity(0.3)),
+        border: Border.all(color: NebulaColors.warning.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -642,7 +644,7 @@ class _PendingApprovalCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: NebulaColors.primary.withOpacity(0.12),
+                  color: NebulaColors.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -747,7 +749,7 @@ class _SummaryTab extends ConsumerWidget {
                 ),
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
-                  BoxShadow(color: NebulaColors.primary.withOpacity(0.3), blurRadius: 20, offset: const Offset(0, 8)),
+                  BoxShadow(color: NebulaColors.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8)),
                 ],
               ),
               child: Column(
@@ -811,7 +813,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Row(
         mainAxisAlignment: fullWidth ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
@@ -837,7 +839,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: color, size: 22),
@@ -864,7 +866,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 64, color: NebulaColors.textSecondary.withOpacity(0.4)),
+            Icon(icon, size: 64, color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
             const SizedBox(height: 16),
             Text(title, style: const TextStyle(color: NebulaColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 8),
@@ -942,7 +944,7 @@ class _LoadingSkeletonState extends State<_LoadingSkeleton> with SingleTickerPro
           margin: const EdgeInsets.only(bottom: 12),
           height: 80,
           decoration: BoxDecoration(
-            color: NebulaColors.surfaceCard.withOpacity(_animation.value),
+            color: NebulaColors.surfaceCard.withValues(alpha: _animation.value),
             borderRadius: BorderRadius.circular(12),
           ),
         ),

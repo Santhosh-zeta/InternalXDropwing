@@ -4,28 +4,17 @@ const { pool } = require('../config/database');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
 const bcrypt = require('bcryptjs');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../../uploads/avatars');
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
-const upload = multer({ 
-  storage: storage,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
-});
+const { avatarUpload, handleUploadErrors } = require('../middleware/upload.middleware');
+const { uploadLimiter } = require('../middleware/rateLimit.middleware');
+const { revokeAllSessionsForUser, createSession } = require('../services/session.service');
+const jwt = require('jsonwebtoken');
+const {
+  createUserRules,
+  updateUserRules,
+  userIdRules,
+  updateProfileRules,
+  changePasswordRules,
+} = require('../middleware/validate.middleware');
 
 // GET /api/users — List users based on access level
 router.get('/', authenticate, async (req, res) => {
@@ -98,7 +87,7 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 // PUT /api/users/me/profile — Update own profile
-router.put('/me/profile', authenticate, async (req, res) => {
+router.put('/me/profile', authenticate, updateProfileRules, async (req, res) => {
   try {
     const { full_name, phone, notification_preferences } = req.body;
     
@@ -123,7 +112,7 @@ router.put('/me/profile', authenticate, async (req, res) => {
 });
 
 // PUT /api/users/me/password — Change password
-router.put('/me/password', authenticate, async (req, res) => {
+router.put('/me/password', authenticate, changePasswordRules, async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     if (!currentPassword || !newPassword) {
@@ -139,6 +128,23 @@ router.put('/me/password', authenticate, async (req, res) => {
     const hash = await bcrypt.hash(newPassword, 12);
     await pool.query('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.user.id]);
 
+    /**
+     * Changing a password is the usual reaction to "somebody else is in my
+     * account", so every other session for this user is revoked. The caller's
+     * own session is re-created immediately afterwards from the same token, so
+     * the client that made the request is not signed out and no response shape
+     * changes — only the attacker's copy of the token stops working.
+     */
+    try {
+      await revokeAllSessionsForUser(req.user.id);
+      if (req.authToken) {
+        const { exp } = jwt.decode(req.authToken) || {};
+        if (exp) await createSession(req.user.id, req.authToken, new Date(exp * 1000), req);
+      }
+    } catch (revokeErr) {
+      console.error('Failed to rotate sessions after password change:', revokeErr.message);
+    }
+
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
     console.error(err);
@@ -147,7 +153,7 @@ router.put('/me/password', authenticate, async (req, res) => {
 });
 
 // POST /api/users/me/avatar — Upload avatar
-router.post('/me/avatar', authenticate, upload.single('avatar'), async (req, res) => {
+router.post('/me/avatar', authenticate, uploadLimiter, avatarUpload.single('avatar'), handleUploadErrors, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file provided' });
     
@@ -162,7 +168,7 @@ router.post('/me/avatar', authenticate, upload.single('avatar'), async (req, res
 });
 
 // GET /api/users/:id — Get user details and activity
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, userIdRules, async (req, res) => {
   try {
     const userId = req.params.id;
     // Check permission - can view if L1-L3 or same venture or self
@@ -204,7 +210,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // PUT /api/users/:id — Update a user
-router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
+router.put('/:id', authenticate, requireLevel(4), updateUserRules, async (req, res) => {
   try {
     const userId = req.params.id;
     const { access_level, venture_id, is_active, full_name, department, designation, phone } = req.body;
@@ -239,7 +245,21 @@ router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
 
     params.push(userId);
     await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
-    
+
+    /**
+     * Deactivating a user or demoting them has to reach the tokens they are
+     * already holding — the access level is baked into the JWT, so without this
+     * a demoted admin keeps their old level until the token expires and a
+     * deactivated account keeps working entirely.
+     */
+    if (is_active === false || access_level !== undefined) {
+      try {
+        await revokeAllSessionsForUser(userId);
+      } catch (revokeErr) {
+        console.error('Failed to revoke sessions for updated user:', revokeErr.message);
+      }
+    }
+
     await logAudit(req.user.id, 'UPDATE_USER', 'user', userId, { targetId: userId, changedFields: updates });
 
     res.json({ success: true, message: 'User updated successfully' });
@@ -250,7 +270,7 @@ router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
 });
 
 // DELETE /api/users/:id — Delete a user (or deactivate)
-router.delete('/:id', authenticate, requireLevel(3), async (req, res) => {
+router.delete('/:id', authenticate, requireLevel(3), userIdRules, async (req, res) => {
   try {
     const userId = req.params.id;
     
@@ -263,6 +283,14 @@ router.delete('/:id', authenticate, requireLevel(3), async (req, res) => {
       }
     }
 
+    // sessions.user_id cascades on delete, but the in-process session cache
+    // does not know that — revoke explicitly so the tokens stop working now.
+    try {
+      await revokeAllSessionsForUser(userId);
+    } catch (revokeErr) {
+      console.error('Failed to revoke sessions for deleted user:', revokeErr.message);
+    }
+
     await pool.query('DELETE FROM users WHERE id = ?', [userId]);
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (err) {
@@ -272,7 +300,7 @@ router.delete('/:id', authenticate, requireLevel(3), async (req, res) => {
 });
 
 // POST /api/users — Create a new user (Admin and above)
-router.post('/', authenticate, requireLevel(3), async (req, res) => {
+router.post('/', authenticate, requireLevel(3), createUserRules, async (req, res) => {
   try {
     const { full_name, email, password, access_level, venture_id, department, designation } = req.body;
     

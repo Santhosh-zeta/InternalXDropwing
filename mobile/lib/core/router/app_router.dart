@@ -8,7 +8,6 @@ import '../../features/auth/presentation/screens/splash_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/home/presentation/screens/home_screen.dart';
-import '../../features/analytics/presentation/screens/analytics_screen.dart';
 import '../../features/tasks/presentation/screens/task_list_screen.dart';
 import '../../features/tasks/presentation/screens/task_detail_screen.dart';
 import '../../features/tasks/presentation/screens/task_form_screen.dart';
@@ -33,6 +32,13 @@ import '../../features/client_portal/presentation/screens/client_portal_screen.d
 import '../../features/profile/presentation/screens/settings_screen.dart';
 import '../../features/chat/presentation/screens/chat_list_screen.dart';
 import '../../features/chat/presentation/screens/chat_room_screen.dart';
+import '../../features/invoices/presentation/screens/invoices_screen.dart';
+import '../../features/invoices/presentation/screens/invoice_detail_screen.dart';
+import '../../features/reports/presentation/screens/reports_screen.dart';
+import '../../features/user_management/presentation/screens/user_management_screen.dart';
+import '../../features/role_management/presentation/screens/roles_screen.dart';
+import '../../features/access_control/presentation/screens/access_control_screen.dart';
+import '../../features/db_explorer/presentation/screens/db_explorer_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -121,9 +127,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/budget',
         builder: (context, state) => const BudgetScreen(),
       ),
+      // The old analytics feature parsed a model that never matched the real
+      // `/platform-metrics` response and called a task-velocity endpoint that
+      // doesn't exist on the backend — every open of this screen errored.
+      // Retired in favour of the Reports module, which hits the same real
+      // endpoint correctly; kept at the same path so nothing else has to change.
       GoRoute(
         path: '/analytics',
-        builder: (context, state) => const AnalyticsScreen(),
+        builder: (context, state) => const ReportsScreen(),
       ),
       GoRoute(
         path: '/approvals',
@@ -153,6 +164,39 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
         ],
+      ),
+      GoRoute(
+        path: '/invoices',
+        builder: (context, state) => const InvoicesScreen(),
+        routes: [
+          GoRoute(
+            path: ':id',
+            builder: (context, state) {
+              final id = state.pathParameters['id'] ?? '';
+              return InvoiceDetailScreen(invoiceId: id);
+            },
+          ),
+        ],
+      ),
+      GoRoute(
+        path: '/reports',
+        builder: (context, state) => const ReportsScreen(),
+      ),
+      GoRoute(
+        path: '/user-management',
+        builder: (context, state) => const UserManagementScreen(),
+      ),
+      GoRoute(
+        path: '/role-management',
+        builder: (context, state) => const RolesScreen(),
+      ),
+      GoRoute(
+        path: '/access-control',
+        builder: (context, state) => const AccessControlScreen(),
+      ),
+      GoRoute(
+        path: '/database',
+        builder: (context, state) => const DbExplorerScreen(),
       ),
 
       // ── Bottom Navigation Shell ───────────────────────────────────────────

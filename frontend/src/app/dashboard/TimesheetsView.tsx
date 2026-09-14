@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import api from '@/lib/api';
-import { Clock, DollarSign, Timer } from 'lucide-react';
+import { Clock, DollarSign, RotateCcw, Timer } from 'lucide-react';
 import {
   Badge, Button, Card, EmptyState, Field, Input, SkeletonTable, StatCard, Textarea,
   type BadgeTone,
@@ -18,8 +18,10 @@ interface Timesheet {
   task_title: string | null;
   venture_name: string | null;
   venture_color: string | null;
-  hours: string;
-  activity_date: string;
+  // Column names from the `timesheets` table — the API does `SELECT t.*` with
+  // no aliasing, so these are `hours_worked` and `date`, not `hours`/`activity_date`.
+  hours_worked: string;
+  date: string;
   notes: string;
   status: 'pending' | 'approved' | 'rejected';
   hourly_rate: number;
@@ -32,6 +34,19 @@ interface Financials {
   global: { totalHours: number; totalCost: number };
 }
 
+/**
+ * `date` is a DATE column and arrives as `YYYY-MM-DD` (or an ISO timestamp at
+ * midnight UTC). Reading the calendar parts directly avoids the off-by-one day
+ * that `new Date(value).toLocaleDateString()` produces west of UTC.
+ */
+function formatDate(raw: string | null | undefined): string {
+  if (!raw) return '—';
+  const candidate = String(raw).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(candidate)) return '—';
+  const [year, month, day] = candidate.split('-').map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString();
+}
+
 const STATUS_TONE: Record<Timesheet['status'], BadgeTone> = {
   approved: 'success',
   rejected: 'danger',
@@ -42,6 +57,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
   const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
   const [financials, setFinancials] = useState<Financials | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Form state
   const [hours, setHours] = useState('');
@@ -50,30 +66,44 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
   const [submitting, setSubmitting] = useState(false);
   const hoursInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchTimesheets = async () => {
+  const loadTimesheets = useCallback(async () => {
     try {
-      setLoading(true);
       const response = await api.get('/timesheets');
-      if (response.data.success) {
-        setTimesheets(response.data.data);
-      }
-
-      if (currentUser.accessLevel <= 5) {
-        const finRes = await api.get('/timesheets/financials');
-        if (finRes.data.success) {
-          setFinancials(finRes.data.data);
-        }
-      }
-    } catch (err) {
-      toast.error('Failed to load timesheets');
-    } finally {
+      if (!response.data?.success) throw new Error('Request was not successful');
+      setTimesheets(response.data.data ?? []);
+      setError(null);
+    } catch {
+      setError('Could not load timesheets. Check your connection and try again.');
       setLoading(false);
+      return;
     }
-  };
+
+    // Financials are a separate endpoint with its own authorisation. A failure
+    // here must not report the timesheets — already loaded — as failed.
+    if (currentUser.accessLevel <= 5) {
+      try {
+        const finRes = await api.get('/timesheets/financials');
+        if (finRes.data?.success) setFinancials(finRes.data.data);
+      } catch {
+        setFinancials(null);
+      }
+    }
+
+    setLoading(false);
+  }, [currentUser.accessLevel]);
+
+  const retry = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void loadTimesheets();
+  }, [loadTimesheets]);
 
   useEffect(() => {
-    fetchTimesheets();
-  }, []);
+    // The loader's first statement is an `await`, so no setState runs
+    // synchronously here — the rule cannot see past the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadTimesheets();
+  }, [loadTimesheets]);
 
   const handleLogHours = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +120,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
         toast.success('Hours logged successfully');
         setHours('');
         setNotes('');
-        fetchTimesheets();
+        void loadTimesheets();
       } else {
         toast.error(response.data.message || 'Failed to log hours');
       }
@@ -106,7 +136,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
       const response = await api.patch(`/timesheets/${id}/approve`, { status });
       if (response.data.success) {
         toast.success(`Timesheet ${status}`);
-        fetchTimesheets();
+        void loadTimesheets();
       } else {
         toast.error(response.data.message || 'Update failed');
       }
@@ -224,6 +254,24 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
 
             {loading ? (
               <SkeletonTable rows={6} columns={columnCount} />
+            ) : error ? (
+              <div className="p-6">
+                <EmptyState
+                  tone="error"
+                  icon={<Timer size={22} aria-hidden="true" />}
+                  title="Timesheets unavailable"
+                  description={error}
+                  action={
+                    <Button
+                      variant="primary"
+                      leadingIcon={<RotateCcw size={16} aria-hidden="true" />}
+                      onClick={retry}
+                    >
+                      Try again
+                    </Button>
+                  }
+                />
+              </div>
             ) : timesheets.length === 0 ? (
               <div className="p-6">
                 <EmptyState
@@ -260,7 +308,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
                     {timesheets.map(t => (
                       <tr key={t.id} className="border-b border-[var(--color-border)] transition-colors hover:bg-[var(--color-bg-secondary)]">
                         <td className="p-4 text-[13px] text-[var(--color-text-primary)]">
-                          {new Date(t.activity_date).toLocaleDateString()}
+                          {formatDate(t.date)}
                         </td>
                         {isExecutive && (
                           <td className="p-4">
@@ -277,7 +325,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
                           )}
                         </td>
                         <td className="p-4 text-[13px] font-bold text-[var(--color-text-primary)]">
-                          {t.hours}h
+                          {t.hours_worked}h
                         </td>
                         {isExecutive && (
                           <td className="p-4 text-[13px] text-[var(--color-text-secondary)]">
@@ -295,7 +343,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleStatusUpdate(t.id, 'approved')}
-                                  aria-label={`Approve timesheet for ${t.user_name} on ${new Date(t.activity_date).toLocaleDateString()}`}
+                                  aria-label={`Approve timesheet for ${t.user_name} on ${formatDate(t.date)}`}
                                   className="border border-[var(--color-emerald)]/30 bg-[var(--color-emerald)]/10 text-[var(--color-emerald)] hover:bg-[var(--color-emerald)]/20 hover:text-[var(--color-emerald)]"
                                 >
                                   Approve
@@ -304,7 +352,7 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => handleStatusUpdate(t.id, 'rejected')}
-                                  aria-label={`Reject timesheet for ${t.user_name} on ${new Date(t.activity_date).toLocaleDateString()}`}
+                                  aria-label={`Reject timesheet for ${t.user_name} on ${formatDate(t.date)}`}
                                   className="border border-[var(--color-rose)]/30 bg-[var(--color-rose)]/10 text-[var(--color-rose)] hover:bg-[var(--color-rose)]/20 hover:text-[var(--color-rose)]"
                                 >
                                   Reject

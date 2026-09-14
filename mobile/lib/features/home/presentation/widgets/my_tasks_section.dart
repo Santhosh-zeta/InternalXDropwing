@@ -6,9 +6,9 @@ class MyTasksSection extends StatelessWidget {
   final List<HomeTask> tasks;
 
   const MyTasksSection({
-    Key? key,
+    super.key,
     required this.tasks,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -97,9 +97,9 @@ class _TaskStatusCard extends StatelessWidget {
       margin: const EdgeInsets.only(right: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,7 +107,7 @@ class _TaskStatusCard extends StatelessWidget {
         children: [
           Text(title,
               style: TextStyle(
-                  color: color.withOpacity(0.8),
+                  color: color.withValues(alpha: 0.8),
                   fontSize: 13,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),

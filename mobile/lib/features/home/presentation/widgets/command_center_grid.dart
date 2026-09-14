@@ -6,7 +6,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/nebula_colors.dart';
 
 class CommandCenterGrid extends StatelessWidget {
-  const CommandCenterGrid({Key? key}) : super(key: key);
+  const CommandCenterGrid({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -124,15 +124,15 @@ class _CommandTileState extends State<_CommandTile> with SingleTickerProviderSta
               builder: (context, child) {
                 return Container(
                   decoration: BoxDecoration(
-                    color: NebulaColors.surfaceCard.withOpacity(0.6),
+                    color: NebulaColors.surfaceCard.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: _controller.value > 0 
-                          ? NebulaColors.highlight.withOpacity(0.5) 
-                          : Colors.white.withOpacity(0.05),
+                          ? NebulaColors.highlight.withValues(alpha: 0.5) 
+                          : Colors.white.withValues(alpha: 0.05),
                     ),
                     boxShadow: _controller.value > 0 
-                        ? [BoxShadow(color: NebulaColors.highlight.withOpacity(0.2), blurRadius: 20)]
+                        ? [BoxShadow(color: NebulaColors.highlight.withValues(alpha: 0.2), blurRadius: 20)]
                         : [],
                   ),
                   child: Column(
@@ -146,7 +146,7 @@ class _CommandTileState extends State<_CommandTile> with SingleTickerProviderSta
                       const SizedBox(height: 12),
                       Text(
                         widget.title,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: NebulaColors.textPrimary,
                           fontWeight: FontWeight.w600,
                           fontSize: 14,

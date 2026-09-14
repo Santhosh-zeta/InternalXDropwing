@@ -57,6 +57,7 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [monthly, setMonthly] = useState<MonthlyData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterVenture, setFilterVenture] = useState<string>('all');
 
   const color = currentUser.accessLevel === 2 ? '#8b5cf6' : '#06b6d4';
@@ -76,7 +77,12 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
       }
       if (expRes.data.success) setExpenses(expRes.data.data);
       if (monthRes.data.success) setMonthly(monthRes.data.data);
-    } catch (e) { console.error(e); }
+      setError(null);
+    } catch {
+      // Previously logged to the console only, leaving budget figures at
+      // zero with no indication to the viewer that the request had failed.
+      setError('Could not load budget data. Check your connection and try again.');
+    }
     finally { setLoading(false); }
   }, []);
 
@@ -111,6 +117,22 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
         </div>
         <SkeletonTable rows={5} columns={7} />
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        tone="error"
+        icon={<AlertCircle size={22} aria-hidden="true" />}
+        title="Budget data unavailable"
+        description={error}
+        action={
+          <Button variant="primary" leadingIcon={<RefreshCw size={16} aria-hidden="true" />} onClick={fetchAll}>
+            Try again
+          </Button>
+        }
+      />
     );
   }
 

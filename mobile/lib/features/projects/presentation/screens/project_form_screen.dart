@@ -364,7 +364,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                             children: [
                               _buildSectionLabel('Phase'),
                               DropdownButtonFormField<String>(
-                                value: _status,
+                                initialValue: _status,
                                 dropdownColor: NebulaColors.surfaceCard,
                                 icon: const Icon(Icons.access_time, size: 16, color: NebulaColors.textSecondary),
                                 decoration: _customInputDecoration(''),
@@ -386,7 +386,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                             children: [
                               _buildSectionLabel('Criticality'),
                               DropdownButtonFormField<String>(
-                                value: _priority,
+                                initialValue: _priority,
                                 dropdownColor: NebulaColors.surfaceCard,
                                 icon: const Icon(Icons.security, size: 16, color: NebulaColors.textSecondary),
                                 decoration: _customInputDecoration(''),

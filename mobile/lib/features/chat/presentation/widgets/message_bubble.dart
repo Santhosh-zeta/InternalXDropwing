@@ -24,7 +24,7 @@ class MessageBubble extends StatelessWidget {
     final timeString = DateFormat('HH:mm').format(message.timestamp);
 
     return Padding(
-      padding: EdgeInsets.only(bottom: NebulaSpacing.sm),
+      padding: const EdgeInsets.only(bottom: NebulaSpacing.sm),
       child: Align(
         alignment: isCurrentUser ? Alignment.centerRight : Alignment.centerLeft,
         child: Row(
@@ -35,7 +35,7 @@ class MessageBubble extends StatelessWidget {
               Container(
                 width: 32,
                 height: 32,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   color: NebulaColors.surfaceCard,
                 ),
@@ -63,7 +63,7 @@ class MessageBubble extends StatelessWidget {
                         ),
                       ),
               ),
-              SizedBox(width: NebulaSpacing.sm),
+              const SizedBox(width: NebulaSpacing.sm),
             ],
             Flexible(
               child: Column(
@@ -71,7 +71,7 @@ class MessageBubble extends StatelessWidget {
                 children: [
                   if (!isCurrentUser)
                     Padding(
-                      padding: EdgeInsets.only(left: NebulaSpacing.sm, bottom: 4),
+                      padding: const EdgeInsets.only(left: NebulaSpacing.sm, bottom: 4),
                       child: Text(
                         message.senderName,
                         style: NebulaTypography.caption.copyWith(
@@ -86,13 +86,13 @@ class MessageBubble extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isCurrentUser ? NebulaColors.primary : NebulaColors.surfaceCard,
                       borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(NebulaSpacing.md),
-                        topRight: Radius.circular(NebulaSpacing.md),
+                        topLeft: const Radius.circular(NebulaSpacing.md),
+                        topRight: const Radius.circular(NebulaSpacing.md),
                         bottomLeft: Radius.circular(isCurrentUser ? NebulaSpacing.md : 0),
                         bottomRight: Radius.circular(isCurrentUser ? 0 : NebulaSpacing.md),
                       ),
                     ),
-                    padding: EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: NebulaSpacing.md,
                       vertical: NebulaSpacing.sm,
                     ),
@@ -104,7 +104,7 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.only(top: 4, left: NebulaSpacing.sm, right: NebulaSpacing.sm),
+                    padding: const EdgeInsets.only(top: 4, left: NebulaSpacing.sm, right: NebulaSpacing.sm),
                     child: Text(
                       timeString,
                       style: NebulaTypography.caption.copyWith(
@@ -116,7 +116,7 @@ class MessageBubble extends StatelessWidget {
                 ],
               ),
             ),
-            if (isCurrentUser) SizedBox(width: NebulaSpacing.sm),
+            if (isCurrentUser) const SizedBox(width: NebulaSpacing.sm),
           ],
         ),
       ),

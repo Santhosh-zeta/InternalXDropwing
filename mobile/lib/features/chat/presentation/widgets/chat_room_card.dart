@@ -31,7 +31,7 @@ class ChatRoomCard extends StatelessWidget {
             width: 1,
           ),
         ),
-        padding: EdgeInsets.all(NebulaSpacing.md),
+        padding: const EdgeInsets.all(NebulaSpacing.md),
         child: Row(
           children: [
             // Avatar
@@ -72,7 +72,7 @@ class ChatRoomCard extends StatelessWidget {
                       ),
                     ),
             ),
-            SizedBox(width: NebulaSpacing.md),
+            const SizedBox(width: NebulaSpacing.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -99,7 +99,7 @@ class ChatRoomCard extends StatelessWidget {
                         ),
                     ],
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -114,11 +114,11 @@ class ChatRoomCard extends StatelessWidget {
                       ),
                       if (room.unreadCount > 0)
                         Container(
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: NebulaColors.critical,
                             shape: BoxShape.circle,
                           ),
-                          padding: EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(4),
                           child: Text(
                             '${room.unreadCount}',
                             style: NebulaTypography.caption.copyWith(

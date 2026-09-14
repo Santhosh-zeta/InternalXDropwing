@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/budget_model.dart';
@@ -20,9 +21,10 @@ class BudgetScreen extends ConsumerWidget {
       authenticated: (u) => u,
       orElse: () => null,
     );
-    final level = user?.accessLevel ?? 99;
+    final level = user?.accessLevel ?? AccessLevels.unknown;
 
-    if (level > 4) {
+    // Budget figures are for CXO (4) and above.
+    if (!AccessLevels.hasAtLeast(level, AccessLevels.cxo)) {
       return Scaffold(
         backgroundColor: NebulaColors.background,
         appBar: AppBar(
@@ -39,12 +41,12 @@ class BudgetScreen extends ConsumerWidget {
             decoration: BoxDecoration(
               color: NebulaColors.surfaceCard,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: NebulaColors.critical.withOpacity(0.3)),
+              border: Border.all(color: NebulaColors.critical.withValues(alpha: 0.3)),
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.lock, size: 56, color: NebulaColors.critical.withOpacity(0.7)),
+                Icon(LucideIcons.lock, size: 56, color: NebulaColors.critical.withValues(alpha: 0.7)),
                 const SizedBox(height: 16),
                 const Text('Restricted',
                     style: TextStyle(
@@ -285,7 +287,7 @@ class _BudgetCard extends StatelessWidget {
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: wide
@@ -294,7 +296,7 @@ class _BudgetCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 22),
@@ -321,7 +323,7 @@ class _BudgetCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: color, size: 18),
@@ -467,7 +469,7 @@ class _ExpensesTab extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.07),
+                        color: Colors.black.withValues(alpha: 0.07),
                         blurRadius: 8,
                         offset: const Offset(0, 3)),
                   ],
@@ -477,7 +479,7 @@ class _ExpensesTab extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: NebulaColors.primary.withOpacity(0.12),
+                        color: NebulaColors.primary.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(_categoryIcon(e.category),
@@ -596,7 +598,7 @@ class _MonthCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withOpacity(0.07),
+              color: Colors.black.withValues(alpha: 0.07),
               blurRadius: 8,
               offset: const Offset(0, 3)),
         ],

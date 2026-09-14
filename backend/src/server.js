@@ -9,12 +9,84 @@ const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
 const taskRoutes = require('./routes/task.routes');
 const { testConnection } = require('./config/database');
+const { apiLimiter } = require('./middleware/rateLimit.middleware');
+const { startSessionCleanup } = require('./services/session.service');
 
 const app = express();
 
 // Security & Middleware
 app.set('trust proxy', 1);
-app.use(helmet({ contentSecurityPolicy: false }));
+
+/**
+ * Content-Security-Policy for the Next.js static export served from
+ * public/frontend-build.
+ *
+ * This is NOT a nonce-based policy. A nonce has to be minted per request and
+ * stamped onto every <script>/<style> tag by the server rendering the page;
+ * this server only serves a pre-built, static `out/` export via
+ * express.static, so there is no per-request template to inject a nonce into
+ * without changing how the frontend builds (out of scope here — see
+ * frontend/**). Given that constraint, this is the strictest policy that
+ * still lets the shipped bundle run:
+ *
+ *   - script-src needs 'unsafe-inline': Next's App Router streams page data
+ *     into the HTML as inline `<script>self.__next_f.push(...)</script>`
+ *     blocks (verified in frontend/out/index.html) — hydration fails without
+ *     them, and there is no build-time hash list stable enough to allowlist
+ *     instead, since the payload differs per page and per rebuild.
+ *   - script-src also allows https://accounts.google.com: @react-oauth/google
+ *     (used for the "Continue with Google" button) injects a
+ *     <script src="https://accounts.google.com/gsi/client"> tag at runtime
+ *     (frontend/node_modules/@react-oauth/google/dist/index.js).
+ *   - style-src needs 'unsafe-inline' for the same reason plus inline
+ *     `style="..."` attributes React/framer-motion render directly onto
+ *     elements — those are set at runtime (motion animates style properties
+ *     every frame) so no static hash can cover them.
+ *   - img-src allows https://*.googleusercontent.com: Google login stores the
+ *     account's photo URL as-is (backend/src/controllers/auth.controller.js,
+ *     googleLogin) and the client paints it directly, not through our own
+ *     /uploads path.
+ *   - connect-src/frame-src allow https://accounts.google.com: the GSI script
+ *     calls out to Google and renders its prompt in an iframe.
+ *
+ * What this still buys over `contentSecurityPolicy: false` (the prior state):
+ * no inline event handlers (onclick=...) execute, no <object>/<embed> plugin
+ * content, the page cannot be framed by another origin, forms cannot submit
+ * to another origin, a <base> tag cannot be planted to redirect relative
+ * URLs, and — the big one given script-src is loose — an XSS payload cannot
+ * exfiltrate data or load a payload from any host we have not explicitly
+ * named here, because connect-src/script-src/img-src are not '*'.
+ */
+const scriptSrc = ["'self'", "'unsafe-inline'", 'https://accounts.google.com'];
+const cspDirectives = {
+  defaultSrc: ["'self'"],
+  scriptSrc,
+  scriptSrcAttr: ["'none'"],
+  styleSrc: ["'self'", "'unsafe-inline'"],
+  imgSrc: ["'self'", 'data:', 'https://*.googleusercontent.com'],
+  fontSrc: ["'self'"],
+  connectSrc: ["'self'", 'https://accounts.google.com'],
+  frameSrc: ['https://accounts.google.com'],
+  objectSrc: ["'none'"],
+  baseUri: ["'self'"],
+  formAction: ["'self'"],
+  frameAncestors: ["'self'"],
+};
+if (process.env.NODE_ENV === 'production') {
+  cspDirectives.upgradeInsecureRequests = [];
+}
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    // helmet merges provided directives into its own default set unless told
+    // not to — with useDefaults left on, style-src and font-src silently
+    // gained a bare "https:" (any HTTPS host at all) from helmet's defaults,
+    // which is far looser than anything documented above. useDefaults:false
+    // makes cspDirectives the whole policy, exactly as written.
+    useDefaults: false,
+    directives: cspDirectives,
+  },
+}));
 app.use(morgan('dev'));
 app.use(cookieParser());
 
@@ -38,7 +110,21 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+// /api/auth keeps its own dedicated limiters (rateLimit.middleware.js) sized
+// for anonymous credential/OTP endpoints, so it is mounted before the global
+// one below rather than stacking two limiters on the same unauthenticated
+// requests.
 app.use('/api/auth', authRoutes);
+
+/**
+ * Global limiter for the rest of the authenticated API surface, so an
+ * endpoint that never got its own specific limiter (there are ~20 route
+ * files) is still bounded. Keyed per-user where possible — see
+ * rateLimit.middleware.js for why IP-only keying would lock out a shared
+ * office connection.
+ */
+app.use('/api', apiLimiter);
+
 app.use('/api/team-members', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/projects', require('./routes/project.routes'));
@@ -60,7 +146,38 @@ app.use('/api/role-management', require('./routes/role_management.routes'));
 
 // Serve uploads directory
 const path = require('path');
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+/**
+ * Uploaded documents are no longer served by a bare express.static mount —
+ * that let anyone with (or guessing) a URL read any company document with no
+ * login at all. routes/uploads.routes.js requires a session and re-applies
+ * the same venture-visibility check as GET /api/documents, on the same
+ * /uploads/<name> URL shape the web client already builds, so this is not a
+ * breaking change for clients that were already using the documents feature —
+ * only anonymous/direct access is what stops working.
+ *
+ * Mounted before the avatars static handler below so a request for
+ * /uploads/avatars/<name> still falls through to it (this router 404s on
+ * filenames it has no `documents` row for, rather than swallowing the path).
+ */
+app.use('/uploads', require('./routes/uploads.routes'));
+
+/**
+ * Avatars stay publicly readable, deliberately, and unauthenticated:
+ *   - they are rendered directly (as CSS background-image / <img>-equivalent)
+ *     in the web client without ever attaching an Authorization header, so
+ *     gating them would require a frontend change to fetch-and-blob every
+ *     avatar — out of scope here (frontend/** is owned by another agent) and
+ *     would break avatar rendering today if done unilaterally on this side;
+ *   - a profile photo is materially lower sensitivity than the documents in
+ *     the vault, and Google-login avatars already point at a public
+ *     https://*.googleusercontent.com URL, so uploaded avatars are not
+ *     protecting anything the account doesn't already expose;
+ *   - the stored filename is unguessable (16 random bytes, see
+ *     middleware/upload.middleware.js), so this is "public if you already
+ *     have the exact URL", not "public and enumerable".
+ */
+app.use('/uploads/avatars', express.static(path.join(__dirname, '../uploads/avatars')));
 
 // Serve frontend build
 app.use(express.static(path.join(__dirname, '../public/frontend-build'), { extensions: ['html'] }));
@@ -119,6 +236,7 @@ const server = http.createServer(app);
 
 const jwt = require('jsonwebtoken');
 const { pgPool } = require('./config/database.pg');
+const { isSessionActive } = require('./services/session.service');
 
 const io = new Server(server, {
   cors: {
@@ -128,12 +246,25 @@ const io = new Server(server, {
 });
 
 // JWT authentication middleware for Socket.IO
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   try {
     const token = socket.handshake.auth?.token ||
                   socket.handshake.headers?.authorization?.replace('Bearer ', '');
     if (!token) return next(new Error('Authentication required'));
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // Same revocation check as the REST authenticate() middleware, so a
+    // logged-out token cannot keep an open chat connection alive — see
+    // middleware/auth.middleware.js for the reasoning and the fail-open
+    // behaviour if the sessions table itself is unreachable.
+    try {
+      const active = await isSessionActive(token);
+      if (!active) return next(new Error('Invalid token'));
+    } catch (err) {
+      if (err.code !== '42P01') return next(new Error('Invalid token'));
+      console.error('sessions table is missing — session revocation is NOT in effect for sockets.');
+    }
+
     socket.user = decoded;
     next();
   } catch (err) {
@@ -177,7 +308,11 @@ io.on('connection', (socket) => {
 
 const startServer = async () => {
   await testConnection();
-  
+
+  // Sweeps rows past their expires_at hourly — see session.service.js. Timer
+  // is unref()'d there so it never blocks process shutdown.
+  startSessionCleanup();
+
   server.listen(PORT, () => {
     console.log(`\n🚀 InternalX Backend running on http://localhost:${PORT}`);
     console.log(`📊 Environment: ${process.env.NODE_ENV}`);

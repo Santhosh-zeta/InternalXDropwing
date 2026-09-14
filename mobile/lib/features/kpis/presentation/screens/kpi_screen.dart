@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../data/kpi_model.dart';
@@ -16,10 +17,10 @@ class KpiScreen extends ConsumerWidget {
       authenticated: (u) => u,
       orElse: () => null,
     );
-    final level = user?.accessLevel ?? 99;
+    final level = user?.accessLevel ?? AccessLevels.unknown;
 
-    // L4+ only (accessLevel <= 4 in the inverted hierarchy)
-    if (level > 4) {
+    // CXO (4) and above only — remember lower number means more access.
+    if (!AccessLevels.hasAtLeast(level, AccessLevels.cxo)) {
       return Scaffold(
         backgroundColor: NebulaColors.background,
         appBar: AppBar(
@@ -161,7 +162,7 @@ class _StatCard extends StatelessWidget {
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: wide
@@ -170,7 +171,7 @@ class _StatCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(icon, color: color, size: 22),
@@ -193,7 +194,7 @@ class _StatCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.12),
+                    color: color.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(icon, color: color, size: 18),
@@ -323,7 +324,7 @@ class _DeptCard extends StatelessWidget {
         color: NebulaColors.surfaceCard,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -344,7 +345,7 @@ class _DeptCard extends StatelessWidget {
               ),
               Row(
                 children: [
-                  Icon(LucideIcons.users, size: 13, color: NebulaColors.textSecondary),
+                  const Icon(LucideIcons.users, size: 13, color: NebulaColors.textSecondary),
                   const SizedBox(width: 4),
                   Text('${dept.headcount}',
                       style: const TextStyle(fontSize: 13, color: NebulaColors.textSecondary)),
@@ -381,7 +382,7 @@ class _DeptCard extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              Icon(LucideIcons.clock, size: 12, color: NebulaColors.textSecondary),
+              const Icon(LucideIcons.clock, size: 12, color: NebulaColors.textSecondary),
               const SizedBox(width: 4),
               Text(
                 '${dept.avgHoursPerWeek.toStringAsFixed(1)} hrs/week avg',
@@ -411,12 +412,12 @@ class _RestrictedView extends StatelessWidget {
         decoration: BoxDecoration(
           color: NebulaColors.surfaceCard,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: NebulaColors.critical.withOpacity(0.3)),
+          border: Border.all(color: NebulaColors.critical.withValues(alpha: 0.3)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(LucideIcons.lock, size: 56, color: NebulaColors.critical.withOpacity(0.7)),
+            Icon(LucideIcons.lock, size: 56, color: NebulaColors.critical.withValues(alpha: 0.7)),
             const SizedBox(height: 16),
             Text(message,
                 style: const TextStyle(

@@ -4,7 +4,7 @@ import '../../data/models/home_models.dart';
 class AnnouncementCardWidget extends StatelessWidget {
   final Announcement announcement;
 
-  const AnnouncementCardWidget({Key? key, required this.announcement}) : super(key: key);
+  const AnnouncementCardWidget({super.key, required this.announcement});
 
   @override
   Widget build(BuildContext context) {
@@ -18,10 +18,10 @@ class AnnouncementCardWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Theme.of(context).dividerColor.withOpacity(0.1)),
+        border: Border.all(color: Theme.of(context).dividerColor.withValues(alpha: 0.1)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.black.withValues(alpha: 0.02),
             blurRadius: 5,
             offset: const Offset(0, 2),
           ),
@@ -52,7 +52,7 @@ class AnnouncementCardWidget extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             announcement.content,
-            style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8)),
+            style: TextStyle(fontSize: 13, color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.8)),
           ),
         ],
       ),

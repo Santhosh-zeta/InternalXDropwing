@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 
 // GET /api/analytics
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, reportLimiter, async (req, res) => {
   try {
     const accessLevel = req.user.accessLevel;
     const userVentureId = req.user.ventureId;

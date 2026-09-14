@@ -120,6 +120,7 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
   const [hrData, setHrData] = useState<HRData | null>(null);
   const [kpiData, setKpiData] = useState<DeptKPI[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const color = currentUser.accessLevel === 2 ? 'var(--color-purple-light)' : 'var(--color-cyan)';
 
   const fetchData = useCallback(async () => {
@@ -128,7 +129,10 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
       const [hrRes, kpiRes] = await Promise.all([api.get('/kpis/hr'), api.get('/kpis/department')]);
       if (hrRes.data.success) setHrData(hrRes.data.data);
       if (kpiRes.data.success) setKpiData(kpiRes.data.data);
-    } catch (e) { console.error(e); }
+      setError(null);
+    } catch {
+      setError('Could not load department data. Check your connection and try again.');
+    }
     finally { setLoading(false); }
   }, []);
 
@@ -145,6 +149,22 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
 
   if (loading) {
     return <KPISkeleton />;
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        tone="error"
+        icon={<BarChart3 size={22} aria-hidden="true" />}
+        title="Department data unavailable"
+        description={error}
+        action={
+          <Button variant="primary" leadingIcon={<RefreshCw size={16} aria-hidden="true" />} onClick={fetchData}>
+            Try again
+          </Button>
+        }
+      />
+    );
   }
 
   return (

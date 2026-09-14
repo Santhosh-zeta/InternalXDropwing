@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 
 // GET /api/kpis/hr — HR overview for L2 MD and L4 CXO
-router.get('/hr', authenticate, async (req, res) => {
+router.get('/hr', authenticate, reportLimiter, async (req, res) => {
   try {
     const { accessLevel, ventureId } = req.user;
     if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });
@@ -123,7 +124,7 @@ router.get('/hr', authenticate, async (req, res) => {
 });
 
 // GET /api/kpis/department — Per-department KPIs for CXO (L4)
-router.get('/department', authenticate, async (req, res) => {
+router.get('/department', authenticate, reportLimiter, async (req, res) => {
   try {
     const { accessLevel, ventureId } = req.user;
     if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });

@@ -154,8 +154,15 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
     }
   };
 
+  // backend/src/routes/user.routes.js DELETE /:id: requireLevel(3), and for
+  // anyone below L2 the target must be strictly below the caller's own level.
+  const canDeleteUser = (user: any) =>
+    currentUser.accessLevel <= 3 &&
+    user.id !== currentUser.id &&
+    !(currentUser.accessLevel > 2 && user.access_level <= currentUser.accessLevel);
+
   const handleDelete = async (user: any) => {
-    if (currentUser.accessLevel > 2 && user.access_level <= currentUser.accessLevel) {
+    if (!canDeleteUser(user)) {
       toast.error('You do not have permission to delete this user.');
       return;
     }
@@ -469,7 +476,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
         footer={
           editingUser ? (
             <>
-              {currentUser.accessLevel <= 2 && currentUser.id !== editingUser.id && (
+              {canDeleteUser(editingUser) && (
                 <Button
                   variant="danger"
                   leadingIcon={<Trash2 size={16} aria-hidden="true" />}

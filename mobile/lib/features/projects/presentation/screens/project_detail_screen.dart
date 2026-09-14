@@ -124,7 +124,7 @@ class _ProjectDetailBody extends ConsumerWidget {
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   colors: [
-                    statusColor.withOpacity(0.3),
+                    statusColor.withValues(alpha: 0.3),
                     NebulaColors.surfaceCard,
                   ],
                   begin: Alignment.topLeft,
@@ -164,7 +164,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                 if (project.description != null &&
                     project.description!.isNotEmpty) ...[
                   const SizedBox(height: 20),
-                  _SectionTitle('Description'),
+                  const _SectionTitle('Description'),
                   const SizedBox(height: 8),
                   Text(
                     project.description!,
@@ -178,7 +178,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                 // Task Progress
                 if (project.taskCount > 0) ...[
                   const SizedBox(height: 24),
-                  _SectionTitle('Task Progress'),
+                  const _SectionTitle('Task Progress'),
                   const SizedBox(height: 12),
                   _ProgressCard(
                     completed: project.completedTaskCount,
@@ -191,7 +191,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                 // Dates
                 if (project.startDate != null || project.endDate != null) ...[
                   const SizedBox(height: 24),
-                  _SectionTitle('Timeline'),
+                  const _SectionTitle('Timeline'),
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -222,7 +222,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                 // Budget
                 if (project.budget != null && project.budget! > 0) ...[
                   const SizedBox(height: 24),
-                  _SectionTitle('Budget'),
+                  const _SectionTitle('Budget'),
                   const SizedBox(height: 12),
                   _InfoCard(
                     icon: LucideIcons.dollarSign,
@@ -236,7 +236,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                 // Client
                 if (project.clientName != null) ...[
                   const SizedBox(height: 24),
-                  _SectionTitle('Client'),
+                  const _SectionTitle('Client'),
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -275,7 +275,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                   const SizedBox(height: 12),
                   ...project.members
                       .map((m) => _MemberTile(member: m))
-                      .toList(),
+                      ,
                 ],
 
                 // Milestones
@@ -286,7 +286,7 @@ class _ProjectDetailBody extends ConsumerWidget {
                   const SizedBox(height: 12),
                   ...project.milestones
                       .map((m) => _MilestoneTile(milestone: m))
-                      .toList(),
+                      ,
                 ],
 
                 const SizedBox(height: 32),
@@ -347,9 +347,9 @@ class _Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Text(label,
           style: TextStyle(
@@ -432,7 +432,7 @@ class _InfoCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, size: 16, color: color),
@@ -506,7 +506,7 @@ class _MemberTile extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
-                color: NebulaColors.primary.withOpacity(0.1),
+                color: NebulaColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Text(member.role!,

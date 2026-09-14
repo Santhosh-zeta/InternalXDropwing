@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/nebula_colors.dart';
@@ -40,7 +39,7 @@ class ProfileScreen extends ConsumerWidget {
                           CircleAvatar(
                             radius: 40,
                             backgroundColor:
-                                Theme.of(context).primaryColor.withOpacity(0.1),
+                                Theme.of(context).primaryColor.withValues(alpha: 0.1),
                             backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                                 ? NetworkImage(user.avatarUrl!.startsWith('http')
                                     ? user.avatarUrl!
@@ -323,7 +322,7 @@ class ProfileScreen extends ConsumerWidget {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: (item.color ?? Colors.blue).withOpacity(0.1),
+                    color: (item.color ?? Colors.blue).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(item.icon,

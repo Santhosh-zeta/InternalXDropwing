@@ -1,19 +1,18 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/router/app_router.dart';
+import 'package:logger/logger.dart';
+
+final _logger = Logger();
 
 // Global navigator key for handling navigation from background
 GlobalKey<NavigatorState>? navigatorKey;
 
 Future<void> initializeNotificationHandler() async {
-  final messaging = FirebaseMessaging.instance;
-
   // Handle foreground messages
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    print('Received foreground message: ${message.notification?.title}');
-    print('Message data: ${message.data}');
+    _logger.i('Received foreground message: ${message.notification?.title}');
+    _logger.d('Message data: ${message.data}');
 
     // Show local notification in app
     _showForegroundNotification(message);
@@ -21,7 +20,7 @@ Future<void> initializeNotificationHandler() async {
 
   // Handle message tapped while app is in background
   FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    print('Message tapped: ${message.data}');
+    _logger.i('Message tapped: ${message.data}');
     _handleMessageTap(message);
   });
 }
@@ -31,8 +30,8 @@ void _showForegroundNotification(RemoteMessage message) {
   if (notification != null) {
     // You can update UI here or show a custom in-app notification
     // For now, just logging
-    print('Notification Title: ${notification.title}');
-    print('Notification Body: ${notification.body}');
+    _logger.i('Notification Title: ${notification.title}');
+    _logger.d('Notification Body: ${notification.body}');
 
     // Could integrate with flutter_local_notifications here for custom UI
     // or update a notifications provider badge
@@ -44,7 +43,7 @@ void _handleMessageTap(RemoteMessage message) {
   final type = data['type'];
   final id = data['id'] ?? data['taskId'] ?? data['typeId'];
 
-  print('Navigation: type=$type, id=$id');
+  _logger.i('Navigation: type=$type, id=$id');
 
   // Navigate based on message type
   switch (type) {
@@ -64,7 +63,7 @@ void _handleMessageTap(RemoteMessage message) {
       navigatorKey?.currentState?.pushNamed('/notifications');
       break;
     default:
-      print('Unknown notification type: $type');
+      _logger.w('Unknown notification type: $type');
   }
 }
 
@@ -79,7 +78,7 @@ final fcmTokenProvider = FutureProvider<String?>((ref) async {
     final token = await FirebaseMessaging.instance.getToken();
     return token;
   } catch (e) {
-    print('Error getting FCM token: $e');
+    _logger.e('Error getting FCM token: $e');
     return null;
   }
 });

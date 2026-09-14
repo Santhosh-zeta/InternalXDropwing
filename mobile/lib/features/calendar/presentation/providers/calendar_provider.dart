@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/api/api_client.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../data/datasources/calendar_remote_data_source.dart';
 import '../../data/models/calendar_model.dart';
 

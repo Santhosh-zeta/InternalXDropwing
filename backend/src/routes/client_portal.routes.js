@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
+const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
 
 // GET /api/client-portal/overview — L9 clients only
-router.get('/overview', authenticate, async (req, res) => {
+router.get('/overview', authenticate, reportLimiter, async (req, res) => {
   try {
     const { accessLevel, ventureId, id: userId } = req.user;
     if (accessLevel !== 9) {

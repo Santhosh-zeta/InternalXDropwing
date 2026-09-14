@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/constants/access_levels.dart';
+
 class QuickActionsSection extends StatelessWidget {
   final int accessLevel;
 
   const QuickActionsSection({
-    Key? key,
+    super.key,
     required this.accessLevel,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -27,27 +29,31 @@ class QuickActionsSection extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: [
-            if (accessLevel >= 2) // Interns (1) have no creation privileges
+            // `POST /api/tasks` is requireLevel(7): interns (8) and clients (9)
+            // would get a 403, so they do not get the button.
+            if (AccessLevels.hasAtLeast(accessLevel, ApiAccess.createTask))
               _QuickActionButton(
                 icon: Icons.add_task,
                 label: 'Create Task',
                 color: Colors.blue,
                 onTap: () => context.push('/tasks/create'),
               ),
-            if (accessLevel >= 3)
+            // `POST /api/projects` is requireLevel(4) — CXO and above.
+            if (AccessLevels.hasAtLeast(accessLevel, ApiAccess.createProject))
               _QuickActionButton(
                 icon: Icons.create_new_folder,
                 label: 'Create Project',
                 color: Colors.purple,
                 onTap: () {}, // To be implemented later
               ),
-            if (accessLevel >= 2)
-              _QuickActionButton(
-                icon: Icons.upload_file,
-                label: 'Upload Document',
-                color: Colors.teal,
-                onTap: () {}, // To be implemented later
-              ),
+            // `POST /api/documents/upload` carries no level guard, so every
+            // authenticated user may upload.
+            _QuickActionButton(
+              icon: Icons.upload_file,
+              label: 'Upload Document',
+              color: Colors.teal,
+              onTap: () {}, // To be implemented later
+            ),
             _QuickActionButton(
               icon: Icons.task_alt,
               label: 'View Tasks',
@@ -83,9 +89,9 @@ class _QuickActionButton extends StatelessWidget {
         width: 100,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
         ),
         child: Column(
           children: [

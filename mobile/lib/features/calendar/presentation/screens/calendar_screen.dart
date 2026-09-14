@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../../../../core/constants/access_levels.dart';
 import '../../../../core/theme/nebula_colors.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/calendar_provider.dart';
-import '../../../profile/presentation/providers/profile_provider.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
   const CalendarScreen({super.key});
@@ -46,7 +46,6 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Widget build(BuildContext context) {
     final events = ref.watch(calendarNotifierProvider);
     final authState = ref.watch(authProvider);
-    final profileState = ref.watch(profileProvider);
 
     return Scaffold(
       backgroundColor: NebulaColors.background,
@@ -154,7 +153,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                 : null,
                             borderRadius: BorderRadius.circular(8),
                             color: isToday
-                                ? NebulaColors.primary.withOpacity(0.1)
+                                ? NebulaColors.primary.withValues(alpha: 0.1)
                                 : NebulaColors.background,
                           ),
                           child: Column(
@@ -189,9 +188,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   ),
                                 ),
                               if (dayEvents.length > 2)
-                                Text(
+                                const Text(
                                   '...',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     color: NebulaColors.textSecondary,
                                     fontSize: 10,
                                   ),
@@ -267,9 +266,13 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
             SingleChildScrollView(
               child: Column(
                 children: dayEvents.map<Widget>((event) {
+                  // Milestones live on projects, which `PUT /api/projects/:id`
+                  // gates at requireLevel(4) — CXO and above. Lower number
+                  // means more access.
                   final canMarkComplete =
                       authState.maybeWhen(
-                        authenticated: (user) => user.accessLevel >= 3,
+                        authenticated: (user) => AccessLevels.hasAtLeast(
+                            user.accessLevel, ApiAccess.updateProject),
                         orElse: () => false,
                       ) &&
                       event.type == 'milestone';
@@ -319,7 +322,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
-                                color: _getEventColor(event.type).withOpacity(0.2),
+                                color: _getEventColor(event.type).withValues(alpha: 0.2),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
@@ -359,7 +362,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                 decoration: BoxDecoration(
-                                  color: NebulaColors.primary.withOpacity(0.2),
+                                  color: NebulaColors.primary.withValues(alpha: 0.2),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Row(
@@ -407,8 +410,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                   decoration: BoxDecoration(
                                     color: event.completed
-                                        ? NebulaColors.success.withOpacity(0.2)
-                                        : NebulaColors.highlight.withOpacity(0.2),
+                                        ? NebulaColors.success.withValues(alpha: 0.2)
+                                        : NebulaColors.highlight.withValues(alpha: 0.2),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Row(

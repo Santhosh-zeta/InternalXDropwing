@@ -164,6 +164,9 @@ class ProjectModel {
   bool get isArchived => status == 'archived';
   bool get isCompleted => status == 'completed';
   bool get isActive => status == 'active';
+
+  /// Not yet started and not shelved — needs a decision or a kickoff.
+  bool get isPending => status == 'planning' || status == 'on-hold';
 }
 
 class ProjectRequestDto {

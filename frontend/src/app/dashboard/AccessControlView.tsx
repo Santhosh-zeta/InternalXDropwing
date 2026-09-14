@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { User } from '@/lib/constants';
 import { getAccessLevels, updateLevelPermissions, get2FAConfig, update2FAConfig } from '@/lib/api';
 import toast from 'react-hot-toast';
-import { ShieldCheck, Save, RotateCcw, Crown, AlertCircle, Lock } from 'lucide-react';
+import { ShieldCheck, Save, RotateCcw, Crown, AlertCircle, Lock, RefreshCw } from 'lucide-react';
 import { Button, Card, EmptyState, SkeletonCard, useConfirm } from '@/components/ui';
 
 interface AccessLevel { level_number: number; level_name: string; description: string; permissions: Record<string, boolean>; }
@@ -60,6 +60,7 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
   const [perms, setPerms] = useState<Record<string, boolean>>({});
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [enable2FA, setEnable2FA] = useState(true);
   const [toggling2FA, setToggling2FA] = useState(false);
@@ -92,17 +93,36 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
         setLevels(enriched);
         const firstSelected = enriched.find((l: AccessLevel) => l.level_number === selectedLevel);
         if (firstSelected) setPerms(firstSelected.permissions);
+        setError(null);
+      } else {
+        throw new Error('Request was not successful');
       }
     } catch {
-      toast.error('Failed to load access control settings. Showing defaults.');
-      const mock = [2, 3, 4, 5, 6, 7, 8, 9].map(n => ({
-        level_number: n, level_name: ['Managing Director', 'Admin', 'CXO', 'Manager', 'Executive Staff', 'Staff', 'Intern', 'Client'][n - 2], description: '', permissions: DEFAULT_PERMISSIONS[n] || {},
-      }));
-      setLevels(mock); setPerms(DEFAULT_PERMISSIONS[2] || {});
+      // Previously fell back to a client-fabricated list of levels and
+      // permissions and rendered it as if it were the real matrix — a Super
+      // Admin editing "defaults" here could believe they were viewing and
+      // saving actual configuration. Show a real error instead.
+      setError('Could not load access control settings. Check your connection and try again.');
     } finally { setLoading(false); }
+    // `selectedLevel` is read only to pick which level's permissions to
+    // preload — captured once is intentional, so it is deliberately left out
+    // of the dependency list rather than making the whole fetch re-run on
+    // every level switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => { fetchLevels(); }, [fetchLevels]);
+  const retry = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void fetchLevels();
+  }, [fetchLevels]);
+
+  useEffect(() => {
+    // The loader's first statement is an `await`, so no setState runs
+    // synchronously here — the rule cannot see past the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void fetchLevels();
+  }, [fetchLevels]);
 
   const handleSelectLevel = async (n: number) => {
     if (dirty) {
@@ -176,6 +196,26 @@ export default function AccessControlView({ currentUser }: { currentUser: User }
           <SkeletonCard />
         </div>
       </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        tone="error"
+        icon={<ShieldCheck size={22} aria-hidden="true" />}
+        title="Access control unavailable"
+        description={error}
+        action={
+          <Button
+            variant="primary"
+            leadingIcon={<RefreshCw size={16} aria-hidden="true" />}
+            onClick={retry}
+          >
+            Try again
+          </Button>
+        }
+      />
     );
   }
 

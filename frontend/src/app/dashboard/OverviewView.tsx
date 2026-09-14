@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { User, VENTURES } from '@/lib/constants';
 import { getTasks, getUsers, getAnalytics } from '@/lib/api';
 import {
@@ -11,11 +11,35 @@ import {
 import {
   Users, Clock, CheckCircle, Activity,
   Rocket, HardDrive, LineChart as LineChartIcon, Settings2,
-  CheckCircle2, Megaphone, Bell, LayoutDashboard
+  CheckCircle2, Megaphone, Bell, LayoutDashboard, RotateCcw
 } from 'lucide-react';
 import {
-  Card, CardHeader, StatCard, EmptyState, Skeleton, SkeletonCard, tint,
+  Button, Card, CardHeader, StatCard, EmptyState, Skeleton, SkeletonCard, tint,
 } from '@/components/ui';
+
+/**
+ * Shapes as the API actually returns them — snake_case, straight from the SQL
+ * (`task.controller.js` getTasks, `user.routes.js` GET /). This file previously
+ * read camelCase keys (`ventureId`, `assignedToId`, `dueDate`, `fullName`) that
+ * no endpoint emits, so every derived figure below silently evaluated to zero.
+ */
+interface DashboardTask {
+  id: number;
+  title: string;
+  status: 'pending' | 'in-progress' | 'completed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  due_date: string | null;
+  venture_id: number | null;
+  assigned_to: number | null;
+  assignees: { id: number; name: string; avatar: string | null }[] | null;
+}
+
+interface DashboardUser {
+  id: number;
+  full_name: string;
+  designation: string | null;
+  venture_id: number | null;
+}
 
 const TOOLTIP_STYLE = {
   backgroundColor: 'var(--color-bg-card)',
@@ -38,6 +62,13 @@ function describeSeries(
 }
 
 const money = (value: any) => `$${Number(value ?? 0).toLocaleString()}`;
+
+const PRIORITY_DOT: Record<DashboardTask['priority'], string> = {
+  low: 'var(--color-emerald)',
+  medium: 'var(--color-amber)',
+  high: 'var(--color-rose)',
+  urgent: 'var(--color-rose)',
+};
 
 /** Skeleton shaped like the real dashboard: a tile row above a chart grid. */
 function DashboardSkeleton() {
@@ -99,26 +130,67 @@ function ActivityFeed({ items, accent }: { items: any[]; accent: string }) {
 }
 
 export default function OverviewView({ currentUser }: { currentUser: User }) {
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
+  const [tasks, setTasks] = useState<DashboardTask[]>([]);
+  const [users, setUsers] = useState<DashboardUser[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadDashboard = useCallback(async () => {
+    const [tasksRes, usersRes, analyticsRes] = await Promise.allSettled([
+      getTasks(),
+      getUsers(),
+      getAnalytics(),
+    ]);
+
+    setTasks(tasksRes.status === 'fulfilled' ? tasksRes.value?.data ?? [] : []);
+    setUsers(usersRes.status === 'fulfilled' ? usersRes.value?.data ?? [] : []);
+    setAnalytics(analyticsRes.status === 'fulfilled' ? analyticsRes.value?.data ?? null : null);
+
+    // Every panel on this page is driven by these three calls. When all three
+    // fail the page previously rendered as a fully populated dashboard reading
+    // zero everywhere, which is indistinguishable from a genuinely empty
+    // workspace. Say so instead.
+    const allFailed = [tasksRes, usersRes, analyticsRes].every(r => r.status === 'rejected');
+    setError(allFailed ? 'Could not reach the workspace API. Check your connection and try again.' : null);
+    setLoading(false);
+  }, []);
+
+  const retry = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    void loadDashboard();
+  }, [loadDashboard]);
 
   useEffect(() => {
-    Promise.all([
-      getTasks().catch(() => ({ success: false, data: [] })),
-      getUsers().catch(() => ({ success: false, data: [] })),
-      getAnalytics().catch(() => ({ success: false, data: null }))
-    ]).then(([tasksRes, usersRes, analyticsRes]) => {
-      setTasks(tasksRes?.data || []);
-      setUsers(usersRes?.data || []);
-      setAnalytics(analyticsRes?.data || null);
-      setLoading(false);
-    });
-  }, []);
+    // The loader's first statement is an `await`, so no setState runs
+    // synchronously here — the rule cannot see past the async boundary.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadDashboard();
+  }, [loadDashboard]);
 
   if (loading) {
     return <DashboardSkeleton />;
+  }
+
+  if (error) {
+    return (
+      <EmptyState
+        tone="error"
+        icon={<Activity size={22} aria-hidden="true" />}
+        title="Dashboard unavailable"
+        description={error}
+        action={
+          <Button
+            variant="primary"
+            leadingIcon={<RotateCcw size={16} aria-hidden="true" />}
+            onClick={retry}
+          >
+            Try again
+          </Button>
+        }
+      />
+    );
   }
 
   if (currentUser.accessLevel <= 2) {
@@ -132,9 +204,8 @@ export default function OverviewView({ currentUser }: { currentUser: User }) {
   return <PersonalDashboard currentUser={currentUser} tasks={tasks} analytics={analytics} />;
 }
 
-function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any[], analytics: any }) {
+function GlobalDashboard({ users, tasks, analytics }: { users: DashboardUser[], tasks: DashboardTask[], analytics: any }) {
   const totalUsers = users.length;
-  const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === 'completed').length;
   const inProgressTasks = tasks.filter(t => t.status === 'in-progress').length;
   const pendingTasks = tasks.filter(t => t.status === 'pending').length;
@@ -150,7 +221,9 @@ function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any
         <StatCard label="Total Employees" value={totalUsers} icon={<Users size={18} />} accent="var(--color-purple-glow)" />
         <StatCard label="Active Tasks" value={inProgressTasks} icon={<Clock size={18} />} accent="var(--color-cyan)" />
         <StatCard label="Completed Tasks" value={completedTasks} icon={<CheckCircle size={18} />} accent="var(--color-emerald)" />
-        <StatCard label="System Health" value="99.8%" icon={<Activity size={18} />} accent="var(--color-amber)" />
+        {/* Replaces a hard-coded "System Health 99.8%" tile. No endpoint reports
+            uptime, so the slot shows a figure the API can actually back. */}
+        <StatCard label="Pending Tasks" value={pendingTasks} icon={<Activity size={18} />} accent="var(--color-amber)" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -260,12 +333,16 @@ function GlobalDashboard({ users, tasks, analytics }: { users: any[], tasks: any
   );
 }
 
-function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUser: User, users: any[], tasks: any[], analytics: any }) {
-  const ventureSlug = currentUser.venture?.slug || 'dropwing';
+function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUser: User, users: DashboardUser[], tasks: DashboardTask[], analytics: any }) {
   const ventureColor = currentUser.venture?.primaryColor || 'var(--color-purple-glow)';
+  const ventureId = currentUser.venture?.id ?? null;
 
-  const ventureUsers = users.filter(u => u.ventureId === ventureSlug || u.venture?.slug === ventureSlug);
-  const ventureTasks = tasks.filter(t => t.ventureId === ventureSlug);
+  // Both endpoints already scope to the caller's venture server-side, so when
+  // the user has no venture every row they can see is in scope. The previous
+  // filters compared a numeric `venture_id` against a venture *slug* under a
+  // key (`ventureId`) the API never sends, so both lists were always empty.
+  const ventureUsers = ventureId === null ? users : users.filter(u => u.venture_id === ventureId);
+  const ventureTasks = ventureId === null ? tasks : tasks.filter(t => t.venture_id === ventureId);
 
   const inProgress = ventureTasks.filter(t => t.status === 'in-progress').length;
   const completed = ventureTasks.filter(t => t.status === 'completed').length;
@@ -297,7 +374,7 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Team Members" value={ventureUsers.length || 0} icon={<Users size={18} />} accent={ventureColor} />
-        <StatCard label="Active Projects" value={inProgress} icon={<Activity size={18} />} accent="var(--color-amber)" />
+        <StatCard label="Tasks In Progress" value={inProgress} icon={<Activity size={18} />} accent="var(--color-amber)" />
         <StatCard label="Tasks Completed" value={completed} icon={<CheckCircle size={18} />} accent="var(--color-emerald)" />
       </div>
 
@@ -349,10 +426,10 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
                     className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--color-border)] text-sm font-bold"
                     style={{ background: tint(ventureColor, 8), color: ventureColor }}
                   >
-                    {u.fullName?.charAt(0) || 'U'}
+                    {u.full_name?.charAt(0) || 'U'}
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{u.fullName}</div>
+                    <div className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{u.full_name}</div>
                     <div className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">{u.designation || 'Staff'}</div>
                   </div>
                 </div>
@@ -370,8 +447,13 @@ function VentureDashboard({ currentUser, users, tasks, analytics }: { currentUse
   );
 }
 
-function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: User, tasks: any[], analytics: any }) {
-  const myTasks = tasks.filter(t => t.assignedToId === currentUser.id || t.assignedTo?.id === currentUser.id);
+function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: User, tasks: DashboardTask[], analytics: any }) {
+  // getTasks returns the owner as `assigned_to` plus an `assignees` array; it
+  // has no `assignedToId`/`assignedTo`, so this list used to be empty for
+  // everyone and all three tiles below read zero.
+  const myTasks = tasks.filter(
+    t => t.assigned_to === currentUser.id || (t.assignees ?? []).some(a => a.id === currentUser.id),
+  );
   const inProgress = myTasks.filter(t => t.status === 'in-progress');
   const todo = myTasks.filter(t => t.status === 'pending');
 
@@ -385,7 +467,7 @@ function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: Use
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="My To-Do Tasks" value={todo.length} icon={<CheckCircle size={18} />} accent="var(--color-amber)" />
         <StatCard label="In Progress" value={inProgress.length} icon={<Clock size={18} />} accent="var(--color-cyan)" />
-        <StatCard label="Upcoming Deadlines" value={myTasks.filter(t => t.dueDate && new Date(t.dueDate) > new Date()).length} icon={<Activity size={18} />} accent="var(--color-rose)" />
+        <StatCard label="Upcoming Deadlines" value={myTasks.filter(t => t.due_date && new Date(t.due_date) > new Date()).length} icon={<Activity size={18} />} accent="var(--color-rose)" />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -440,15 +522,13 @@ function PersonalDashboard({ currentUser, tasks, analytics }: { currentUser: Use
                           aria-hidden="true"
                           className="h-1.5 w-1.5 rounded-full"
                           style={{
-                            background:
-                              t.priority === 'High'
-                                ? 'var(--color-rose)'
-                                : t.priority === 'Medium'
-                                  ? 'var(--color-amber)'
-                                  : 'var(--color-emerald)',
+                            // task_priority enum is lowercase ('high' /
+                            // 'medium' / 'low' / 'urgent'), so the capitalised
+                            // comparisons this replaced never matched.
+                            background: PRIORITY_DOT[t.priority] ?? 'var(--color-emerald)',
                           }}
                         />
-                        {t.priority} Priority
+                        <span className="capitalize">{t.priority}</span> Priority
                       </span>
                     </div>
                   </div>

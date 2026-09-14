@@ -27,6 +27,8 @@ import DatabaseView from './DatabaseView';
 import LearningHubView from './LearningHubView';
 import StrategyView from './StrategyView';
 import RoleManagementView from './RoleManagementView';
+import CalendarView from './CalendarView';
+import ApprovalsView from './ApprovalsView';
 import { SocketProvider } from '@/components/SocketProvider';
 
 import {
@@ -34,7 +36,8 @@ import {
   ShieldCheck, Activity, MessageSquare, BookOpen, Settings,
   FileText, Database, BarChart3, TrendingUp, DollarSign,
   PieChart, Briefcase, FileSignature, LogOut, Search, Loader2,
-  User as UserIcon, Building2, Crown, Lock, Menu, X
+  User as UserIcon, Building2, Crown, Lock, Menu, X,
+  CalendarDays, ClipboardCheck
 } from 'lucide-react';
 
 const LEVEL_COLORS: Record<number, string> = {
@@ -44,14 +47,14 @@ const LEVEL_COLORS: Record<number, string> = {
 };
 
 const ACCESS_MENUS: Record<number, string[]> = {
-  1: ['System Overview', 'Projects', 'Tasks', 'Documents', 'User Management', 'Role Management', 'Access Control', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Database', 'Reports'],
-  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Documents', 'Strategy', 'Role Management', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
-  3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Documents', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
-  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Documents', 'Team Management', 'Role Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
-  5: ['Team Dashboard', 'Projects', 'Tasks', 'Documents', 'Team Members', 'Team Chat', 'Learning Hub', 'Settings', 'Reports'],
-  6: ['My Projects', 'Tasks', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
-  7: ['My Dashboard', 'My Projects', 'My Tasks', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
-  8: ['My Dashboard', 'My Projects', 'My Tasks', 'Documents', 'Learning Hub', 'Team Chat', 'Settings'],
+  1: ['System Overview', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'User Management', 'Role Management', 'Access Control', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Database', 'Reports'],
+  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Strategy', 'Role Management', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
+  3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
+  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Management', 'Role Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
+  5: ['Team Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Members', 'Team Chat', 'Learning Hub', 'Settings', 'Reports'],
+  6: ['My Projects', 'Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
+  7: ['My Dashboard', 'My Projects', 'My Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
+  8: ['My Dashboard', 'My Projects', 'My Tasks', 'Calendar', 'Documents', 'Learning Hub', 'Team Chat', 'Settings'],
   9: ['Project Status', 'My Tasks', 'Documents', 'Deliverables', 'Invoices', 'Messages', 'Settings'],
 };
 
@@ -96,7 +99,9 @@ const MENU_ICONS: Record<string, React.ElementType> = {
   'Budget': DollarSign,
   'HR Overview': PieChart,
   'Department KPIs': PieChart,
-  'Timesheets': Briefcase
+  'Timesheets': Briefcase,
+  'Calendar': CalendarDays,
+  'Approvals': ClipboardCheck
 };
 
 export default function DashboardPage() {
@@ -610,6 +615,10 @@ export default function DashboardPage() {
               <DocumentsView currentUser={user} />
             ) : currentMenu === 'Timesheets' ? (
               <TimesheetsView currentUser={user} />
+            ) : currentMenu === 'Calendar' ? (
+              <CalendarView currentUser={user} />
+            ) : currentMenu === 'Approvals' ? (
+              <ApprovalsView currentUser={user} />
             ) : currentMenu === 'Strategy' ? (
               <StrategyView currentUser={user} />
             ) : currentMenu === 'Financials' || currentMenu === 'Budget' ? (

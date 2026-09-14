@@ -1,3 +1,5 @@
+import '../../../core/constants/access_levels.dart';
+
 class TeamMember {
   final int id;
   final String employeeId;
@@ -62,10 +64,12 @@ class TeamMember {
 
   /// Role bucket for filter chips
   String get roleBucket {
-    if (accessLevel <= 2) return 'super_admin';
-    if (accessLevel <= 4) return 'admin';
-    if (accessLevel == 5) return 'manager';
-    if (accessLevel <= 7) return 'staff';
+    if (AccessLevels.hasAtLeast(accessLevel, AccessLevels.managingDirector)) {
+      return 'super_admin';
+    }
+    if (AccessLevels.hasAtLeast(accessLevel, AccessLevels.cxo)) return 'admin';
+    if (accessLevel == AccessLevels.manager) return 'manager';
+    if (AccessLevels.hasAtLeast(accessLevel, AccessLevels.staff)) return 'staff';
     return 'intern';
   }
 }

@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
+const { twoFactorConfigRules, updateAccessLevelRules } = require('../middleware/validate.middleware');
 
 // GET /api/access-control — Get all access levels with their permissions (L1 only)
 router.get('/', authenticate, requireLevel(1), async (req, res) => {
@@ -47,7 +48,7 @@ router.get('/2fa-config', authenticate, requireLevel(1), (req, res) => {
 });
 
 // PUT /api/access-control/2fa-config — Update 2FA status (L1 only)
-router.put('/2fa-config', authenticate, requireLevel(1), async (req, res) => {
+router.put('/2fa-config', authenticate, requireLevel(1), twoFactorConfigRules, async (req, res) => {
   try {
     const fs = require('fs');
     const path = require('path');
@@ -71,7 +72,7 @@ router.put('/2fa-config', authenticate, requireLevel(1), async (req, res) => {
 });
 
 // PUT /api/access-control/:level — Update permissions for a specific level (L1 only)
-router.put('/:level', authenticate, requireLevel(1), async (req, res) => {
+router.put('/:level', authenticate, requireLevel(1), updateAccessLevelRules, async (req, res) => {
   try {
     const levelNumber = parseInt(req.params.level);
     if (levelNumber === 1) {

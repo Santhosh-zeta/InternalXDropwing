@@ -3,6 +3,11 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
+const {
+  createProjectRules,
+  updateProjectRules,
+  projectIdRules,
+} = require('../middleware/validate.middleware');
 
 // GET /api/projects — List projects based on access level
 router.get('/', authenticate, async (req, res) => {
@@ -50,7 +55,7 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // GET /api/projects/:id — Get single project details
-router.get('/:id', authenticate, async (req, res) => {
+router.get('/:id', authenticate, projectIdRules, async (req, res) => {
   try {
     const [projects] = await pool.query(`
       SELECT p.*, v.name AS venture_name, v.primary_color AS venture_color, u.full_name AS created_by_name
@@ -93,7 +98,7 @@ router.get('/:id', authenticate, async (req, res) => {
 });
 
 // POST /api/projects — Create a project
-router.post('/', authenticate, requireLevel(4), async (req, res) => {
+router.post('/', authenticate, requireLevel(4), createProjectRules, async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -145,7 +150,7 @@ router.post('/', authenticate, requireLevel(4), async (req, res) => {
 });
 
 // PUT /api/projects/:id — Update a project
-router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
+router.put('/:id', authenticate, requireLevel(4), updateProjectRules, async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
@@ -215,7 +220,7 @@ router.put('/:id', authenticate, requireLevel(4), async (req, res) => {
 });
 
 // DELETE /api/projects/:id
-router.delete('/:id', authenticate, requireLevel(3), async (req, res) => {
+router.delete('/:id', authenticate, requireLevel(3), projectIdRules, async (req, res) => {
   try {
     const projectId = req.params.id;
     const [existing] = await pool.query('SELECT venture_id FROM projects WHERE id = ?', [projectId]);

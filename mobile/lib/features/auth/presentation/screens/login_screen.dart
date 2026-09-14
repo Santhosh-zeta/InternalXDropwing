@@ -5,8 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
-import '../../../core/theme/nebula_colors.dart';
-import '../../../core/theme/nebula_animations.dart';
+import '../../../../core/theme/nebula_colors.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -108,7 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               boxShadow: [
                                 BoxShadow(
                                   color:
-                                      NebulaColors.primary.withOpacity(0.6),
+                                      NebulaColors.primary.withValues(alpha: 0.6),
                                   blurRadius: 15,
                                 ),
                               ],
@@ -135,15 +134,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     // Form Container with Glassmorphism
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.white.withValues(alpha: 0.05),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.1),
+                          color: Colors.white.withValues(alpha: 0.1),
                           width: 1,
                         ),
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.3),
+                            color: Colors.black.withValues(alpha: 0.3),
                             blurRadius: 20,
                             offset: const Offset(0, 8),
                           ),
@@ -173,17 +172,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 fontSize: 14,
                               ),
                               filled: true,
-                              fillColor: Colors.white.withOpacity(0.05),
+                              fillColor: Colors.white.withValues(alpha: 0.05),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
@@ -229,17 +228,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 fontSize: 14,
                               ),
                               filled: true,
-                              fillColor: Colors.white.withOpacity(0.05),
+                              fillColor: Colors.white.withValues(alpha: 0.05),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                 ),
                               ),
                               enabledBorder: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
-                                  color: Colors.white.withOpacity(0.1),
+                                  color: Colors.white.withValues(alpha: 0.1),
                                 ),
                               ),
                               focusedBorder: OutlineInputBorder(
@@ -300,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               backgroundColor: NebulaColors.primary,
                               foregroundColor: Colors.white,
                               disabledBackgroundColor:
-                                  NebulaColors.primary.withOpacity(0.5),
+                                  NebulaColors.primary.withValues(alpha: 0.5),
                               padding:
                                   const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(
@@ -309,12 +308,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               elevation: 0,
                             ),
                             child: isLoading
-                                ? SizedBox(
+                                ? const SizedBox(
                                     height: 20,
                                     width: 20,
                                     child: CircularProgressIndicator(
                                       valueColor:
-                                          const AlwaysStoppedAnimation<Color>(
+                                          AlwaysStoppedAnimation<Color>(
                                               Colors.white),
                                       strokeWidth: 2,
                                     ),
@@ -365,7 +364,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       'Powered by Dropwing Groups',
                       style: GoogleFonts.inter(
                         fontSize: 12,
-                        color: NebulaColors.textSecondary.withOpacity(0.7),
+                        color: NebulaColors.textSecondary.withValues(alpha: 0.7),
                         fontWeight: FontWeight.w400,
                       ),
                       textAlign: TextAlign.center,
@@ -440,9 +439,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         size: 16,
         color: NebulaColors.primary,
       ),
-      backgroundColor: Colors.white.withOpacity(0.05),
+      backgroundColor: Colors.white.withValues(alpha: 0.05),
       side: BorderSide(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
       ),
       onPressed: () {
         _emailController.text = email;

@@ -59,7 +59,7 @@ class TaskListScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: projectsAsync.when(
                   data: (projects) => DropdownButtonFormField<int?>(
-                    value: currentProjectFilter,
+                    initialValue: currentProjectFilter,
                     decoration: InputDecoration(
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       filled: true,
@@ -220,7 +220,7 @@ class _TaskCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -263,7 +263,7 @@ class _TaskCard extends ConsumerWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(

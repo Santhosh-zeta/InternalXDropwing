@@ -1,21 +1,25 @@
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../../../../core/theme/nebula_colors.dart';
-import '../../../../core/theme/nebula_animations.dart';
 
 class NebulaHeroOrb extends StatefulWidget {
-  final int healthPercentage;
+  /// Share of this user's visible tasks that are complete, 0–100.
+  ///
+  /// There is no "organization health" metric anywhere in the API — this
+  /// used to be a hardcoded 92 wearing that label. A real completion rate,
+  /// honestly labeled, is what the orb now shows.
+  final int completionRate;
   final int activeVentures;
   final int runningProjects;
   final int openTasks;
 
   const NebulaHeroOrb({
-    Key? key,
-    required this.healthPercentage,
+    super.key,
+    required this.completionRate,
     required this.activeVentures,
     required this.runningProjects,
     required this.openTasks,
-  }) : super(key: key);
+  });
 
   @override
   State<NebulaHeroOrb> createState() => _NebulaHeroOrbState();
@@ -44,7 +48,7 @@ class _NebulaHeroOrbState extends State<NebulaHeroOrb> with SingleTickerProvider
     return Column(
       children: [
         const Text(
-          'ORGANIZATION HEALTH',
+          'TASK COMPLETION RATE',
           style: TextStyle(
             color: NebulaColors.textSecondary,
             letterSpacing: 3,
@@ -64,7 +68,7 @@ class _NebulaHeroOrbState extends State<NebulaHeroOrb> with SingleTickerProvider
                 builder: (context, child) {
                   return CustomPaint(
                     size: const Size(200, 200),
-                    painter: _OrbPainter(_controller.value, widget.healthPercentage),
+                    painter: _OrbPainter(_controller.value, widget.completionRate),
                   );
                 },
               ),
@@ -72,7 +76,7 @@ class _NebulaHeroOrbState extends State<NebulaHeroOrb> with SingleTickerProvider
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    '${widget.healthPercentage}%',
+                    '${widget.completionRate}%',
                     style: const TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.w300,
@@ -91,16 +95,16 @@ class _NebulaHeroOrbState extends State<NebulaHeroOrb> with SingleTickerProvider
             Container(
               width: 8,
               height: 8,
-              decoration: const BoxDecoration(
-                color: NebulaColors.success,
+              decoration: BoxDecoration(
+                color: _statusColor,
                 shape: BoxShape.circle,
               ),
             ),
             const SizedBox(width: 8),
-            const Text(
-              'Healthy',
+            Text(
+              _statusLabel,
               style: TextStyle(
-                color: NebulaColors.success,
+                color: _statusColor,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -117,6 +121,20 @@ class _NebulaHeroOrbState extends State<NebulaHeroOrb> with SingleTickerProvider
         )
       ],
     );
+  }
+
+  /// Status label/color derived from the real completion rate above —
+  /// never a static claim the number doesn't back up.
+  String get _statusLabel {
+    if (widget.completionRate >= 80) return 'On Track';
+    if (widget.completionRate >= 50) return 'In Progress';
+    return 'Needs Attention';
+  }
+
+  Color get _statusColor {
+    if (widget.completionRate >= 80) return NebulaColors.success;
+    if (widget.completionRate >= 50) return NebulaColors.warning;
+    return NebulaColors.critical;
   }
 }
 
@@ -171,7 +189,7 @@ class _OrbPainter extends CustomPainter {
       final paint = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2
-        ..color = NebulaColors.primary.withOpacity(0.1 + (math.sin(offset) * 0.1).abs())
+        ..color = NebulaColors.primary.withValues(alpha: 0.1 + (math.sin(offset) * 0.1).abs())
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
 
       canvas.drawCircle(center, ringRadius, paint);

@@ -6,7 +6,7 @@ import '../../../../core/theme/nebula_colors.dart';
 class AiExecutiveAssistant extends StatelessWidget {
   final String userName;
 
-  const AiExecutiveAssistant({Key? key, required this.userName}) : super(key: key);
+  const AiExecutiveAssistant({super.key, required this.userName});
 
   @override
   Widget build(BuildContext context) {
@@ -17,9 +17,9 @@ class AiExecutiveAssistant extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: NebulaColors.primary.withOpacity(0.1),
+            color: NebulaColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: NebulaColors.primary.withOpacity(0.3)),
+            border: Border.all(color: NebulaColors.primary.withValues(alpha: 0.3)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,7 +29,7 @@ class AiExecutiveAssistant extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: NebulaColors.primary.withOpacity(0.2),
+                      color: NebulaColors.primary.withValues(alpha: 0.2),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(LucideIcons.sparkles, color: NebulaColors.highlight, size: 20),
@@ -66,7 +66,7 @@ class AiExecutiveAssistant extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.white.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: const Row(
