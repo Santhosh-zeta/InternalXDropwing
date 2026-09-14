@@ -27,8 +27,14 @@ class DocumentsRemoteDataSource {
     }
   }
 
+  /// [onSendProgress] reports bytes sent / total so the upload sheet can show
+  /// a real figure. Dio reports `total` as -1 when the length is unknown; the
+  /// caller is expected to ignore those, rather than render a made-up number.
   Future<DocumentModel> uploadDocument(
-      String filePath, String fileName) async {
+    String filePath,
+    String fileName, {
+    void Function(int sent, int total)? onSendProgress,
+  }) async {
     try {
       final formData = FormData.fromMap({
         'file': await MultipartFile.fromFile(filePath, filename: fileName),
@@ -37,6 +43,7 @@ class DocumentsRemoteDataSource {
       final response = await _dio.post(
         '/documents/upload',
         data: formData,
+        onSendProgress: onSendProgress,
         options: Options(
           headers: {'Content-Type': 'multipart/form-data'},
         ),

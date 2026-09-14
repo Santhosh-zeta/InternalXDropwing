@@ -1,195 +1,120 @@
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:intl/intl.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:file_picker/file_picker.dart';
-import 'dart:io';
-import '../../../../core/theme/nebula_colors.dart';
-import '../providers/documents_provider.dart';
+
+import '../../../../core/rbac/permissions.dart';
+import '../../../../core/rbac/rbac_widgets.dart';
+import '../../../../core/theme/nebula_spacing.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/data_display.dart';
+import '../../../../core/widgets/motion.dart';
+import '../../../../core/widgets/primitives.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../data/models/document_model.dart';
+import '../providers/documents_provider.dart';
 
 class DocumentsScreen extends ConsumerWidget {
   const DocumentsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final docsAsync = ref.watch(documentsProvider);
-
     return Scaffold(
-      backgroundColor: NebulaColors.background,
       appBar: AppBar(
-        title: const Text('Documents',
-            style: TextStyle(
-                fontWeight: FontWeight.w600, color: NebulaColors.textPrimary)),
-        backgroundColor: NebulaColors.surfaceCard,
-        elevation: 0,
+        title: const Text('Documents'),
         centerTitle: false,
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _handleFileUpload(context, ref),
-        backgroundColor: NebulaColors.primary,
-        child: const Icon(LucideIcons.plus),
-      ),
-      body: docsAsync.when(
-        data: (docs) {
-          if (docs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(LucideIcons.fileX,
-                      size: 64,
-                      color: NebulaColors.textSecondary.withValues(alpha: 0.4)),
-                  const SizedBox(height: 16),
-                  const Text('No documents yet',
-                      style: TextStyle(
-                          color: NebulaColors.textSecondary, fontSize: 16)),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () => _handleFileUpload(context, ref),
-                    icon: const Icon(LucideIcons.upload),
-                    label: const Text('Upload Document'),
-                  ),
-                ],
-              ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () => ref.read(documentsProvider.notifier).refresh(),
-            child: ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: docs.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) =>
-                  _DocumentTile(doc: docs[index]),
-            ),
-          );
-        },
-        loading: () => const Center(
-            child: CircularProgressIndicator(color: NebulaColors.primary)),
-        error: (e, st) => Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(LucideIcons.alertCircle,
-                  size: 48, color: NebulaColors.critical),
-              const SizedBox(height: 12),
-              Text(e.toString(),
-                  style: const TextStyle(color: NebulaColors.textSecondary),
-                  textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: () => ref.invalidate(documentsProvider),
-                icon: const Icon(LucideIcons.refreshCw),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
+      // Upload is `manageDocuments` (staff and above). Hidden, not disabled —
+      // a greyed-out button invites a support ticket.
+      floatingActionButton: PermissionGate(
+        permission: Permission.manageDocuments,
+        child: FloatingActionButton(
+          onPressed: () => _pickAndUpload(context, ref),
+          child: const Icon(LucideIcons.plus),
         ),
       ),
-    );
-  }
-
-  Future<void> _handleFileUpload(BuildContext context, WidgetRef ref) async {
-    try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif'],
-      );
-
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        final filePath = file.path;
-        final fileName = file.name;
-
-        if (!context.mounted) return;
-
-        // FilePicker leaves `path` null on platforms that only hand back bytes
-        // (web). Uploading needs a real file on disk, so bail out clearly.
-        if (filePath == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('This file could not be read from disk'),
-              backgroundColor: NebulaColors.critical,
-            ),
-          );
-          return;
-        }
-
-        _showUploadBottomSheet(context, ref, filePath, fileName);
-      }
-    } catch (e) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error picking file: $e'),
-          backgroundColor: NebulaColors.critical,
-        ),
-      );
-    }
-  }
-
-  void _showUploadBottomSheet(
-    BuildContext context,
-    WidgetRef ref,
-    String filePath,
-    String fileName,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: NebulaColors.surfaceCard,
-      builder: (context) => _UploadBottomSheet(
-        filePath: filePath,
-        fileName: fileName,
-        onUpload: (onProgress) async {
-          final success = await ref
-              .read(documentsProvider.notifier)
-              .uploadDocument(filePath, fileName);
-
-          if (!context.mounted) return;
-
-          Navigator.pop(context);
-
-          if (success) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Document uploaded successfully'),
-                backgroundColor: NebulaColors.success,
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text('Failed to upload document'),
-                backgroundColor: NebulaColors.critical,
-                action: SnackBarAction(
-                  label: 'Retry',
-                  onPressed: () => _handleFileUpload(context, ref),
-                ),
-              ),
-            );
-          }
-        },
+      body: const PermissionScope(
+        permission: Permission.viewDocuments,
+        what: 'documents',
+        child: _DocumentsBody(),
       ),
     );
   }
 }
 
-class _DocumentTile extends ConsumerWidget {
+class _DocumentsBody extends ConsumerWidget {
+  const _DocumentsBody();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final docsAsync = ref.watch(documentsProvider);
+
+    return docsAsync.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.all(NebulaSpacing.md),
+        child: ListSkeleton(),
+      ),
+      error: (error, _) => ErrorStateView(
+        message: readableError(error),
+        onRetry: () => ref.invalidate(documentsProvider),
+      ),
+      data: (docs) {
+        if (docs.isEmpty) {
+          return EmptyStateView(
+            icon: LucideIcons.fileX,
+            title: 'No documents yet',
+            message: 'Files shared with you will be listed here.',
+            action: PermissionGate(
+              permission: Permission.manageDocuments,
+              child: OutlinedButton.icon(
+                onPressed: () => _pickAndUpload(context, ref),
+                icon: const Icon(LucideIcons.upload, size: 15),
+                label: const Text('Upload a document'),
+              ),
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: () => ref.read(documentsProvider.notifier).refresh(),
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(
+              NebulaSpacing.md,
+              NebulaSpacing.md,
+              NebulaSpacing.md,
+              NebulaSpacing.xxl,
+            ),
+            itemCount: docs.length,
+            separatorBuilder: (_, __) =>
+                const SizedBox(height: NebulaSpacing.sm),
+            itemBuilder: (context, index) => StaggerIn(
+              index: index,
+              child: _DocumentRow(doc: docs[index]),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DocumentRow extends ConsumerWidget {
+  const _DocumentRow({required this.doc});
+
   final DocumentModel doc;
 
-  const _DocumentTile({required this.doc});
-
-  IconData _iconForType() {
+  IconData get _icon {
     if (doc.isPdf) return LucideIcons.fileText;
     if (doc.isImage) return LucideIcons.image;
     if (doc.isVideo) return LucideIcons.video;
     switch (doc.extension) {
       case 'doc':
       case 'docx':
-        return LucideIcons.fileEdit;
+        return LucideIcons.filePen;
       case 'xls':
       case 'xlsx':
         return LucideIcons.table;
@@ -201,160 +126,193 @@ class _DocumentTile extends ConsumerWidget {
     }
   }
 
-  Color _colorForType() {
-    if (doc.isPdf) return NebulaColors.critical;
-    if (doc.isImage) return NebulaColors.highlight;
-    if (doc.isVideo) return NebulaColors.primary;
-    switch (doc.extension) {
-      case 'doc':
-      case 'docx':
-        return Colors.blue;
-      case 'xls':
-      case 'xlsx':
-        return NebulaColors.success;
-      default:
-        return NebulaColors.textSecondary;
-    }
-  }
-
-  String _formatDate(String createdAt) {
-    try {
-      return DateFormat('MMM d, yyyy').format(DateTime.parse(createdAt));
-    } catch (_) {
-      return createdAt;
-    }
-  }
+  String get _typeLabel =>
+      doc.extension.isEmpty ? 'FILE' : doc.extension.toUpperCase();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final color = _colorForType();
+    final dl = context.dl;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: NebulaColors.surfaceCard,
-        borderRadius: BorderRadius.circular(12),
+    return EntityRow(
+      title: doc.originalName,
+      onTap: () => _open(context),
+      leading: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: dl.surfaceRaised,
+          borderRadius: BorderRadius.circular(NebulaSpacing.radiusSm),
+          border: Border.all(color: dl.border),
+        ),
+        // File type is not a venture, so it gets no hue — only an icon.
+        child: Icon(_icon, size: 16, color: context.scheme.onSurfaceVariant),
       ),
-      child: ListTile(
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(_iconForType(), size: 22, color: color),
-        ),
-        title: Text(
-          doc.originalName,
-          style: const TextStyle(
-              color: NebulaColors.textPrimary,
-              fontWeight: FontWeight.w600,
-              fontSize: 14),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        subtitle: Text(
-          '${doc.formattedSize}  •  ${_formatDate(doc.createdAt)}',
-          style: const TextStyle(
-              color: NebulaColors.textSecondary, fontSize: 11),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(LucideIcons.download,
-                  size: 18, color: NebulaColors.primary),
-              onPressed: () async {
-                final uri = Uri.parse(doc.fileUrl);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri,
-                      mode: LaunchMode.externalApplication);
-                }
-              },
-              tooltip: 'Download',
-            ),
-            IconButton(
-              icon: const Icon(LucideIcons.trash2,
-                  size: 18, color: NebulaColors.critical),
-              onPressed: () async {
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (c) => AlertDialog(
-                    backgroundColor: NebulaColors.surfaceCard,
-                    title: const Text('Delete Document',
-                        style: TextStyle(color: NebulaColors.textPrimary)),
-                    content: Text(
-                        'Delete "${doc.originalName}"?',
-                        style: const TextStyle(
-                            color: NebulaColors.textSecondary)),
-                    actions: [
-                      TextButton(
-                          onPressed: () => Navigator.pop(c, false),
-                          child: const Text('Cancel')),
-                      TextButton(
-                          onPressed: () => Navigator.pop(c, true),
-                          child: const Text('Delete',
-                              style:
-                                  TextStyle(color: NebulaColors.critical))),
-                    ],
-                  ),
-                );
-                if (confirm == true) {
-                  await ref
-                      .read(documentsProvider.notifier)
-                      .deleteDocument(doc.id);
-                }
-              },
+      meta: [
+        Mono(doc.formattedSize, size: 10.5, color: dl.textTertiary),
+        Mono(_formatDate(doc.createdAt), size: 10.5, color: dl.textTertiary),
+        if (doc.uploadedByName != null && doc.uploadedByName!.isNotEmpty)
+          Text(doc.uploadedByName!, overflow: TextOverflow.ellipsis),
+      ],
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DTag(_typeLabel),
+          PermissionGate(
+            permission: Permission.manageDocuments,
+            child: IconButton(
+              icon: Icon(LucideIcons.trash2, size: 17, color: dl.critical),
               tooltip: 'Delete',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _confirmDelete(context, ref),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+
+  Future<void> _open(BuildContext context) async {
+    final uri = Uri.parse(doc.fileUrl);
+    final launched = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    ).catchError((_) => false);
+
+    if (launched || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not open this file'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete document'),
+        content: Text('Delete "${doc.originalName}"? This cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: dialogContext.dl.critical),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    final ok =
+        await ref.read(documentsProvider.notifier).deleteDocument(doc.id);
+    if (ok || !context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Could not delete that document'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  static String _formatDate(String createdAt) {
+    final when = DateTime.tryParse(createdAt);
+    return when == null ? '—' : DateFormat('d MMM yyyy').format(when);
+  }
 }
 
-class _UploadBottomSheet extends StatefulWidget {
+// ── Upload ────────────────────────────────────────────────────────────────
+
+Future<void> _pickAndUpload(BuildContext context, WidgetRef ref) async {
+  try {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: const [
+        'pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png', 'gif',
+      ],
+    );
+
+    if (result == null || result.files.isEmpty) return;
+    if (!context.mounted) return;
+
+    final file = result.files.first;
+    final filePath = file.path;
+
+    // FilePicker leaves `path` null on platforms that only hand back bytes
+    // (web). Uploading needs a real file on disk, so bail out clearly.
+    if (filePath == null) {
+      _toast(context, 'This file could not be read from disk');
+      return;
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (sheetContext) => _UploadSheet(
+        filePath: filePath,
+        fileName: file.name,
+      ),
+    );
+  } catch (error) {
+    if (!context.mounted) return;
+    _toast(context, readableError(error));
+  }
+}
+
+void _toast(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message), behavior: SnackBarBehavior.floating),
+  );
+}
+
+class _UploadSheet extends ConsumerStatefulWidget {
+  const _UploadSheet({required this.filePath, required this.fileName});
+
   final String filePath;
   final String fileName;
-  final Future<void> Function(void Function(double)?) onUpload;
-
-  const _UploadBottomSheet({
-    required this.filePath,
-    required this.fileName,
-    required this.onUpload,
-  });
 
   @override
-  State<_UploadBottomSheet> createState() => _UploadBottomSheetState();
+  ConsumerState<_UploadSheet> createState() => _UploadSheetState();
 }
 
-class _UploadBottomSheetState extends State<_UploadBottomSheet> {
-  bool _isUploading = false;
-  double _uploadProgress = 0.0;
+class _UploadSheetState extends ConsumerState<_UploadSheet> {
+  bool _uploading = false;
+
+  /// Null until Dio reports a send with a known total — an unknown figure is
+  /// left blank rather than guessed at.
+  double? _progress;
 
   String get _fileSize {
     try {
-      final file = File(widget.filePath);
-      final bytes = file.lengthSync();
+      final bytes = File(widget.filePath).lengthSync();
       if (bytes < 1024) return '${bytes}B';
-      if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+      if (bytes < 1024 * 1024) {
+        return '${(bytes / 1024).toStringAsFixed(1)}KB';
+      }
       return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
     } catch (_) {
-      return 'Unknown';
+      return '—';
     }
   }
 
-  IconData get _fileIcon {
-    final ext = widget.fileName.split('.').last.toLowerCase();
-    switch (ext) {
+  String get _extension {
+    final parts = widget.fileName.split('.');
+    return parts.length > 1 ? parts.last.toLowerCase() : '';
+  }
+
+  IconData get _icon {
+    switch (_extension) {
       case 'pdf':
         return LucideIcons.fileText;
       case 'doc':
       case 'docx':
-        return LucideIcons.fileEdit;
+        return LucideIcons.filePen;
       case 'xls':
       case 'xlsx':
         return LucideIcons.table;
@@ -368,76 +326,87 @@ class _UploadBottomSheetState extends State<_UploadBottomSheet> {
     }
   }
 
+  Future<void> _upload() async {
+    setState(() => _uploading = true);
+
+    final ok = await ref.read(documentsProvider.notifier).uploadDocument(
+          widget.filePath,
+          widget.fileName,
+          onSendProgress: (sent, total) {
+            if (!mounted || total <= 0) return;
+            setState(() => _progress = sent / total);
+          },
+        );
+
+    if (!mounted) return;
+    Navigator.pop(context);
+    _toast(
+      context,
+      ok ? 'Document uploaded' : 'Could not upload that document',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final dl = context.dl;
+    final progress = _progress;
+
+    return Padding(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+        left: NebulaSpacing.md,
+        right: NebulaSpacing.md,
+        top: NebulaSpacing.md,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + NebulaSpacing.lg,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
-            'Upload Document',
-            style: TextStyle(
-              color: NebulaColors.textPrimary,
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // File Preview Section
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: NebulaColors.background,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: NebulaColors.primary.withValues(alpha: 0.2),
-              ),
-            ),
+          const SectionHeader('Upload document'),
+          DCard(
             child: Row(
               children: [
                 Container(
-                  width: 48,
-                  height: 48,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: NebulaColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
+                    color: dl.surfaceRaised,
+                    borderRadius:
+                        BorderRadius.circular(NebulaSpacing.radiusSm),
+                    border: Border.all(color: dl.border),
                   ),
                   child: Icon(
-                    _fileIcon,
-                    color: NebulaColors.primary,
-                    size: 24,
+                    _icon,
+                    size: 19,
+                    color: context.scheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: NebulaSpacing.sm + 3),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         widget.fileName,
-                        style: const TextStyle(
-                          color: NebulaColors.textPrimary,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
+                        style: context.text.titleSmall,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _fileSize,
-                        style: const TextStyle(
-                          color: NebulaColors.textSecondary,
-                          fontSize: 12,
-                        ),
+                      const SizedBox(height: 5),
+                      Row(
+                        children: [
+                          Mono(
+                            _fileSize,
+                            size: 11,
+                            color: dl.textTertiary,
+                          ),
+                          const SizedBox(width: NebulaSpacing.sm),
+                          DTag(
+                            _extension.isEmpty
+                                ? 'FILE'
+                                : _extension.toUpperCase(),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -445,73 +414,40 @@ class _UploadBottomSheetState extends State<_UploadBottomSheet> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
-
-          // Progress Bar
-          if (_isUploading)
-            Column(
+          if (_uploading) ...[
+            const SizedBox(height: NebulaSpacing.md),
+            ProgressTrack(value: progress ?? 0),
+            const SizedBox(height: 7),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: _uploadProgress,
-                    minHeight: 6,
-                    backgroundColor: NebulaColors.textSecondary.withValues(alpha: 0.1),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      NebulaColors.primary,
-                    ),
+                Text('Uploading…', style: context.text.bodySmall),
+                if (progress != null)
+                  Mono(
+                    '${(progress * 100).round()}%',
+                    size: 11,
+                    color: dl.timeNow,
                   ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '${(_uploadProgress * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    color: NebulaColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 20),
               ],
             ),
-
-          // Action Buttons
+          ],
+          const SizedBox(height: NebulaSpacing.md),
           Row(
             children: [
-              if (!_isUploading)
+              if (!_uploading) ...[
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => Navigator.pop(context),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(
-                        color: NebulaColors.textSecondary,
-                      ),
-                    ),
                     child: const Text('Cancel'),
                   ),
                 ),
-              if (!_isUploading) const SizedBox(width: 12),
+                const SizedBox(width: NebulaSpacing.sm),
+              ],
               Expanded(
-                child: ElevatedButton(
-                  onPressed: _isUploading
-                      ? null
-                      : () async {
-                          setState(() => _isUploading = true);
-                          await widget.onUpload((progress) {
-                            setState(() => _uploadProgress = progress);
-                          });
-                        },
-                  child: _isUploading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              NebulaColors.textPrimary,
-                            ),
-                          ),
-                        )
-                      : const Text('Upload'),
+                child: ElevatedButton.icon(
+                  onPressed: _uploading ? null : _upload,
+                  icon: const Icon(LucideIcons.upload, size: 15),
+                  label: Text(_uploading ? 'Uploading' : 'Upload'),
                 ),
               ),
             ],

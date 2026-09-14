@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
+import '../../../../core/network/network_info_provider.dart';
+import '../../../../core/rbac/permissions.dart';
+import '../../../../core/rbac/rbac_widgets.dart';
+import '../../../../core/theme/nebula_colors.dart';
 import '../../../../core/theme/nebula_spacing.dart';
+import '../../../../core/theme/theme_context.dart';
+import '../../../../core/widgets/primitives.dart';
+import '../../../../core/widgets/state_views.dart';
 import '../../data/user_management_data_source.dart';
 import '../../data/user_management_model.dart';
 import '../../data/user_management_provider.dart';
-import '../widgets/state_views.dart';
 
 /// Create or edit a platform user.
 ///
@@ -127,194 +133,212 @@ class _UserEditorScreenState extends ConsumerState<UserEditorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final levelsAsync = ref.watch(accessLevelOptionsProvider);
-    final venturesAsync = ref.watch(ventureOptionsProvider);
-    final scheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(title: Text(_isEdit ? 'Edit user' : 'Add user')),
-      body: Column(
-        children: [
-          const OfflineBanner(),
-          Expanded(
-            child: Form(
-              key: _formKey,
-              child: ListView(
-                padding: const EdgeInsets.all(NebulaSpacing.md),
-                children: [
-                  TextFormField(
-                    controller: _fullName,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Full name',
-                      prefixIcon: Icon(LucideIcons.user, size: 18),
-                    ),
-                    validator: (v) => _requiredValidator(v, 'Full name'),
-                  ),
-                  const SizedBox(height: NebulaSpacing.md),
-                  if (!_isEdit) ...[
-                    TextFormField(
-                      controller: _email,
-                      keyboardType: TextInputType.emailAddress,
-                      autocorrect: false,
-                      decoration: const InputDecoration(
-                        labelText: 'Email',
-                        prefixIcon: Icon(LucideIcons.mail, size: 18),
-                      ),
-                      validator: _emailValidator,
-                    ),
-                    const SizedBox(height: NebulaSpacing.md),
-                    TextFormField(
-                      controller: _password,
-                      obscureText: _obscurePassword,
-                      decoration: InputDecoration(
-                        labelText: 'Temporary password',
-                        helperText: 'The user can change this after signing in.',
-                        prefixIcon: const Icon(LucideIcons.keyRound, size: 18),
-                        suffixIcon: IconButton(
-                          tooltip: _obscurePassword
-                              ? 'Show password'
-                              : 'Hide password',
-                          icon: Icon(
-                            _obscurePassword
-                                ? LucideIcons.eye
-                                : LucideIcons.eyeOff,
-                            size: 18,
-                          ),
-                          onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword),
+      body: PermissionScope(
+        permission: _isEdit ? Permission.updateUser : Permission.createUser,
+        what: _isEdit ? 'editing users' : 'creating users',
+        child: _form(context),
+      ),
+    );
+  }
+
+  Widget _form(BuildContext context) {
+    final dl = context.dl;
+    final levelsAsync = ref.watch(accessLevelOptionsProvider);
+    final venturesAsync = ref.watch(ventureOptionsProvider);
+    final online = ref.watch(networkInfoProvider).maybeWhen(
+          data: (value) => value,
+          orElse: () => true,
+        );
+
+    return Column(
+      children: [
+        if (!online) const OfflineBanner(),
+        Expanded(
+          child: Form(
+            key: _formKey,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(
+                NebulaSpacing.md,
+                NebulaSpacing.md,
+                NebulaSpacing.md,
+                NebulaSpacing.xl,
+              ),
+              children: [
+                DCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionHeader('Identity'),
+                      TextFormField(
+                        controller: _fullName,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Full name',
+                          prefixIcon: Icon(LucideIcons.user, size: 18),
                         ),
+                        validator: (v) => _requiredValidator(v, 'Full name'),
                       ),
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Password is required';
-                        }
-                        if (value.length < 8) {
-                          return 'Use at least 8 characters';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: NebulaSpacing.md),
-                  ] else ...[
-                    TextFormField(
-                      controller: _phone,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        labelText: 'Phone',
-                        prefixIcon: Icon(LucideIcons.phone, size: 18),
-                      ),
-                    ),
-                    const SizedBox(height: NebulaSpacing.md),
-                  ],
-                  _AccessLevelField(
-                    levelsAsync: levelsAsync,
-                    value: _accessLevel,
-                    onChanged: (value) => setState(() => _accessLevel = value),
-                    onRetry: () => ref.invalidate(accessLevelOptionsProvider),
-                  ),
-                  const SizedBox(height: NebulaSpacing.md),
-                  _VentureField(
-                    venturesAsync: venturesAsync,
-                    value: _ventureId,
-                    onChanged: (value) => setState(() => _ventureId = value),
-                    onRetry: () => ref.invalidate(ventureOptionsProvider),
-                  ),
-                  const SizedBox(height: NebulaSpacing.md),
-                  TextFormField(
-                    controller: _department,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Department',
-                      prefixIcon: Icon(LucideIcons.building2, size: 18),
-                    ),
-                  ),
-                  const SizedBox(height: NebulaSpacing.md),
-                  TextFormField(
-                    controller: _designation,
-                    textCapitalization: TextCapitalization.words,
-                    decoration: const InputDecoration(
-                      labelText: 'Designation',
-                      prefixIcon: Icon(LucideIcons.idCard, size: 18),
-                    ),
-                  ),
-                  if (_isEdit) ...[
-                    const SizedBox(height: NebulaSpacing.sm),
-                    SwitchListTile.adaptive(
-                      value: _isActive,
-                      onChanged: (value) => setState(() => _isActive = value),
-                      title: const Text('Active account'),
-                      subtitle: Text(
-                        _isActive
-                            ? 'The user can sign in.'
-                            : 'The user is deactivated and cannot sign in.',
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodySmall
-                            ?.copyWith(color: textSecondary(context)),
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                  ],
-                  if (_submitError != null) ...[
-                    const SizedBox(height: NebulaSpacing.md),
-                    Container(
-                      padding: const EdgeInsets.all(NebulaSpacing.sm + 4),
-                      decoration: BoxDecoration(
-                        color: scheme.error.withValues(alpha: 0.12),
-                        borderRadius:
-                            BorderRadius.circular(NebulaSpacing.radiusSm),
-                        border:
-                            Border.all(color: scheme.error.withValues(alpha: 0.4)),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(LucideIcons.circleAlert,
-                              size: 16, color: scheme.error),
-                          const SizedBox(width: NebulaSpacing.sm),
-                          Expanded(
-                            child: Semantics(
-                              liveRegion: true,
-                              child: Text(
-                                _submitError!,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(color: scheme.error),
+                      if (!_isEdit) ...[
+                        const SizedBox(height: NebulaSpacing.md),
+                        TextFormField(
+                          controller: _email,
+                          keyboardType: TextInputType.emailAddress,
+                          autocorrect: false,
+                          decoration: const InputDecoration(
+                            labelText: 'Email',
+                            prefixIcon: Icon(LucideIcons.mail, size: 18),
+                          ),
+                          validator: _emailValidator,
+                        ),
+                        const SizedBox(height: NebulaSpacing.md),
+                        TextFormField(
+                          controller: _password,
+                          obscureText: _obscurePassword,
+                          decoration: InputDecoration(
+                            labelText: 'Temporary password',
+                            helperText:
+                                'The user can change this after signing in.',
+                            prefixIcon:
+                                const Icon(LucideIcons.keyRound, size: 18),
+                            suffixIcon: IconButton(
+                              tooltip: _obscurePassword
+                                  ? 'Show password'
+                                  : 'Hide password',
+                              icon: Icon(
+                                _obscurePassword
+                                    ? LucideIcons.eye
+                                    : LucideIcons.eyeOff,
+                                size: 18,
                               ),
+                              onPressed: () => setState(
+                                  () => _obscurePassword = !_obscurePassword),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: NebulaSpacing.lg),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      onPressed: _saving ? null : _submit,
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(LucideIcons.check, size: 18),
-                      label: Text(_isEdit ? 'Save changes' : 'Create user'),
-                    ),
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Password is required';
+                            }
+                            if (value.length < 8) {
+                              return 'Use at least 8 characters';
+                            }
+                            return null;
+                          },
+                        ),
+                      ] else ...[
+                        const SizedBox(height: NebulaSpacing.md),
+                        TextFormField(
+                          controller: _phone,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Phone',
+                            prefixIcon: Icon(LucideIcons.phone, size: 18),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
+                ),
+                const SizedBox(height: NebulaSpacing.md),
+                DCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionHeader('Access'),
+                      _AccessLevelField(
+                        levelsAsync: levelsAsync,
+                        value: _accessLevel,
+                        onChanged: (value) =>
+                            setState(() => _accessLevel = value),
+                        onRetry: () =>
+                            ref.invalidate(accessLevelOptionsProvider),
+                      ),
+                      const SizedBox(height: NebulaSpacing.md),
+                      _VentureField(
+                        venturesAsync: venturesAsync,
+                        value: _ventureId,
+                        onChanged: (value) => setState(() => _ventureId = value),
+                        onRetry: () => ref.invalidate(ventureOptionsProvider),
+                      ),
+                      if (_isEdit) ...[
+                        const SizedBox(height: NebulaSpacing.xs),
+                        SwitchListTile.adaptive(
+                          value: _isActive,
+                          onChanged: (value) =>
+                              setState(() => _isActive = value),
+                          title: const Text('Active account'),
+                          subtitle: Text(
+                            _isActive
+                                ? 'The user can sign in.'
+                                : 'The user is deactivated and cannot sign in.',
+                            style: context.text.bodySmall
+                                ?.copyWith(color: dl.textTertiary),
+                          ),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: NebulaSpacing.md),
+                DCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SectionHeader('Placement'),
+                      TextFormField(
+                        controller: _department,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Department',
+                          prefixIcon: Icon(LucideIcons.building2, size: 18),
+                        ),
+                      ),
+                      const SizedBox(height: NebulaSpacing.md),
+                      TextFormField(
+                        controller: _designation,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'Designation',
+                          prefixIcon: Icon(LucideIcons.idCard, size: 18),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_submitError != null) ...[
+                  const SizedBox(height: NebulaSpacing.md),
+                  _SubmitError(message: _submitError!),
                 ],
-              ),
+                const SizedBox(height: NebulaSpacing.lg),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton.icon(
+                    onPressed: _saving ? null : _submit,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(LucideIcons.check, size: 18),
+                    label: Text(_isEdit ? 'Save changes' : 'Create user'),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 /// Access-level picker fed by `GET /api/team-members/access-levels`.
+///
+/// Levels are listed most-privileged first and the number is rendered mono, so
+/// the "lower number = more access" rule is legible in the picker itself.
 class _AccessLevelField extends StatelessWidget {
   final AsyncValue<List<AccessLevelOption>> levelsAsync;
   final int? value;
@@ -336,25 +360,40 @@ class _AccessLevelField extends StatelessWidget {
         message: 'Could not load access levels. ${readableError(error)}',
         onRetry: onRetry,
       ),
-      data: (levels) => DropdownButtonFormField<int>(
-        initialValue: levels.any((l) => l.levelNumber == value) ? value : null,
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Access level',
-          helperText: 'A lower level number grants more access.',
-          prefixIcon: Icon(LucideIcons.shield, size: 18),
-        ),
-        items: [
-          for (final level in levels)
-            DropdownMenuItem<int>(
-              value: level.levelNumber,
-              child: Text('L${level.levelNumber} · ${level.levelName}',
-                  overflow: TextOverflow.ellipsis),
-            ),
-        ],
-        onChanged: onChanged,
-        validator: (v) => v == null ? 'Choose an access level' : null,
-      ),
+      data: (levels) {
+        final ordered = [...levels]
+          ..sort((a, b) => a.levelNumber.compareTo(b.levelNumber));
+        return DropdownButtonFormField<int>(
+          initialValue:
+              ordered.any((l) => l.levelNumber == value) ? value : null,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Access level',
+            helperText: 'Level 1 grants the most access, level 9 the least.',
+            prefixIcon: Icon(LucideIcons.shield, size: 18),
+          ),
+          items: [
+            for (final level in ordered)
+              DropdownMenuItem<int>(
+                value: level.levelNumber,
+                child: Row(
+                  children: [
+                    Mono('L${level.levelNumber}', size: 12),
+                    const SizedBox(width: NebulaSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        level.levelName,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+          onChanged: onChanged,
+          validator: (v) => v == null ? 'Choose an access level' : null,
+        );
+      },
     );
   }
 }
@@ -396,7 +435,21 @@ class _VentureField extends StatelessWidget {
           for (final venture in ventures)
             DropdownMenuItem<int?>(
               value: venture.id,
-              child: Text(venture.name, overflow: TextOverflow.ellipsis),
+              child: Row(
+                children: [
+                  VentureDot(
+                    NebulaColors.parseHex(
+                      venture.primaryColor,
+                      fallback: NebulaColors.forVentureId(venture.id),
+                    ),
+                  ),
+                  const SizedBox(width: NebulaSpacing.sm),
+                  Expanded(
+                    child:
+                        Text(venture.name, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
             ),
         ],
         onChanged: onChanged,
@@ -413,18 +466,51 @@ class _FieldError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Row(
       children: [
         Expanded(
-          child: Text(message,
-              style: Theme.of(context)
-                  .textTheme
-                  .bodySmall
-                  ?.copyWith(color: scheme.error)),
+          child: Text(
+            message,
+            style: context.text.bodySmall?.copyWith(color: context.dl.critical),
+          ),
         ),
         TextButton(onPressed: onRetry, child: const Text('Retry')),
       ],
+    );
+  }
+}
+
+class _SubmitError extends StatelessWidget {
+  const _SubmitError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final critical = context.dl.critical;
+    return Container(
+      padding: const EdgeInsets.all(NebulaSpacing.sm + 4),
+      decoration: BoxDecoration(
+        color: critical.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(NebulaSpacing.radiusSm),
+        border: Border.all(color: critical.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(LucideIcons.circleAlert, size: 16, color: critical),
+          const SizedBox(width: NebulaSpacing.sm),
+          Expanded(
+            child: Semantics(
+              liveRegion: true,
+              child: Text(
+                message,
+                style: context.text.bodySmall?.copyWith(color: critical),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
