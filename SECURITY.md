@@ -61,31 +61,42 @@ Before you expose an instance to a network:
 | :-- | :-- |
 | bcrypt password hashing, 12 rounds | `backend/src/controllers/auth.controller.js` |
 | JWT sessions, 8 h expiry, `httpOnly` cookie | `backend/src/middleware/auth.middleware.js` |
+| **Real server-side session revocation** — a token dies the instant `/api/auth/logout` runs, not at its natural 8h expiry | `backend/src/services/session.service.js`, checked in `authenticate()` and the Socket.IO handshake |
+| OTPs hashed (HMAC-SHA256, keyed by `JWT_SECRET`) and compared in constant time — never stored in the clear | `backend/src/utils/otp.js` |
 | Level-based route authorisation | `requireLevel()` in `auth.middleware.js` |
 | Venture scoping applied in SQL, not in the UI | every controller |
-| Socket.IO handshake authentication | `backend/src/server.js` |
+| **The session token is never held in client-side JavaScript.** The web app relies solely on the `httpOnly` cookie the server sets — nothing in `localStorage`, nothing in a JS-writable cookie — so an XSS bug has nothing to exfiltrate. The current, server-verified user (not a client-cached copy) is what every view in the dashboard reads its own access level from. | `frontend/src/lib/api.ts`, `frontend/src/components/{RequireAuth,AuthUserContext}.tsx` |
+| Socket.IO handshake authentication — accepts `auth.token` (mobile), an `Authorization` header, or the `httpOnly` cookie parsed off the raw handshake (web); revocation-checked the same way as REST | `backend/src/server.js` |
+| Upload MIME/extension allowlist (blocks a disguised executable) plus authenticated, venture-scoped document downloads in place of a fully public `/uploads` | `backend/src/middleware/upload.middleware.js`, `backend/src/routes/uploads.routes.js` |
+| Read-only-enforced SQL console for L1 — single `SELECT` only, no chained statements, a row cap and a statement timeout, every attempt audit-logged | `backend/src/utils/sqlGuard.js`, `backend/src/routes/database.routes.js` |
 | Parameterised queries throughout — no ORM, no string-built SQL | `backend/src/config/database.pg.js` |
-| Rate limiting on the unauthenticated surface | `backend/src/middleware/rateLimit.middleware.js` |
-| Request validation on auth endpoints | `backend/src/middleware/validate.middleware.js` |
-| Security headers | `helmet` in `server.js` |
+| Rate limiting across the whole API, with tighter limits on uploads, the SQL console, and reporting endpoints, keyed on the verified user id where available | `backend/src/middleware/rateLimit.middleware.js` |
+| Request validation on every mutating endpoint (not just auth) | `backend/src/middleware/validate.middleware.js` |
+| A real Content-Security-Policy (documented exceptions below) | `helmet` config in `server.js` |
 | CORS allowlist — single origin, credentials on | `server.js` |
 | Forced HTTPS in production | `server.js` |
 | Audit logging of privileged mutations | `backend/src/services/audit.service.js` |
-| Email verification via OTP | `backend/src/utils/otp.js` |
 | Demo credentials excluded from production builds | `frontend/src/lib/constants.ts` |
 
 ## Known gaps
 
 Stated plainly, because a security policy that only lists wins isn't useful:
 
-- **JWTs are stateless.** There is a `sessions` table, but tokens are not checked against it, so a
-  token stays valid until it expires even after logout. Rotating `JWT_SECRET` is the only way to
-  revoke everything at once.
-- **Content Security Policy is disabled** (`helmet({ contentSecurityPolicy: false })`) because the
-  Next.js bundle needs inline styles. A proper nonce-based policy is still to be done.
-- **Validation covers the auth routes only.** The remaining endpoints rely on parameterised queries
-  and level gating, which stops injection and unauthorised access but not malformed input.
+- **The CSP is not nonce-based.** The server serves a static Next.js export (`express.static`), so
+  there's no per-request template to stamp a nonce into. Concretely, the policy allows
+  `script-src 'unsafe-inline'` (Next's App Router streams hydration data as inline `<script>`
+  blocks with no stable hash across builds), `style-src 'unsafe-inline'` (React/Framer Motion
+  mutate inline styles every frame), and `https://accounts.google.com` on `script-src`/
+  `connect-src`/`frame-src` (Google Sign-In). Everything else is locked down — `object-src`,
+  `frame-ancestors` and `base-uri` are all `'none'`/`'self'`, and nothing is wildcarded on
+  `connect-src` or `img-src`, so this still meaningfully blocks exfiltration even with the loose
+  `script-src`.
+- **Validation is hand-written per route**, not schema-driven — thorough where it exists, but a
+  new endpoint has to remember to add its own rules; nothing enforces that structurally.
 - **No automated security testing** in CI yet — see the roadmap in the README.
+- **Session revocation fails open** if the `sessions` table itself becomes unreachable (logged
+  loudly rather than taking the app down for an operator's migration gap) — see
+  `session.service.js` for the reasoning.
 
 ## Secret hygiene in this repository
 

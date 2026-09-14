@@ -6,7 +6,6 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { loginUser, verifyOtp, googleLogin } from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
-import Cookies from 'js-cookie';
 import { TEST_ACCOUNTS, VENTURES } from '@/lib/constants';
 import {
   Mail,
@@ -102,10 +101,9 @@ export default function LoginPage() {
       const data = await loginUser(email, password);
       if (data.success) {
         if (data.data?.token) {
-          localStorage.setItem('internalx_token', data.data.token);
-          localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
-          Cookies.set('internalx_token', data.data.token, { expires: 7 });
-          Cookies.set('internalx_user', JSON.stringify(data.data.user), { expires: 7 });
+          // Nothing to store: the backend already set the session as an
+          // httpOnly cookie in this same response (see auth.controller.js),
+          // which is the only copy of it that ever needs to exist client-side.
           toast.success(`Welcome back, ${data.data.user.fullName}`);
           router.push('/dashboard');
         } else {
@@ -139,8 +137,6 @@ export default function LoginPage() {
     try {
       const data = await verifyOtp(email, otp);
       if (data.success) {
-        localStorage.setItem('internalx_token', data.data.token);
-        localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
         toast.success(`Welcome back, ${data.data.user.fullName}`);
         router.push('/dashboard');
       }
@@ -185,8 +181,6 @@ export default function LoginPage() {
     try {
       const data = await googleLogin(response.credential);
       if (data.success) {
-        localStorage.setItem('internalx_token', data.data.token);
-        localStorage.setItem('internalx_user', JSON.stringify(data.data.user));
         toast.success(`Welcome back, ${data.data.user.fullName}`);
         router.push('/dashboard');
       }

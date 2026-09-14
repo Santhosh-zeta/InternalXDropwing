@@ -79,14 +79,10 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
     try {
       setUploading(true);
       setUploadStatus(`Uploading ${file.name}…`);
-      const token = localStorage.getItem('internalx_token');
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com'}/api/documents/upload`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-
-      const res = await response.json();
+      // No manual auth header — the shared `api` client sends the session
+      // cookie automatically (and, unlike raw fetch, does so cross-origin
+      // in dev without needing `credentials: 'include'` spelled out here).
+      const { data: res } = await api.post('/documents/upload', formData);
       if (res.success) {
         toast.success('Document uploaded successfully');
         setUploadStatus(`${file.name} uploaded successfully.`);
@@ -96,8 +92,13 @@ export default function DocumentsView({ currentUser }: DocumentsViewProps) {
         setUploadStatus(res.message || `Upload of ${file.name} failed.`);
       }
     } catch (err) {
-      toast.error('Error uploading document');
-      setUploadStatus(`Error uploading ${file.name}.`);
+      // Unlike fetch, axios throws on a non-2xx response — a rejected file
+      // type or an over-size upload lands here, not in the `else` above, so
+      // surface the server's actual reason instead of a generic message.
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+        || 'Error uploading document';
+      toast.error(message);
+      setUploadStatus(message);
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

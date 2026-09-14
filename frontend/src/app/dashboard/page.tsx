@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { logoutUser } from '@/lib/api';
 import api from '@/lib/api';
-import Cookies from 'js-cookie';
-import { User, VENTURES } from '@/lib/constants';
+import { VENTURES } from '@/lib/constants';
+import { useAuthUser } from '@/components/AuthUserContext';
 import TasksView from './TasksView';
 import OverviewView from './OverviewView';
 import UserManagementView from './UserManagementView';
@@ -35,7 +35,7 @@ import {
   Hexagon, LayoutDashboard, FolderKanban, CheckSquare, Users,
   ShieldCheck, Activity, MessageSquare, BookOpen, Settings,
   FileText, Database, BarChart3, TrendingUp, DollarSign,
-  PieChart, Briefcase, FileSignature, LogOut, Search, Loader2,
+  PieChart, Briefcase, FileSignature, LogOut, Search,
   User as UserIcon, Building2, Crown, Lock, Menu, X,
   CalendarDays, ClipboardCheck
 } from 'lucide-react';
@@ -106,7 +106,9 @@ const MENU_ICONS: Record<string, React.ElementType> = {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  // Verified server-side by RequireAuth before this component ever renders —
+  // see AuthUserContext for why this isn't sourced from localStorage/cookies.
+  const { user } = useAuthUser();
   const [activeMenu, setActiveMenu] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -133,12 +135,6 @@ export default function DashboardPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  useEffect(() => {
-    const stored = Cookies.get('internalx_user') || localStorage.getItem('internalx_user');
-    if (!stored) { router.push('/'); return; }
-    setUser(JSON.parse(stored));
-  }, [router]);
 
   const closeDrawer = useCallback(() => {
     setIsDrawerOpen(false);
@@ -248,26 +244,17 @@ export default function DashboardPage() {
 
   const handleLogout = async () => {
     try {
+      // This is what actually ends the session: it deletes the server-side
+      // session row, so the cookie the browser holds stops working
+      // immediately rather than merely being forgotten client-side.
       await logoutUser();
-    } catch {}
-    localStorage.removeItem('internalx_token');
-    localStorage.removeItem('internalx_user');
-    Cookies.remove('internalx_token');
-    Cookies.remove('internalx_user');
+    } catch {
+      // Best-effort — even if this fails (e.g. offline), still take the user
+      // back to the sign-in screen; RequireAuth will re-verify on next load.
+    }
     toast.success('Logged out successfully');
     router.push('/');
   };
-
-  if (!user) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-primary)]">
-        <div className="flex flex-col items-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--color-purple-glow)] mb-4" aria-hidden="true" />
-          <p className="text-[var(--color-text-muted)] text-sm font-medium tracking-wide">Loading workspace...</p>
-        </div>
-      </div>
-    );
-  }
 
   const currentMenu = menus[activeMenu];
   // The welcome banner + stat grid belong to the landing view only. Level 9

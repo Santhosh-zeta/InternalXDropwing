@@ -1,5 +1,4 @@
 import axios from 'axios';
-import Cookies from 'js-cookie';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com';
 
@@ -9,30 +8,30 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach token from localStorage or cookies
-api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = Cookies.get('internalx_token') || localStorage.getItem('internalx_token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+/**
+ * The session token is never held in JS at all.
+ *
+ * The backend sets it as an `httpOnly` cookie on login (see
+ * `generateAuthResponse` in auth.controller.js) — the browser attaches it to
+ * every request automatically because of `withCredentials: true` above,
+ * and `authenticate()` on the server checks that cookie first. There is
+ * nothing for a request interceptor to do here, and there never needs to be:
+ * an `httpOnly` cookie cannot be read by JavaScript, which is the entire
+ * point — a script injected by an XSS bug cannot exfiltrate it. Reading it
+ * from `localStorage` or a JS-writable cookie into a header, as this used
+ * to do, would recreate exactly the exposure the `httpOnly` flag exists to
+ * close.
+ */
 
-// Response interceptor — handle expired sessions
+// Response interceptor — an expired or revoked session sends the user back
+// to sign in. There's no client-side token to clear: the server already
+// cleared the cookie on logout, and a 401 here just means whatever cookie
+// the browser sent was rejected.
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Clear stored session data
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('internalx_token');
-        localStorage.removeItem('internalx_user');
-        // Clear cookies
-        document.cookie = 'internalx_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        document.cookie = 'internalx_user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-        // Redirect to login
-        window.location.href = '/login';
-      }
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      window.location.href = '/login';
     }
     return Promise.reject(error);
   }
