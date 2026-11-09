@@ -336,6 +336,14 @@ describe('documents', () => {
     expect(g.status).toBe(201);
     expect(g.body.data.venture_id).toBe(c.ventureId.px);
 
+    // a global upload must name a venture (that exists) or say companyWide=true
+    expect((await up('l1')).status).toBe(400);
+    expect((await up('l2', { ventureId: '999999' })).status).toBe(400);
+    expect((await up('l1', { ventureId: 'abc' })).status).toBe(400);
+    const wide = await up('l2', { companyWide: 'true' });
+    expect(wide.status).toBe(201);
+    expect(wide.body.data.venture_id).toBeNull();
+
     // staff cannot publish a document to clients; admins can
     const staffTry = await up('dd.l7', { projectId: String(c.projects['dd.p1']), clientVisible: 'true' });
     expect(staffTry.body.data.client_visible).toBe(false);

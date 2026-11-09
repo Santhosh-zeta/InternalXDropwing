@@ -22,7 +22,10 @@ predicate as the single-row check (`projectWhere`, `taskWhere`, `timesheetWhere`
 Notable rules: timesheet approval needs L<=5 inside the scope, never your own
 sheet, never someone more senior; invoices and budgets need L<=5 / L<=4; tasks
 are edited only by their assignees/creator (staff) or venture admins; documents
-are shared with clients per document by L<=5. A client's invoice detail returns totals and
+are shared with clients per document by L<=5. Documents with `venture_id` NULL are company-wide (every internal user sees them). New ones
+are only created when a global user uploads with an explicit `companyWide=true`; otherwise they must
+name a `ventureId` or a project. Rows that already have NULL keep that behaviour.
+A client's invoice detail returns totals and
 client-safe lines only (date, project, hours, task title when it is their own deliverable): no
 rates, per-line prices, staff names or internal timesheet notes.
 
