@@ -38,7 +38,7 @@ router.get('/', authenticate, async (req, res) => {
         SELECT pm.project_id, pm.user_id, u.full_name, u.email, u.avatar_url
         FROM project_members pm
         JOIN users u ON pm.user_id = u.id
-        WHERE pm.project_id IN (?)
+        WHERE pm.project_id = ANY(?)
       `, [projectIds]);
 
       rows.forEach(r => {
