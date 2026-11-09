@@ -28,7 +28,7 @@ variables (the **Settings > System** page and the boot log tell you which are st
 | :-- | :-- |
 | Anyone to sign in | `JWT_SECRET`, `FRONTEND_URL` / `PUBLIC_URL`, `POSTGRES_PASSWORD`, `BOOTSTRAP_ADMIN_EMAIL` + `BOOTSTRAP_ADMIN_PASSWORD` (first boot) |
 | The sign-in code, invites, resets, digest email | `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` |
-| Ask InternalX, AI digest summary, notes to tasks | `ANTHROPIC_API_KEY` |
+| Ask InternalX, AI digest summary, notes to tasks | any one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (optional `AI_PROVIDER`, `AI_MODEL`) |
 | Google sign-in (optional) | `GOOGLE_CLIENT_ID`, and `ALLOWED_EMAIL_DOMAINS` set to your domains |
 | Behind a proxy / tunnel | `TRUST_PROXY=1` |
 

@@ -13,6 +13,7 @@ const { toolsFor, wrapResult, cleanInput, OUTPUT_CHAR_CAP } = require('../src/se
 const { ToolError } = require('../src/services/assistant/queries');
 const { runTurn, AgentAbort } = require('../src/services/assistant/agent');
 const store = require('../src/services/assistant/store');
+const { createAnthropic } = require('../src/services/ai/anthropic');
 
 let t;
 let c;
@@ -360,7 +361,7 @@ describe('abort on client disconnect', () => {
     }]);
     const conv = await store.createConversation(A['dd.l7'].id, 'abort test');
     await expect(runTurn({
-      client: fake, cfg: require('../src/services/assistant/client').config(), user: { id: A['dd.l7'].id },
+      provider: createAnthropic({ client: fake }), cfg: require('../src/services/assistant/client').config(), user: { id: A['dd.l7'].id },
       conversationId: conv.id, history: [], userText: 'go', contextLine: '<context>x</context>',
       emit: () => {}, signal: controller.signal, remainingTokens: 1e6, ip: null,
     })).rejects.toBeInstanceOf(AgentAbort);

@@ -9,7 +9,7 @@
  *   POST   /api/assistant/notes/propose   meeting notes -> draft tasks (managers; writes nothing)
  *   POST   /api/assistant/notes/create    create the drafts a manager confirmed (existing task path)
  *
- * Clients (L9) never get the assistant. Without ANTHROPIC_API_KEY the feature
+ * Clients (L9) never get the assistant. Without a provider key (ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY) the feature
  * reports "not configured" and nothing else changes.
  */
 const express = require('express');
@@ -17,7 +17,9 @@ const rateLimit = require('express-rate-limit');
 const { pool } = require('../config/database');
 const { authenticate } = require('../middleware/auth.middleware');
 const { withScope, internalOnly } = require('../utils/scope');
-const { getClient, isConfigured, config } = require('../services/assistant/client');
+const { config } = require('../services/assistant/client');
+const { getProvider } = require('../services/ai');
+const { userMessage } = require('../services/ai/errors');
 const { runTurn, AgentAbort } = require('../services/assistant/agent');
 const { ToolError, todayIn } = require('../services/assistant/queries');
 const usage = require('../services/assistant/usage');
@@ -59,15 +61,18 @@ const suggestionsFor = (scope) => {
 };
 
 router.get('/status', (req, res) => {
-  const configured = isConfigured();
+  const provider = getProvider();
+  const configured = !!provider;
   const cfg = config();
   res.json({
     success: true,
     data: {
       configured,
+      provider: provider ? provider.name : null,
+      model: provider ? provider.status().model : null,
       // Only people who can change the server environment see how to set it up.
       setupHint: !configured && req.scope.level <= 3
-        ? 'Set ANTHROPIC_API_KEY in the backend environment (see backend/.env.example) and restart the server.'
+        ? 'Add ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY to the backend environment (see backend/.env.example) and restart the server.'
         : null,
       suggestions: suggestionsFor(req.scope),
       limits: { dailyMessages: cfg.dailyMessageCap, dailyTokens: cfg.dailyTokenCap },
@@ -121,8 +126,8 @@ const contextLine = async (scope) => {
 };
 
 router.post('/chat', chatLimiter, async (req, res) => {
-  const client = getClient();
-  if (!client) {
+  const provider = getProvider();
+  if (!provider) {
     return res.status(503).json({ success: false, code: 'not_configured', message: 'The assistant is not configured on this server.' });
   }
   const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
@@ -162,14 +167,14 @@ router.post('/chat', chatLimiter, async (req, res) => {
     emit({ type: 'conversation', id: conv.id, title: conv.title });
     try {
       const result = await runTurn({
-        client, cfg, user: req.user, conversationId: conv.id, history, userText: message, contextLine: line,
+        provider, cfg, user: req.user, conversationId: conv.id, history, userText: message, contextLine: line,
         emit, signal: controller.signal, remainingTokens: caps.remainingTokens, ip: req.ip,
       });
       emit({ type: 'done', usage: { input_tokens: result.inputTokens, output_tokens: result.outputTokens }, stop_reason: result.stopReason });
     } catch (err) {
       if (err instanceof AgentAbort) return res.end();
       if (!(err instanceof ToolError)) console.error('[assistant] chat failed:', err.message);
-      emit({ type: 'error', message: err instanceof ToolError ? err.message : 'The assistant ran into a problem. Please try again.' });
+      emit({ type: 'error', message: err instanceof ToolError ? err.message : userMessage(err) });
     }
     res.end();
   } catch (err) {
@@ -189,19 +194,19 @@ const managersOnly = (req, res, next) => {
 };
 
 router.post('/notes/propose', managersOnly, chatLimiter, async (req, res) => {
-  const client = getClient();
-  if (!client) return res.status(503).json({ success: false, code: 'not_configured', message: 'The assistant is not configured on this server.' });
+  const provider = getProvider();
+  if (!provider) return res.status(503).json({ success: false, code: 'not_configured', message: 'The assistant is not configured on this server.' });
   try {
     const caps = await usage.checkCaps(req.scope.userId);
     if (!caps.ok) return res.status(429).json({ success: false, code: 'daily_limit', message: caps.reason });
     await usage.record(req.scope.userId, { messages: 1 });
-    const data = await notesTasks.propose({ client, cfg: config(), scope: req.scope, user: req.user, notes: req.body && req.body.notes, ip: req.ip });
+    const data = await notesTasks.propose({ provider, scope: req.scope, user: req.user, notes: req.body && req.body.notes, ip: req.ip });
     await logAudit(req.user.id, 'ASSISTANT_NOTES_PROPOSE', 'assistant', null, { drafts: data.drafts.length }, req.ip);
     res.json({ success: true, data });
   } catch (err) {
     if (err instanceof ToolError) return res.status(400).json({ success: false, message: err.message });
     console.error('[assistant] notes propose failed:', err.message);
-    res.status(502).json({ success: false, message: 'The assistant ran into a problem. Please try again.' });
+    res.status(502).json({ success: false, message: userMessage(err) });
   }
 });
 
