@@ -18,4 +18,4 @@
 ///     the Socket.IO connection is real and will simply fail to connect in
 ///     the background — harmless, no crash, just no live messages.
 /// ═══════════════════════════════════════════════════════════════════════
-const bool kDemoMode = true;
+const bool kDemoMode = false;
