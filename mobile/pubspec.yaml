@@ -32,7 +32,7 @@ dependencies:
   intl: ^0.20.2
   connectivity_plus: ^7.1.1
   lucide_icons_flutter: ^3.1.14+2
-  url_launcher: ^6.3.0
+  url_launcher: ^6.3.3
   file_picker: ^8.0.0+1
   socket_io_client: ^2.0.0
 dev_dependencies:
