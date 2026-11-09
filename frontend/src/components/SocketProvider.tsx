@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { User, VENTURES } from '@/lib/constants';
+import { User } from '@/lib/constants';
 import toast from 'react-hot-toast';
 import { MessageSquare } from 'lucide-react';
 
@@ -33,27 +33,20 @@ export function SocketProvider({ children, user }: { children: ReactNode; user: 
   const [latestMessages, setLatestMessages] = useState<Record<string, LatestMessageInfo>>({});
 
   useEffect(() => {
-    if (!user) return;
+    // Clients (L9) have no internal chat, so they never open a socket.
+    if (!user || user.accessLevel >= 9) return;
 
     const url = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://internalx.dropwinggroups.com';
     const s = io(url, { withCredentials: true });
     setSocket(s);
 
-    // Join channels
-    s.emit('join_channel', `dm_${user.id}`);
-    s.emit('join_channel', 'global');
-    
-    // Join venture channels user has access to
-    if (user.accessLevel <= 2) {
-      VENTURES.forEach((_, i) => s.emit('join_channel', `venture_${i + 1}`));
-    } else if (user.venture?.id) {
-      s.emit('join_channel', `venture_${user.venture.id}`);
-    }
+    // Rooms are assigned by the server on connect (own DMs, global, and the
+    // venture channels this account may use). Nothing to join from here.
 
     const handleReceiveMessage = (msg: any) => {
       // Determine the channel key for this message
       let channelKey = '';
-      if (msg.ventureId) {
+      if (msg.ventureId !== undefined && msg.ventureId !== null) {
         channelKey = msg.ventureId === 'global' ? 'global' : `venture_${msg.ventureId}`;
       } else if (msg.receiver_id && msg.receiver_id !== user.id) {
         // If we sent it, the channel is the receiver
@@ -61,8 +54,6 @@ export function SocketProvider({ children, user }: { children: ReactNode; user: 
       } else if (msg.sender_id && msg.sender_id !== user.id && msg.receiver_id === user.id) {
         // If we received a DM, the channel is the sender
         channelKey = `dm_${msg.sender_id}`;
-      } else if (!msg.ventureId && !msg.receiver_id) {
-        channelKey = 'global';
       }
 
       // Update latest messages for sorting
@@ -83,10 +74,7 @@ export function SocketProvider({ children, user }: { children: ReactNode; user: 
         if (msg.ventureId === 'global') {
           title = `${msg.sender_name} in #Global HQ`;
         } else if (msg.ventureId) {
-          const venture = VENTURES[msg.ventureId - 1];
-          title = `${msg.sender_name} in #${venture?.name || 'Venture'}`;
-        } else if (!msg.ventureId && !msg.receiver_id) {
-          title = `${msg.sender_name} in #Global HQ`;
+          title = `${msg.sender_name} in #${msg.venture_name || 'Venture'}`;
         } else {
           title = `${msg.sender_name} (Direct Message)`;
         }
