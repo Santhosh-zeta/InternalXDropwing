@@ -1,0 +1,16 @@
+{
+  "name": "internalx",
+  "private": true,
+  "description": "Convenience scripts for the InternalX monorepo (backend/, frontend/, mobile/). No dependencies.",
+  "scripts": {
+    "dev": "bash scripts/dev.sh",
+    "dev:demo": "bash scripts/dev.sh --demo",
+    "test": "npm --prefix backend test",
+    "e2e": "node frontend/e2e/smoke.mjs",
+    "lint": "npm --prefix frontend run lint",
+    "build": "npm --prefix frontend run build",
+    "docker:up": "docker compose up -d --build"
+  },
+  "engines": { "node": ">=20" },
+  "license": "MIT"
+}

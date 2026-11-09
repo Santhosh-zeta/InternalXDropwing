@@ -1,41 +1,58 @@
-# Handoff: production-hardening effort (session state)
+# Project status and roadmap
 
-Branch of record: `claude/explore-management-website-d9v4hr` (everything merged so far is here).
-Backend: 329 tests passing (B2 merged) (`cd backend && npm ci && TEST_DATABASE_URL=... JWT_SECRET=... npm test`), 0 prod vulnerabilities.
+InternalX is feature-complete for the four-venture internal team plus external clients, and ready to deploy once the
+owner supplies configuration (below). Access rules: [data-isolation.md](data-isolation.md). Operations:
+[production-checklist.md](production-checklist.md). AI features: [ai-features.md](ai-features.md).
 
-## Done and merged
-- Phase 0: safe fixes, dead scripts removed.
-- Dependencies patched (audit 0 prod vulns).
-- A1: bootstrap admin (no seeded passwords), Google login invite-only, `canManageUser` ceilings, OTP lockout,
-  session revoke, DB explorer / permission editors / 2FA toggle removed, Jest + CI.
-- A2: `backend/src/utils/scope.js` single access layer, IDOR fixes on all data routes, chat authorization
-  (`services/chat.service.js`, `src/socket.js`), real hourly rates (`utils/rates.js`), IDOR matrix tests.
-- B1: one migration system (`backend/migrations`, auto-run at boot), invite-only accounts + invite links,
-  team-list scoping, pino logging, /api/ready, Dockerfile + prod compose + backups, docs/production-checklist.md,
-  README rewrite, secret-field sweep test.
+## What is built
 
-## B2 MERGED (migrations renumbered 0007-0009). B3 NOT merged (agent hit the usage limit mid-run).
-## Original notes on the two branches:
-- `claude/wip-b2-assistant-search`: B2. Scoped full-text search + Ctrl/Cmd-K palette, "Ask InternalX" Claude
-  assistant (read-only scoped tools, SSE, caps, audit), weekly digest + alert rules + scheduler,
-  meeting-notes -> draft tasks. Last commit: notes-to-tasks backend; the NotesToTasksModal UI and api.ts edits were uncommitted.
-- `claude/wip-b3-frontend`: B3. Lint/typing cleanup, menu config with URL-synced views, useApi hook,
-  Today home, split big views, Playwright walk of every view per role. Mostly uncommitted when snapshotted.
+- Access model enforced in SQL by one module (`backend/src/utils/scope.js`): L1/L2 global, L3-L5 their venture,
+  L6-L8 their projects and tasks, L9 clients only their projects and client-safe data. Covered by an IDOR matrix test suite.
+- Invite-only accounts (set-password links, no shipped credentials), OTP second step with lockout, server-side session
+  revocation, Google sign-in for existing accounts, optional self-registration with admin approval.
+- Projects, tasks, timesheets with approval, documents (venture / project / company-wide, optional client sharing),
+  invoices and budget from one rate source, strategy (OKRs, risks, KPIs), team chat (venture, global, DM rooms),
+  notifications, learning hub, audit log, client portal.
+- Scoped full-text search (Ctrl+K), "Ask InternalX" assistant (read-only, scoped tools), weekly digest and daily alerts,
+  meeting notes to draft tasks.
+- One migration system applied at boot, health and readiness endpoints, structured logs, Docker image + production
+  compose, backup and restore scripts, a startup self-check (boot log and Settings > System).
+- Backend tests (Jest), frontend typecheck/lint/build in CI, and a browser smoke test (`frontend/e2e/smoke.mjs`).
 
-## Remaining plan
-1. Resume B3's work (branch `claude/wip-b3-frontend`, last WIP snapshot; it was in the middle of the lint/typing cleanup and removing fake monthly-performance fallbacks) and merge it. B2 is already merged. Merge (expect conflicts in dashboard/page.tsx, lib/api.ts, server.js mounts,
-   backend/migrations numbering, deployment init schema). Run backend tests + `frontend: tsc, lint, build`.
-2. Make lint blocking in CI (remove continue-on-error) once lint is 0.
-3. Frontend default API URL: `lib/api.ts`, SocketProvider, DocumentsView, SettingsView fall back to a hard-coded
-   host when NEXT_PUBLIC_API_URL is unset; default to same-origin.
-4. Wire UI for pending-approval users (`GET /api/team-members?pending=true`) and an hourly-rate field in the user editor
-   (`PUT /api/team-members/:id/rate`).
-5. Run the real app in a browser (Playwright) for L1/L3/L5/L7/L9 on seeded demo data (`backend/scripts/seed-demo.js`).
-6. Independent Opus security review of the merged result; fix findings.
-7. Build the Docker image and run the prod compose stack once on a machine with Docker (never done here).
-8. Flutter app: edits (removed screens, demo mode off) were never compiled (no Flutter in the sandbox). Run `flutter analyze`.
-9. Needs the owner's env: ANTHROPIC_API_KEY (assistant), SMTP (invites, digests), GOOGLE_CLIENT_ID, bootstrap admin env.
+## What the owner must provide
 
-## Gotchas learned
-- `.gitignore` has `env.*`; it hid `src/config/env.js` (now un-ignored). Don't name source files env.*.
-- Agents must use unique scratch filenames; shared ones were overwritten.
+Nothing is required to start locally (`./scripts/dev.sh --demo`). For a real deployment, set these environment
+variables (the **Settings > System** page and the boot log tell you which are still missing):
+
+| Needed for | Variables |
+| :-- | :-- |
+| Anyone to sign in | `JWT_SECRET`, `FRONTEND_URL` / `PUBLIC_URL`, `POSTGRES_PASSWORD`, `BOOTSTRAP_ADMIN_EMAIL` + `BOOTSTRAP_ADMIN_PASSWORD` (first boot) |
+| The sign-in code, invites, resets, digest email | `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` |
+| Ask InternalX, AI digest summary, notes to tasks | `ANTHROPIC_API_KEY` |
+| Google sign-in (optional) | `GOOGLE_CLIENT_ID`, and `ALLOWED_EMAIL_DOMAINS` set to your domains |
+| Behind a proxy / tunnel | `TRUST_PROXY=1` |
+
+## Known limitations
+
+- **No SMTP, no sign-in in production.** The code step needs email; only development prints the code to the server log.
+- Invoices are derived from approved timesheets (grouped by venture and month); there is no payment tracking, tax or
+  numbering beyond that, and the invoice sheet is USD formatted.
+- One currency, one time zone for the schedule (`APP_TIMEZONE`), English only.
+- Chat has no edit, delete, attachments or read receipts; client portal has no requirements / change-request / ticket centres.
+- Uploads live on local disk (the `uploads` volume); there is no object-storage option or virus scanning.
+- The in-process scheduler and Socket.IO assume a single region; several app instances work for the scheduler (advisory
+  lock) but Socket.IO rooms are not shared between instances (no Redis adapter), so run one instance for live chat.
+- The Docker image and production compose stack have not been built or run yet (no Docker daemon was available while
+  developing): do a first deploy on a staging host and follow [production-checklist.md](production-checklist.md).
+- The Flutter app in `mobile/` has not been compiled against the latest API changes: run `flutter analyze` and a
+  device test before shipping it.
+
+## Roadmap
+
+1. First staging deploy with Docker; restore-test a backup.
+2. Run `frontend/e2e/smoke.mjs` in CI against a booted stack (needs Playwright in the pipeline).
+3. Pin GitHub Actions by commit SHA; make lint a required check.
+4. Mobile: `flutter analyze`, align screens with the current permissions, release builds.
+5. Payment status on invoices, per-venture currency and branding on the invoice sheet.
+6. Redis adapter for Socket.IO if more than one app instance is needed.
+7. Object storage + malware scan for uploads.

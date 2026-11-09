@@ -11,7 +11,7 @@ production** with a missing or placeholder `JWT_SECRET`, missing `DB_*`, or miss
 
 | Variable | Required | Default | Purpose |
 | :-- | :-- | :-- | :-- |
-| `PUBLIC_URL` | compose | none | Public https origin. Compose passes it as `FRONTEND_URL` and bakes it into the web bundle at build time (so changing it needs `--build`). |
+| `PUBLIC_URL` | compose | none | Public https origin. Compose passes it to the app as `FRONTEND_URL`. Nothing is baked into the web build, so changing it only needs a restart. |
 | `FRONTEND_URL` | yes | none | Same value outside compose. Used in invite / reset emails and as the default CORS origin. |
 | `POSTGRES_PASSWORD` | compose | none | Database password (no default; compose refuses to start without it). Also `POSTGRES_USER`, `POSTGRES_DB` (default `internalx`). |
 | `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | yes | none | Database connection (compose fills them in). |
@@ -23,7 +23,7 @@ production** with a missing or placeholder `JWT_SECRET`, missing `DB_*`, or miss
 | `ALLOW_SELF_REGISTRATION` | no | `false` | `true` lets people request an account at `/register`; it is created pending and inactive until an admin approves it. |
 | `ALLOWED_EMAIL_DOMAINS` | no | built-in list | Comma list for self-registration and Google sign-in. **Set it to your domains.** |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | effectively yes | none | Delivers sign-in codes (OTP), invites and password resets. Without SMTP nobody can complete the OTP step and invite links must be copied by hand. |
-| `GOOGLE_CLIENT_ID` | no | none | Enables Google sign-in (also passed to the web build). Accounts must already exist. |
+| `GOOGLE_CLIENT_ID` | no | none | Enables Google sign-in (the web app gets the public id from the API at runtime). Accounts must already exist. |
 | `TRUST_PROXY` | behind a proxy | off | Proxy hops in front of the app (`1` for Caddy/nginx/Cloudflare Tunnel). Wrong values distort client IPs and rate limiting. |
 | `COOKIE_SECURE` | no | on in production | `false` only for plain-http LAN installs. |
 | `CORS_ORIGINS` | no | `FRONTEND_URL` | Extra browser origins, comma list. Not needed when everything is served from `PUBLIC_URL`. |
@@ -31,11 +31,19 @@ production** with a missing or placeholder `JWT_SECRET`, missing `DB_*`, or miss
 | `LOG_LEVEL` | no | `info` | `trace` .. `fatal`, or `silent`. |
 | `OTP_PEPPER` | no | derived from `JWT_SECRET` | Separate key for the OTP hash. |
 | `APP_PORT` | no | `5000` | Host port (127.0.0.1) the container is published on. |
+| `ANTHROPIC_API_KEY` | no | none | Enables "Ask InternalX", AI digest summaries and notes-to-tasks. Without it the assistant shows "not set up". Tuning knobs (`ASSISTANT_*`, `DIGEST_*`): [ai-features.md](ai-features.md). |
+| `ENABLE_SCHEDULER` | no | **on in production**, off in development | Monday digest and daily alerts, in-process. Safe with several instances (advisory lock + run log), so the default needs no thought; `false` turns it off. Without SMTP digests are in-app notifications only. |
+| `APP_TIMEZONE` | no | `Asia/Kolkata` | IANA zone for the digest / alert schedule (`DIGEST_HOUR` 8 Mondays, `ALERTS_HOUR` 9 daily). |
+| `SESSION_CACHE_TTL_MS` | no | built-in | Session lookup cache; `0` always reads the database. |
+
+Every variable the backend reads is documented, with its default, in `backend/.env.example` (a test fails if
+the code reads one that is not listed there).
 
 ## 2. First deploy
 
 Prerequisites: a Linux host with Docker + the compose plugin, a DNS name, a TLS terminator in front
-(Caddy, nginx, or a Cloudflare Tunnel: see `deployment/cloudflare/`), and an SMTP account.
+(Caddy, nginx, or a Cloudflare Tunnel: see `deployment/cloudflare/`), and an SMTP account. There are no build
+arguments: `docker compose up -d --build` is the whole build.
 
 ```bash
 git clone <your fork> /opt/internalx && cd /opt/internalx
@@ -46,6 +54,10 @@ docker compose up -d --build
 docker compose logs -f app       # look for: "applied 0001_baseline.sql ... InternalX API listening"
 curl -s http://127.0.0.1:5000/api/ready          # {"status":"ready"}
 ```
+
+The boot log ends with a `[selfcheck]` block (ok / warn / missing, each with a one-line fix), and the same report is
+in the app under **Settings > System** (Super Admin and Managing Director only; it also tests the SMTP login).
+Fix every `MISSING` line before inviting anyone.
 
 1. **Bootstrap admin.** On first boot the Super Admin (L1) is created from the two `BOOTSTRAP_ADMIN_*`
    variables. Sign in (password, then the emailed code), then **delete `BOOTSTRAP_ADMIN_PASSWORD` from

@@ -3,7 +3,7 @@
 # Full reference: docs/production-checklist.md
 
 # ── Required ────────────────────────────────────────────────
-# Public https origin of the app (no trailing slash). Used in invite/reset emails, CORS and the web bundle.
+# Public https origin of the app (no trailing slash). Used in invite/reset emails and CORS.
 PUBLIC_URL=https://internalx.example.com
 
 # Database password. Generate: openssl rand -base64 24 | tr -d '/+='
@@ -40,8 +40,13 @@ SMTP_USER=
 SMTP_PASS=
 
 # ── Optional ────────────────────────────────────────────────
-# Google sign-in (client id also baked into the web bundle at build time)
+# Google sign-in (the web app reads the public client id from the API at runtime)
 GOOGLE_CLIENT_ID=
+# Ask InternalX assistant, AI digest summaries, notes-to-tasks. Empty = assistant shows "not set up".
+ANTHROPIC_API_KEY=
+# Monday digest + daily alerts: ON by default in production (false to turn off). Time zone for the schedule:
+# ENABLE_SCHEDULER=true
+APP_TIMEZONE=Asia/Kolkata
 # Extra browser origins for CORS (comma list). Not needed when app and API share PUBLIC_URL.
 # CORS_ORIGINS=
 # Log verbosity: trace|debug|info|warn|error
