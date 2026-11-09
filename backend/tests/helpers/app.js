@@ -61,6 +61,9 @@ const buildApp = (io = makeFakeIo()) => {
 
 /** Seed demo data and return { ctx, as(userKey), app, io, pool, close }. */
 const setup = async () => {
+  // Other suites (helpers/db.js createUser) leave ad-hoc users behind; start from none so
+  // venture-wide lists in these tests only ever contain the demo people. Test DB only.
+  await pgPool.query('TRUNCATE users RESTART IDENTITY CASCADE');
   const ctx = await seedDemo(pgPool, { password: 'unused-in-tests' });
   const { app, io } = buildApp();
   const tokens = {};
