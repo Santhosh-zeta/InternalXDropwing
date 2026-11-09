@@ -13,7 +13,7 @@ Access rules are the ones in [data-isolation.md](data-isolation.md); every query
 
 ## Search
 
-Postgres full-text search (`to_tsvector('simple', ...)` GIN indexes, migration `0003_b2_search.sql`)
+Postgres full-text search (`to_tsvector('simple', ...)` GIN indexes, migration `0007_search.sql`)
 over tasks, projects, documents (file name), announcements, people and chat messages. Each type uses
 the same SQL predicate as its list endpoint (`taskWhere`, `projectWhere`, `documentWhere`; the staff
 directory rule for people; the channel rules of `chat.service.js` for messages, so direct messages
