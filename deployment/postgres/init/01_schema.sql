@@ -392,3 +392,65 @@ CREATE TABLE announcements (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (venture_id) REFERENCES ventures(id) ON DELETE SET NULL
 );
+
+-- B2: full-text search indexes (same as backend/migrations/0003_b2_search.sql)
+CREATE INDEX IF NOT EXISTS idx_fts_tasks ON tasks
+  USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_projects ON projects
+  USING GIN (to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(description, '') || ' ' || coalesce(client_name, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_documents ON documents
+  USING GIN (to_tsvector('simple', regexp_replace(coalesce(original_name, ''), '[^[:alnum:]]+', ' ', 'g')));
+CREATE INDEX IF NOT EXISTS idx_fts_announcements ON announcements
+  USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_users ON users
+  USING GIN (to_tsvector('simple', coalesce(full_name, '') || ' ' || coalesce(designation, '') || ' ' || coalesce(department, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_messages ON messages
+  USING GIN (to_tsvector('simple', content));
+
+-- B2: assistant tables (same as backend/migrations/0004_b2_assistant.sql)
+CREATE TABLE IF NOT EXISTS assistant_conversations (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(200) NOT NULL DEFAULT 'New conversation',
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_conv_user ON assistant_conversations(user_id, updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS assistant_messages (
+  id SERIAL PRIMARY KEY,
+  conversation_id INTEGER NOT NULL REFERENCES assistant_conversations(id) ON DELETE CASCADE,
+  role VARCHAR(10) NOT NULL CHECK (role IN ('user', 'assistant')),
+  -- Anthropic content blocks, replayed verbatim on the next turn.
+  content JSONB NOT NULL,
+  -- Plain text shown in the UI (NULL for tool_result turns).
+  text TEXT,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_msg_conv ON assistant_messages(conversation_id, id);
+
+CREATE TABLE IF NOT EXISTS assistant_usage (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  day DATE NOT NULL DEFAULT CURRENT_DATE,
+  messages INTEGER NOT NULL DEFAULT 0,
+  input_tokens BIGINT NOT NULL DEFAULT 0,
+  output_tokens BIGINT NOT NULL DEFAULT 0,
+  PRIMARY KEY (user_id, day)
+);
+
+-- B2: scheduler tables (same as backend/migrations/0005_b2_scheduler.sql)
+CREATE TABLE IF NOT EXISTS scheduler_runs (
+  job VARCHAR(40) NOT NULL,
+  run_key VARCHAR(40) NOT NULL,
+  ran_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (job, run_key)
+);
+
+CREATE TABLE IF NOT EXISTS scheduler_alerts (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  finding_key VARCHAR(80) NOT NULL,
+  sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, finding_key)
+);
