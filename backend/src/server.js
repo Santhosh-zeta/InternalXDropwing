@@ -243,19 +243,16 @@ let shuttingDown = false;
 
 /** Readiness: not draining, database reachable AND no pending migrations. */
 app.get('/api/ready', async (req, res) => {
-  if (shuttingDown) return res.status(503).json({ status: 'not_ready', reason: 'shutting_down' });
+  if (shuttingDown) return res.status(503).json({ status: 'not_ready' });
   try {
     await pgPool.query('SELECT 1');
     const m = await require('./migrate').migrationStatus();
-    res.status(m.ok ? 200 : 503).json({
-      status: m.ok ? 'ready' : 'not_ready',
-      database: 'connected',
-      migrations: m.ok ? 'up_to_date' : 'pending',
-      ...(m.ok ? {} : { pending: m.pending }),
-    });
+    // Unauthenticated: ok / not ok only. Which migrations are pending goes to the log.
+    if (!m.ok) req.log.warn({ pending: m.pending }, 'readiness: migrations pending');
+    res.status(m.ok ? 200 : 503).json({ status: m.ok ? 'ready' : 'not_ready' });
   } catch (err) {
     req.log.error({ err }, 'readiness check failed');
-    res.status(503).json({ status: 'not_ready', database: 'disconnected' });
+    res.status(503).json({ status: 'not_ready' });
   }
 });
 

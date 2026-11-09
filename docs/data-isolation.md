@@ -74,7 +74,7 @@ under a Postgres advisory lock, and records name + SHA-256 checksum in
   same schema at head (used by Docker's first start and by the tests);
   `tests/schema-equivalence.test.js` fails if the two ever diverge, so every
   schema change must touch both: a new migration AND `init/01_schema.sql`.
-- `GET /api/ready` reports pending migrations; `GET /api/health` is liveness.
+- `GET /api/ready` is 200/503 with only `{"status":"ready"|"not_ready"}` (pending migrations are logged, never returned to anonymous callers); `GET /api/health` is liveness.
 
 ## Tests and demo data
 
