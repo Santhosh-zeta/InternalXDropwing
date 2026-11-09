@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Download, File, FileImage, FileSpreadsheet, FileText, FolderOpen, Package, Share2, Trash2, Upload, Video, type LucideIcon } from 'lucide-react';
-import api, { API_URL, apiGet, errMsg, getProjects } from '@/lib/api';
+import api, { API_URL, apiGet, errMsg, getProjects, setDocumentClientVisible } from '@/lib/api';
 import { unwrapList, useApi } from '@/lib/useApi';
 import type { Envelope } from '@/lib/types';
 import type { User } from '@/lib/constants';
@@ -108,7 +108,7 @@ export default function DocumentsView({ currentUser }: { currentUser: User }) {
     const next = !d.client_visible;
     docs.setData((prev) => prev?.map((x) => (x.id === d.id ? { ...x, client_visible: next } : x)));
     try {
-      await api.patch(`/documents/${d.id}/client-visible`, { clientVisible: next });
+      await setDocumentClientVisible(d.id, next);
       toast.success(next ? 'Shared with the project client' : 'No longer shared with the client');
     } catch (err) {
       toast.error(errMsg(err, 'Could not change sharing'));
