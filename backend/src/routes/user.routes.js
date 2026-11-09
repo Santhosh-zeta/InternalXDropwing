@@ -7,6 +7,7 @@ const bcrypt = require('bcryptjs');
 const { issueInvite } = require('../services/invite.service');
 const crypto = require('crypto');
 const { canManageUser } = require('../utils/canManageUser');
+const { withScope, taskWhere } = require('../utils/scope');
 const { avatarUpload, handleUploadErrors, verifyUploadContent } = require('../middleware/upload.middleware');
 const { uploadLimiter } = require('../middleware/rateLimit.middleware');
 const { revokeAllSessionsForUser, createSession } = require('../services/session.service');
@@ -191,20 +192,21 @@ router.post('/me/avatar', authenticate, uploadLimiter, avatarUpload.single('avat
 });
 
 // GET /api/users/:id — Get user details and activity
-router.get('/:id', authenticate, userIdRules, async (req, res) => {
+router.get('/:id', authenticate, withScope, userIdRules, async (req, res) => {
   try {
-    const userId = req.params.id;
-    const isSelf = req.user.id === parseInt(userId, 10);
+    const userId = parseInt(req.params.id, 10);
+    const scope = req.scope;
+    const isSelf = scope.userId === userId;
     // L1-L2 see everyone; others only themselves and their own venture. Clients: only themselves.
-    if (req.user.accessLevel > 2 && !isSelf) {
-      if (req.user.accessLevel >= 9) {
+    if (!scope.global && !isSelf) {
+      if (scope.isClient) {
         return res.status(403).json({ success: false, message: 'Not allowed' });
       }
       const [targetUser] = await pool.query('SELECT venture_id, access_level FROM users WHERE id = ?', [userId]);
       if (!targetUser.length) return res.status(404).json({ success: false, message: 'User not found' });
       const t = targetUser[0];
-      const visible = t.access_level <= 2 || (t.venture_id !== null && t.venture_id === req.user.ventureId);
-      if (!visible || (req.user.accessLevel > 5 && t.access_level >= 9)) {
+      const visible = t.access_level <= 2 || (t.venture_id !== null && t.venture_id === scope.ventureId);
+      if (!visible || (scope.level > 5 && t.access_level >= 9)) {
         return res.status(403).json({ success: false, message: 'Cannot view users outside your venture' });
       }
     }
@@ -223,18 +225,23 @@ router.get('/:id', authenticate, userIdRules, async (req, res) => {
     const user = userRows[0];
 
     // Recent task activity is only shown to the person themselves and to managers (L1-L5).
-    if (!isSelf && req.user.accessLevel > 5) {
+    if (!isSelf && scope.level > 5) {
       return res.json({ success: true, data: { user, activity: [] } });
     }
 
-    // Get recent activity (tasks assigned TO or BY this user)
+    // Recent activity (tasks assigned TO or BY this user), limited to the tasks
+    // the *viewer* may see: an L3 looking at the Managing Director's profile
+    // must not read task titles from other ventures.
+    const params = [userId];
+    const visible = taskWhere(scope, 'tasks', params);
     const [activityRows] = await pool.query(`
       SELECT id, title, status, priority, created_at, updated_at
       FROM tasks
-      WHERE EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.id AND ta.user_id = ?) OR assigned_by = ?
+      WHERE (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.id AND ta.user_id = $1) OR assigned_by = $1)
+        AND ${visible}
       ORDER BY updated_at DESC
       LIMIT 10
-    `, [userId, userId]);
+    `, params);
 
     res.json({ success: true, data: { user, activity: activityRows } });
   } catch (err) {
