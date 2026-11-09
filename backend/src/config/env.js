@@ -28,6 +28,12 @@ const validateConfig = (env = process.env) => {
     for (const key of ['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']) {
       if (!env[key]) errors.push(`${key} is not set`);
     }
+    // Behind a proxy without TRUST_PROXY every visitor looks like the proxy's IP, so the login
+    // rate limit becomes one shared bucket for the whole company.
+    if (env.TRUST_PROXY === undefined || env.TRUST_PROXY === '') {
+      warnings.push('TRUST_PROXY is not set: assuming the app is exposed directly. Behind a reverse proxy / tunnel set TRUST_PROXY=1');
+    }
+    if (!env.SMTP_HOST) warnings.push('SMTP is not configured: sign-in codes and invite emails cannot be delivered');
     // Invite and password-reset links are built from it, so localhost is never acceptable.
     if (!env.FRONTEND_URL) errors.push('FRONTEND_URL is not set (the public https URL of the app; used in email links and CORS)');
     else if (/localhost|127\.0\.0\.1/.test(env.FRONTEND_URL)) warnings.push('FRONTEND_URL points at localhost');
