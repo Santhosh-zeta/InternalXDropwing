@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node seed_pg.js"
+    "seed": "node seed_pg.js",
+    "seed:dev": "node seed_dev_users.js",
+    "create-admin": "node scripts/create-admin.js"
   },
   "keywords": [],
   "author": "Dropwing Groups",

@@ -270,7 +270,9 @@ InternalXDropwing/
 │   │   └── server.js           App bootstrap + Socket.IO
 │   ├── migrations/             Incremental schema changes
 │   ├── postgres_migration/     MySQL → Postgres migration reports
-│   ├── seed_pg.js              Seed ventures, levels, demo users
+│   ├── seed_pg.js              Seed ventures, levels, learning checklist (no users)
+│   ├── seed_dev_users.js       DEV-ONLY demo users (refuses NODE_ENV=production)
+│   ├── scripts/create-admin.js CLI to create/reset a Super Admin or MD
 │   └── .env.example
 │
 ├── frontend/                   Next.js 16 web client
@@ -324,9 +326,18 @@ psql -d internalx -f deployment/postgres/init/03_seed.sql
 cd backend
 cp .env.example .env      # then edit — see Configuration below
 npm install
-npm run seed              # optional: demo ventures, levels and users
 npm run dev               # → http://localhost:5000
 ```
+
+**First login.** The repository ships no user accounts. Either put `BOOTSTRAP_ADMIN_EMAIL` and a
+strong `BOOTSTRAP_ADMIN_PASSWORD` (12+ chars) in `backend/.env` — the first boot creates the Super
+Admin if none exists, after which you should delete the password from the file — or run
+`npm run create-admin -- --email you@company.com` (prompts for the password). Then invite everyone
+else from **User Management**.
+
+For local development only, `npm run seed:dev` creates one demo account per level and venture
+(password `Test@1234`, or `DEV_SEED_PASSWORD`). It refuses to run when `NODE_ENV=production`.
+`npm run seed` only loads reference data (ventures, levels, learning checklist).
 
 Verify it's up:
 

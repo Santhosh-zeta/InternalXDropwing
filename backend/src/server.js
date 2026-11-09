@@ -11,6 +11,7 @@ const taskRoutes = require('./routes/task.routes');
 const { testConnection } = require('./config/database');
 const { apiLimiter } = require('./middleware/rateLimit.middleware');
 const { startSessionCleanup } = require('./services/session.service');
+const { bootstrapAdmin } = require('./services/bootstrap');
 
 const app = express();
 
@@ -393,6 +394,14 @@ process.on('SIGINT', () => shutdown('SIGINT'));
 
 const startServer = async () => {
   await testConnection();
+
+  // Creates the first Super Admin from BOOTSTRAP_ADMIN_* if none exists. Logs
+  // instead of throwing on misconfiguration so the server still comes up.
+  try {
+    await bootstrapAdmin();
+  } catch (err) {
+    console.error('[bootstrap] failed:', err.message);
+  }
 
   // Sweeps rows past their expires_at hourly — see session.service.js. Timer
   // is unref()'d there so it never blocks process shutdown.
