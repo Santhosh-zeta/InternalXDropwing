@@ -13,7 +13,7 @@
  *                  "OTP for <email>: 123456" (development only)
  *   DEMO_PASSWORD  password of the demo accounts created by backend/scripts/seed-demo.js
  *   SHOTS_DIR      where screenshots go (default ./e2e-shots)
- *   SKIP_WALK=1 / SKIP_FLOWS=1   run only one half (debugging)
+ *   SKIP_WALK=1 / SKIP_FLOWS=1   run only one half; WALK_USERS=l1,l5 limits the walk (debugging)
  *
  * It walks every menu view as L1, L3, L5, L7 and L9 at 1440px and 390px (no console errors, no failed
  * requests, no horizontal overflow, a heading), then exercises the main flows (task, hours, approval,
@@ -110,6 +110,7 @@ const signIn = async (page, email, password) => {
 /** Wait until the page has stopped loading (network quiet, no skeleton/busy region). */
 const settled = async (page) => {
   await page.waitForLoadState('networkidle').catch(() => {});
+  await page.evaluate(() => document.fonts.ready).catch(() => {});
   await page.waitForFunction(() => !document.querySelector('[aria-busy="true"]'), null, { timeout: 15000 }).catch(() => {});
   await sleep(150);
 };
@@ -125,20 +126,30 @@ const newSession = async (browser, key, viewport = VIEWPORTS[0]) => {
 };
 
 // ── layout checks ────────────────────────────────────────────
-const noOverflow = async (page) => {
-  const o = await page.evaluate(() => {
+const measureOverflow = (page) => page.evaluate(() => {
     const cw = document.documentElement.clientWidth;
     const sw = document.documentElement.scrollWidth;
     if (sw <= cw + 1) return { sw, cw, culprits: [] };
     // Elements that stick out of the viewport and are not inside their own horizontal scroller.
     const scrolls = (el) => { for (let p = el.parentElement; p; p = p.parentElement) { const ox = getComputedStyle(p).overflowX; if (ox === 'auto' || ox === 'scroll' || ox === 'hidden') return true; } return false; };
-    const culprits = [...document.querySelectorAll('body *')]
-      .filter((el) => el.getBoundingClientRect().right > cw + 1 && !scrolls(el) && getComputedStyle(el).position !== 'fixed')
+    const out = [...document.querySelectorAll('body *')].filter((el) => el.getBoundingClientRect().right > cw + 1 && getComputedStyle(el).position !== 'fixed');
+    const abs = out.filter((el) => getComputedStyle(el).position === 'absolute').slice(0, 2).map((el) => `ABS ${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)} right=${Math.round(el.getBoundingClientRect().right)}`);
+    // Prefer elements that are not inside their own horizontal scroller; fall back to anything sticking out.
+    const culprits = (out.filter((el) => !scrolls(el)).length ? out.filter((el) => !scrolls(el)) : out)
       .slice(0, 3)
       .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 60)} right=${Math.round(el.getBoundingClientRect().right)}`);
-    return { sw, cw, culprits };
+    return { sw, cw, culprits: [...abs, ...culprits] };
   });
-  assert(o.sw <= o.cw + 1, `horizontal overflow: scrollWidth ${o.sw} > ${o.cw} (${o.culprits.join('; ')})`);
+
+/** Layout may still be settling (fonts, animations): only an overflow that persists is a defect. */
+const noOverflow = async (page) => {
+  let o;
+  for (let i = 0; i < 4; i += 1) {
+    o = await measureOverflow(page);
+    if (o.sw <= o.cw + 1) return;
+    await sleep(400);
+  }
+  assert(false, `horizontal overflow: scrollWidth ${o.sw} > ${o.cw} (${o.culprits.join('; ')})`);
 };
 
 const openNav = async (page, mobile) => {
@@ -168,16 +179,17 @@ const walkViews = async (browser, key) => {
     const labels = await menuLabels(page, mobile);
     assert(labels.length > 0, 'empty menu');
     for (const label of labels) {
+      if (process.env.ONLY_LABELS && !process.env.ONLY_LABELS.split(',').includes(label)) continue;
       await step(`walk ${key} @${vp.name}: ${label}`, async () => {
         const nav = await openNav(page, mobile);
         await nav.getByRole('button', { name: label, exact: true }).click();
         await settled(page);
+        await shot(page, `${key}-${vp.name}-${label.replace(/\W+/g, '_')}`);
         const h1 = (await page.locator('main h1').first().innerText()).trim();
         assert(h1 === label, `heading "${h1}" != menu label "${label}"`);
         await noOverflow(page);
         const body = await page.locator('main').innerText();
         assert(!/something went wrong|application error|unexpected error/i.test(body), 'error boundary shown');
-        await shot(page, `${key}-${vp.name}-${label.replace(/\W+/g, '_')}`);
         const problems = w.take();
         assert(problems.length === 0, problems.join(' | '));
       });
@@ -389,7 +401,8 @@ const main = async () => {
   const browser = await chromium.launch();
   try {
     // SKIP_WALK=1 / SKIP_FLOWS=1: iterate on one half while debugging.
-    if (!process.env.SKIP_WALK) for (const key of Object.keys(USERS)) await walkViews(browser, key);
+    const only = process.env.WALK_USERS ? process.env.WALK_USERS.split(',') : Object.keys(USERS);
+    if (!process.env.SKIP_WALK) for (const key of only) await walkViews(browser, key);
     if (!process.env.SKIP_FLOWS) await flows(browser);
   } catch (e) {
     record('harness', false, String(e.stack || e).split('\n').slice(0, 3).join(' '));
