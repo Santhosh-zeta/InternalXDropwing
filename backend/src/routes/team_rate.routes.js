@@ -48,7 +48,7 @@ router.put('/:id/rate', guard, async (req, res) => {
     const raw = req.body.hourly_rate;
     let rate = null;
     if (raw !== null && raw !== undefined && raw !== '') {
-      rate = Number(raw);
+      rate = (typeof raw === 'number' || typeof raw === 'string') ? Number(raw) : NaN;
       if (!Number.isFinite(rate) || rate < 0 || rate >= 100000) return fail(res, 400, 'hourly_rate must be a number between 0 and 99999.99, or null to clear');
       rate = Math.round(rate * 100) / 100;
     } else if (raw === undefined) {
