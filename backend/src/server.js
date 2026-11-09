@@ -143,6 +143,7 @@ app.use('/api/client-portal', require('./routes/client_portal.routes'));
 app.use('/api/learning', require('./routes/learning.routes'));
 app.use('/api/strategy', require('./routes/strategy.routes'));
 app.use('/api/search', require('./routes/search.routes'));
+app.use('/api/assistant', require('./routes/assistant.routes'));
 app.use('/api/team-members', require('./routes/team_rate.routes')); // PUT /:id/rate
 
 // Serve uploads directory
