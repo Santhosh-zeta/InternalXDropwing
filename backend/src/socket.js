@@ -6,9 +6,10 @@
  */
 const jwt = require('jsonwebtoken');
 const cookie = require('cookie');
-const { isSessionActive } = require('./services/session.service');
+const { isSessionActive, hashToken } = require('./services/session.service');
 const { scopeFor, canJoinRoom, canUseVentureChannel, canDirectMessage, ventureRoom, dmRoom, toId } = require('./utils/scope');
 const chat = require('./services/chat.service');
+const realtime = require('./services/realtime');
 
 /**
  * JWT authentication middleware for Socket.IO.
@@ -26,7 +27,7 @@ const authenticateSocket = async (socket, next) => {
                   socket.handshake.headers?.authorization?.replace('Bearer ', '') ||
                   cookie.parse(socket.handshake.headers?.cookie || '').internalx_token;
     if (!token) return next(new Error('Authentication required'));
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
     try {
       if (!(await isSessionActive(token))) return next(new Error('Invalid token'));
@@ -38,6 +39,7 @@ const authenticateSocket = async (socket, next) => {
     const scope = await scopeFor(decoded);
     if (!scope) return next(new Error('Invalid token'));
     socket.user = decoded;
+    socket.tokenHash = hashToken(token);
     socket.userId = scope.userId;
     // Rooms the server puts this socket in. Resolved here, before the connection
     // is announced, so handlers (registered synchronously on connect) never race it.
@@ -55,12 +57,15 @@ const authenticateSocket = async (socket, next) => {
 const ack = (cb, payload) => { if (typeof cb === 'function') cb(payload); };
 
 module.exports = (io) => {
+  realtime.setIo(io);
   io.use(authenticateSocket);
 
   io.on('connection', (socket) => {
     // Always fetch scope fresh: the account may have been demoted since connect.
     const currentScope = () => scopeFor({ id: socket.userId });
 
+    socket.join(realtime.tokenRoom(socket.tokenHash)); // logout of this token
+    socket.join(realtime.userRoom(socket.userId)); // lets the server drop this user's sockets
     socket.join(socket.autoRooms); // clients: connected, but in no rooms and no chat
 
     socket.on('join_channel', async (arg, cb) => {

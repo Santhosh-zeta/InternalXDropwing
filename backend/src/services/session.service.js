@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const { pool } = require('../config/database');
+const realtime = require('./realtime');
 
 /**
  * Server-side session records, so that logging out actually revokes something.
@@ -108,12 +109,14 @@ const revokeSession = async (token) => {
   const tokenHash = hashToken(token);
   cache.delete(tokenHash);
   await pool.query('DELETE FROM sessions WHERE token_hash = ?', [tokenHash]);
+  realtime.disconnectToken(tokenHash);
 };
 
 /** Revokes every session for a user (password change, deactivation, admin action). */
 const revokeAllSessionsForUser = async (userId) => {
   cache.clear();
   await pool.query('DELETE FROM sessions WHERE user_id = ?', [userId]);
+  realtime.disconnectUser(userId);
 };
 
 /**

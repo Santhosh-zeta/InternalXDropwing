@@ -238,4 +238,22 @@ describe('Socket.IO rooms (real server)', () => {
     await wait(300);
     expect(mateHears).toHaveLength(1);
   });
+
+  test('revoking sessions / logging out disconnects open sockets (and no other user\'s)', async () => {
+    const { revokeAllSessionsForUser, revokeSession } = require('../src/services/session.service');
+    const closed = (s) => new Promise((r) => s.on('disconnect', r));
+    const a = await open(A['dd.l7'].token);
+    const bystander = await open(A['dd.l5'].token);
+    const done = closed(a);
+    await revokeAllSessionsForUser(c.users['dd.l7']);
+    await Promise.race([done, wait(2000).then(() => { throw new Error('socket still open'); })]);
+    expect(a.connected).toBe(false);
+    expect(bystander.connected).toBe(true);
+    await expect(open(A['dd.l7'].token)).rejects.toBeTruthy(); // session row is gone
+
+    const out = closed(bystander);
+    await revokeSession(A['dd.l5'].token);
+    await Promise.race([out, wait(2000).then(() => { throw new Error('socket still open'); })]);
+    expect(bystander.connected).toBe(false);
+  });
 });
