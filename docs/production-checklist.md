@@ -31,7 +31,7 @@ production** with a missing or placeholder `JWT_SECRET`, missing `DB_*`, or miss
 | `LOG_LEVEL` | no | `info` | `trace` .. `fatal`, or `silent`. |
 | `OTP_PEPPER` | no | derived from `JWT_SECRET` | Separate key for the OTP hash. |
 | `APP_PORT` | no | `5000` | Host port (127.0.0.1) the container is published on. |
-| `ANTHROPIC_API_KEY` | no | none | Enables "Ask InternalX", AI digest summaries and notes-to-tasks. Without it the assistant shows "not set up". Tuning knobs (`ASSISTANT_*`, `DIGEST_*`): [ai-features.md](ai-features.md). |
+| `ANTHROPIC_API_KEY` **or** `OPENAI_API_KEY` **or** `GEMINI_API_KEY` | no | none | Any one enables "Ask InternalX", AI digest summaries and notes-to-tasks. Without it the assistant shows "not set up". Tuning knobs (`ASSISTANT_*`, `DIGEST_*`): [ai-features.md](ai-features.md). |
 | `ENABLE_SCHEDULER` | no | **on in production**, off in development | Monday digest and daily alerts, in-process. Safe with several instances (advisory lock + run log), so the default needs no thought; `false` turns it off. Without SMTP digests are in-app notifications only. |
 | `APP_TIMEZONE` | no | `Asia/Kolkata` | IANA zone for the digest / alert schedule (`DIGEST_HOUR` 8 Mondays, `ALERTS_HOUR` 9 daily). |
 | `SESSION_CACHE_TTL_MS` | no | built-in | Session lookup cache; `0` always reads the database. |

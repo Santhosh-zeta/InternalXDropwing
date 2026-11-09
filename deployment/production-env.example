@@ -43,7 +43,10 @@ SMTP_PASS=
 # Google sign-in (the web app reads the public client id from the API at runtime)
 GOOGLE_CLIENT_ID=
 # Ask InternalX assistant, AI digest summaries, notes-to-tasks. Empty = assistant shows "not set up".
+# Set ANY ONE of these keys (optional: AI_PROVIDER=anthropic|openai|gemini, AI_MODEL, OPENAI_BASE_URL).
 ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+GEMINI_API_KEY=
 # Monday digest + daily alerts: ON by default in production (false to turn off). Time zone for the schedule:
 # ENABLE_SCHEDULER=true
 APP_TIMEZONE=Asia/Kolkata
