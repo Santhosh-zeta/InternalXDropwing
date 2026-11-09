@@ -121,6 +121,16 @@ describe('PUT /api/team-members/:id/rate', () => {
     expect(await rateOf('fx.l7')).toBeNull();
   });
 
+  test('an L2 cannot edit their own or an L1 rate; L1 can', async () => {
+    const before = String(await rateOf('l1'));
+    expect((await put('l2', 'l2', { hourly_rate: 9 })).status).toBe(404);
+    expect((await put('l2', 'l1', { hourly_rate: 9 })).status).toBe(404);
+    expect(String(await rateOf('l1'))).toBe(before);
+    expect((await put('l1', 'l2', { hourly_rate: 12 })).status).toBe(200);
+    expect((await put('l1', 'l1', { hourly_rate: 13 })).status).toBe(200);
+    expect((await put('l2', 'dd.l3', { hourly_rate: 14 })).status).toBe(200);
+  });
+
   test('validation', async () => {
     for (const bad of [-1, 'abc', 100000, {}, [1]]) expect((await put('l1', 'dd.l7', { hourly_rate: bad })).status).toBe(400);
     expect((await put('l1', 'dd.l7', {})).status).toBe(400);
