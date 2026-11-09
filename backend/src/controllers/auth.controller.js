@@ -386,10 +386,38 @@ const getMe = async (req, res) => {
   }
 };
 
+/** Self-registration is off unless explicitly enabled; the product is invite-only. */
+const selfRegistrationEnabled = () => process.env.ALLOW_SELF_REGISTRATION === 'true';
+
+/**
+ * GET /api/auth/config  (public)
+ * Lets the login/register pages explain the sign-up policy. Nothing sensitive.
+ */
+const publicConfig = (req, res) => res.json({
+  success: true,
+  data: {
+    selfRegistration: selfRegistrationEnabled(),
+    googleLogin: Boolean(process.env.GOOGLE_CLIENT_ID),
+  },
+});
+
 /**
  * POST /api/auth/register
+ *
+ * Disabled (403) unless ALLOW_SELF_REGISTRATION=true. When enabled the account is
+ * created INACTIVE and pending: no venture, no sign-in, until an admin approves it
+ * (GET /api/team-members?pending=true, then PUT is_active + venture). The answer is
+ * the same whether or not the email already exists, so it cannot be used to probe
+ * for accounts.
  */
 const register = async (req, res) => {
+  if (!selfRegistrationEnabled()) {
+    return res.status(403).json({
+      success: false,
+      message: 'Registration is by invitation only. Ask your administrator to invite you.',
+    });
+  }
+
   const { fullName, email, password } = req.body;
 
   if (!fullName || !email || !password) {
@@ -408,23 +436,22 @@ const register = async (req, res) => {
   }
 
   try {
-    // Check if user exists
-    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()]);
-    if (existing.length > 0) {
-      return res.status(400).json({ success: false, message: 'Email already registered' });
-    }
+    const normalized = email.toLowerCase().trim();
+    const accepted = { success: true, message: 'Request received. An administrator must approve your account before you can sign in.' };
+
+    const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [normalized]);
+    if (existing.length > 0) return res.status(202).json(accepted);
 
     const passwordHash = await bcrypt.hash(password, 12);
-    // Generate a default employee_id since it's unique
-    const employeeId = 'EMP-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+    const employeeId = 'EMP-' + crypto.randomBytes(4).toString('hex').toUpperCase();
 
     await pool.query(
-      `INSERT INTO users (employee_id, full_name, email, password_hash, access_level) 
-       VALUES (?, ?, ?, ?, 8)`,
-      [employeeId, fullName, email.toLowerCase().trim(), passwordHash]
+      `INSERT INTO users (employee_id, full_name, email, password_hash, access_level, venture_id, is_active, pending_approval)
+       VALUES (?, ?, ?, ?, 8, NULL, FALSE, TRUE)`,
+      [employeeId, String(fullName).trim().slice(0, 100), normalized, passwordHash]
     );
 
-    return res.status(201).json({ success: true, message: 'Registration successful! You can now log in.' });
+    return res.status(202).json(accepted);
   } catch (err) {
     console.error('Registration error:', err);
     return res.status(500).json({ success: false, message: 'Server error during registration' });
@@ -503,4 +530,4 @@ const googleLogin = async (req, res) => {
   }
 };
 
-module.exports = { register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe, googleLogin };
+module.exports = { publicConfig, register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe, googleLogin };

@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { register, googleLogin } from '@/lib/api';
+import { register, googleLogin, getAuthConfig } from '@/lib/api';
 import { GoogleLogin } from '@react-oauth/google';
 import { Mail, Lock, User, Hexagon, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -44,6 +44,12 @@ export default function RegisterPage() {
   const router = useRouter();
   const hasGoogleClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
+  // null = still asking the server. Registration is invite-only unless the server enables it.
+  const [selfRegistration, setSelfRegistration] = useState<boolean | null>(null);
+  useEffect(() => {
+    getAuthConfig().then((c) => setSelfRegistration(c.selfRegistration)).catch(() => setSelfRegistration(false));
+  }, []);
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -75,7 +81,7 @@ export default function RegisterPage() {
     try {
       const data = await register(fullName, email, password);
       if (data.success) {
-        toast.success(data.message || 'Registration successful!');
+        toast.success(data.message || 'Request received.');
         setTimeout(() => {
           router.push('/');
         }, 1500);
@@ -152,12 +158,23 @@ export default function RegisterPage() {
         >
           <div className="mb-6 text-center">
             <h3 className="text-2xl font-semibold tracking-tight mb-2" style={{ color: 'var(--color-text-primary)' }}>
-              Create an account
+              {selfRegistration === false ? 'Access is by invitation' : 'Request an account'}
             </h3>
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              Enter your details to get started.
+              {selfRegistration === false
+                ? 'InternalX accounts are created by your administrator. Check your email for an invitation link, or ask your administrator to invite you.'
+                : 'An administrator must approve your account before you can sign in.'}
             </p>
           </div>
+
+          {selfRegistration !== true ? (
+            <div className="text-center text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+              <Link href="/" className="font-medium hover:underline inline-flex items-center gap-1" style={{ color: 'var(--color-purple-glow)' }}>
+                Back to log in <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+          ) : (
+          <>
 
           <FormAlert message={formError} />
 
@@ -309,6 +326,8 @@ export default function RegisterPage() {
               Log in <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
+          </>
+          )}
         </motion.div>
       </div>
     </div>
