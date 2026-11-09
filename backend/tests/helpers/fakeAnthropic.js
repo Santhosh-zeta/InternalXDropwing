@@ -9,6 +9,10 @@ const makeFake = (steps, { usage = { input_tokens: 100, output_tokens: 20 }, sto
   const client = {
     calls,
     messages: {
+      // Non-streaming call (digest summary): same scripted steps.
+      async create(params, opts = {}) {
+        return this.stream(params, opts).finalMessage();
+      },
       stream(params, opts = {}) {
         // Deep copy: the agent keeps appending to the same messages array.
         calls.push(JSON.parse(JSON.stringify(params)));
