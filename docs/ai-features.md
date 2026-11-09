@@ -4,12 +4,38 @@ Four features, all optional, none of them able to see or do more than the signed
 Access rules are the ones in [data-isolation.md](data-isolation.md); every query below goes through
 `backend/src/utils/scope.js`.
 
-| Feature | Needs `ANTHROPIC_API_KEY` | Endpoint |
+| Feature | Needs an AI provider key | Endpoint |
 | --- | --- | --- |
 | Search and Ctrl/Cmd+K palette | no | `GET /api/search?q=` |
 | Ask InternalX assistant | yes | `/api/assistant/*` |
 | Weekly digest and daily alerts | no (the model only adds an optional two-sentence summary) | scheduler, `GET/PUT /api/notifications/preferences` |
 | Meeting notes to tasks | yes | `POST /api/assistant/notes/propose`, `POST /api/assistant/notes/create` |
+
+## Choosing the AI provider
+
+Set any ONE of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY` (`GOOGLE_API_KEY` is accepted as an
+alias) in `backend/.env`. If several are set, `AI_PROVIDER=anthropic|openai|gemini` decides; without it the
+first of anthropic, openai, gemini is used. The choice is logged at first use and shown by
+`GET /api/assistant/status` (`provider`, `model`, no secrets).
+
+| Provider | Default model | Transport | Notes |
+| --- | --- | --- | --- |
+| Anthropic | `claude-sonnet-5-5` | official SDK | prompt caching on the fixed system prompt and tools |
+| OpenAI | `gpt-5` | `fetch`, Chat Completions + SSE | `OPENAI_BASE_URL` for Azure / OpenRouter / Ollama-style gateways |
+| Gemini | `gemini-2.5-flash` | `fetch`, `streamGenerateContent?alt=sse` | key sent in the `x-goog-api-key` header only |
+
+`AI_MODEL` overrides the model (`ASSISTANT_MODEL` still works for Anthropic). Defaults live in one file,
+`backend/src/services/ai/constants.js`. Because vendors retire models, the first call lists the account's
+models (cached for an hour); if the wanted model is not there, the best available one is picked by a
+preference list and logged. If listing fails (gateway without `/models`) the configured model is used as is.
+
+All three run the same agent loop, tools, caps and audit; only the wire format differs, behind
+`backend/src/services/ai/` (`chat()` is one model turn, `structured()` is tool-call based JSON output for
+notes-to-tasks). Provider errors (bad key, quota, outage, safety block, timeout) become short generic
+messages for users; keys and response bodies are never logged. Conversations are stored in a
+provider-neutral shape (`text`, `tool_use`, `tool_result` blocks), so switching provider keeps history readable.
+`probe()` in `services/ai/index.js` validates the key by listing models (for the system status page).
+The data-protection note below applies to whichever vendor you pick.
 
 ## Search
 
@@ -24,8 +50,7 @@ prefix, so "alph" finds "Alpha".
 ## Ask InternalX
 
 A chat assistant (full page under "Ask InternalX", plus a floating panel on every dashboard page)
-that answers questions by calling read-only tools. Model: `ASSISTANT_MODEL`, default
-`claude-sonnet-5-5`, streamed to the browser over Server-Sent Events.
+that answers questions by calling read-only tools. Model: see "Choosing the AI provider", streamed to the browser over Server-Sent Events.
 
 ### What the model can see
 
@@ -73,14 +98,14 @@ and aborts the upstream request when the browser disconnects. The system prompt 
 are a fixed prefix (per-user context such as the date goes in the user turn), marked for prompt
 caching.
 
-Rough cost: at the list price of Sonnet 5.5 ($2 per million input tokens, $10 per million output;
+Rough cost with the Anthropic default: at the list price of Sonnet 5.5 ($2 per million input tokens, $10 per million output;
 cached input is much cheaper) a typical question that makes one or two lookups is a few thousand
 input tokens and a few hundred output tokens, in the order of a cent. This is an estimate from the
 price list and the caps above, not a measurement: check the Anthropic console after a week of real
 use. The hard ceiling per user is the daily token cap.
 
 Conversations are stored in plain text in your database. Question text and tool results are sent to
-Anthropic's API; do not enable the assistant if company data may not leave your infrastructure.
+the chosen provider's API (Anthropic, OpenAI or Google); do not enable the assistant if company data may not leave your infrastructure.
 
 ## Weekly digest and daily alerts
 
@@ -105,7 +130,7 @@ duplicate). Opt-outs live in `users.notification_preferences` (`digest`, `alerts
 default on), via `GET/PUT /api/notifications/preferences`. To preview without sending:
 `node scripts/run-digest.js --dry`.
 
-If `ANTHROPIC_API_KEY` is set and `DIGEST_AI_SUMMARY` is not `false`, the model writes a two-sentence
+If a provider key is set and `DIGEST_AI_SUMMARY` is not `false`, the model writes a two-sentence
 summary at the top from that user's own digest numbers and item titles (titles are sanitised and
 treated as data). On any failure, or without a key, a deterministic sentence is used instead.
 
@@ -113,8 +138,8 @@ treated as data). On any failure, or without a key, a deterministic sentence is 
 
 Managers (L1 to L5) paste notes in "Notes to tasks" (Ask InternalX page). The model sees the notes plus
 the names of the people and open projects in that manager's scope, and returns draft tasks through a
-tool with a JSON schema (the current models reject forced tool choice, so the prompt asks for the call
-and the server checks it was made, retrying once). Names are matched back to ids on the server inside
+tool with a JSON schema (OpenAI and Gemini are told to call it; Anthropic's current models reject forced
+tool choice, so the prompt asks for the call; on every provider the server checks it was made, retrying once). Names are matched back to ids on the server inside
 the scope: an unknown or ambiguous name leaves the assignee empty with candidates to choose from.
 Nothing is written. `POST /api/assistant/notes/create` then creates only the tasks the manager
 confirmed, by calling the normal task controller with the same validation, scope checks, audit and
@@ -122,6 +147,6 @@ notifications as `POST /api/tasks`; one failing row does not block the others. N
 
 ## Not configured
 
-Without a key: `GET /api/assistant/status` returns `configured: false`; admins (L1 to L3) get a
+Without any provider key: `GET /api/assistant/status` returns `configured: false`; admins (L1 to L3) get a
 setup hint, other users see "not enabled by your administrator"; chat and notes-to-tasks return 503;
 nothing crashes and search, digest and alerts keep working.

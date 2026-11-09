@@ -136,6 +136,7 @@ The ones you will touch first:
 | `ALLOW_SELF_REGISTRATION` | `false` by default |
 | `ALLOWED_EMAIL_DOMAINS` | Self-registration and Google sign-in allowlist |
 | `SMTP_*` | Needed for sign-in codes, invites and resets |
+| `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` or `GEMINI_API_KEY` | Any one enables the AI assistant (`AI_PROVIDER`, `AI_MODEL`, `OPENAI_BASE_URL` optional; see [docs/ai-features.md](docs/ai-features.md)) |
 | `TRUST_PROXY` `COOKIE_SECURE` `CORS_ORIGINS` `LOG_LEVEL` | Behind-a-proxy and logging behaviour |
 
 Frontend: `NEXT_PUBLIC_API_URL` (backend origin, baked into the bundle at build time) and
