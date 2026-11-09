@@ -96,7 +96,7 @@ jobs:
             exit 1
           fi
 
-      - name: Migrations are idempotent on top of the init schema
+      - name: Migrations are idempotent on top of the init schema (upgrade path)
         working-directory: backend
         env:
           DB_HOST: localhost
@@ -135,14 +135,14 @@ jobs:
           done
           exit $status
 
-      - name: Boot the server and hit /api/health
+      - name: Boot the server on an EMPTY database (AUTO_MIGRATE) and hit /api/health + /api/ready
         working-directory: backend
         env:
           NODE_ENV: development
           PORT: '5000'
           DB_HOST: localhost
           DB_PORT: '5432'
-          DB_NAME: internalx
+          DB_NAME: internalx_boot
           DB_USER: postgres
           DB_PASSWORD: postgres
           JWT_SECRET: ci-only-not-a-real-secret
@@ -150,13 +150,16 @@ jobs:
           BOOTSTRAP_ADMIN_EMAIL: ci-admin@dropwinggroups.com
           BOOTSTRAP_ADMIN_PASSWORD: Ci-Boot-9xQ!vT4mLz2
         run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE internalx_boot'
           node src/server.js &
           curl -sSf --retry 20 --retry-all-errors --retry-delay 1 \
             http://localhost:5000/api/health
           echo
+          curl -sSf http://localhost:5000/api/ready
+          echo
           # the bootstrap admin must have been created on first boot
           sleep 2
-          n=$(PGPASSWORD=postgres psql -h localhost -U postgres -d internalx -tAc \
+          n=$(PGPASSWORD=postgres psql -h localhost -U postgres -d internalx_boot -tAc \
                 "SELECT count(*) FROM users WHERE access_level = 1")
           [ "$n" = "1" ] || { echo "::error::bootstrap admin was not created"; exit 1; }
 
