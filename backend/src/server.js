@@ -236,9 +236,12 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({
+  // Only 4xx errors that carry an explicit status are safe to echo back; anything
+  // else (missing status, 5xx) gets a generic message so internals don't leak.
+  const isClientError = Boolean(err.status) && err.status < 500;
+  res.status(isClientError ? err.status : 500).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: isClientError ? (err.message || 'Request error') : 'Internal server error',
   });
 });
 
