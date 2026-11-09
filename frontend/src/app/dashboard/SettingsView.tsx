@@ -1,21 +1,25 @@
 'use client';
 
 import { useId, useRef, useState } from 'react';
-import { ShieldCheck, SlidersHorizontal, UserCircle } from 'lucide-react';
+import { Server, ShieldCheck, SlidersHorizontal, UserCircle } from 'lucide-react';
 import type { User } from '@/lib/constants';
 import ProfileTab from './settings/ProfileTab';
 import SecurityTab from './settings/SecurityTab';
 import PreferencesTab from './settings/PreferencesTab';
+import SystemTab from './settings/SystemTab';
 
-type TabId = 'profile' | 'security' | 'preferences';
+type TabId = 'profile' | 'security' | 'preferences' | 'system';
 
-const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
+const ALL_TABS: { id: TabId; label: string; icon: React.ReactNode; maxLevel?: number }[] = [
   { id: 'profile', label: 'Personal Info', icon: <UserCircle size={16} aria-hidden="true" /> },
   { id: 'security', label: 'Security', icon: <ShieldCheck size={16} aria-hidden="true" /> },
   { id: 'preferences', label: 'Preferences', icon: <SlidersHorizontal size={16} aria-hidden="true" /> },
+  // Server configuration self-check: Super Admin / Managing Director only (the API enforces the same).
+  { id: 'system', label: 'System', icon: <Server size={16} aria-hidden="true" />, maxLevel: 2 },
 ];
 
 export default function SettingsView({ currentUser }: { currentUser: User }) {
+  const TABS = ALL_TABS.filter((t) => currentUser.accessLevel <= (t.maxLevel ?? 9));
   const [activeTab, setActiveTab] = useState<TabId>('profile');
   const uid = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -72,6 +76,7 @@ export default function SettingsView({ currentUser }: { currentUser: User }) {
         {activeTab === 'profile' && <ProfileTab currentUser={currentUser} />}
         {activeTab === 'security' && <SecurityTab />}
         {activeTab === 'preferences' && <PreferencesTab />}
+        {activeTab === 'system' && <SystemTab />}
       </div>
     </div>
   );

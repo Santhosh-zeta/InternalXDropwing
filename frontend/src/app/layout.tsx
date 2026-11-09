@@ -15,7 +15,6 @@ export const metadata: Metadata = {
   robots: "noindex, nofollow",
 };
 
-import GoogleAuthProvider from "@/components/GoogleAuthProvider";
 import { ConfirmProvider } from "@/components/ui";
 
 export default function RootLayout({
@@ -65,11 +64,9 @@ export default function RootLayout({
             },
           }}
         />
-        <GoogleAuthProvider>
-          <ConfirmProvider>
-            {children}
-          </ConfirmProvider>
-        </GoogleAuthProvider>
+        <ConfirmProvider>
+          {children}
+        </ConfirmProvider>
       </body>
     </html>
   );

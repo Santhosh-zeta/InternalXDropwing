@@ -64,7 +64,7 @@ const RESEND_COOLDOWN_SECONDS = 30;
 export default function LoginPage() {
   const router = useRouter();
   // What this server offers (Google sign-in, self-registration). Nothing extra is shown until it answers.
-  const [authConfig, setAuthConfig] = useState({ googleLogin: false, selfRegistration: false });
+  const [authConfig, setAuthConfig] = useState<{ googleLogin: boolean; selfRegistration: boolean; googleClientId?: string | null }>({ googleLogin: false, selfRegistration: false });
   useEffect(() => {
     getAuthConfig().then(setAuthConfig).catch(() => { /* keep password sign-in only */ });
   }, []);
@@ -420,7 +420,7 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              {authConfig.googleLogin && <GoogleSignIn onCredential={handleGoogleSuccess} />}
+              {authConfig.googleLogin && authConfig.googleClientId && <GoogleSignIn clientId={authConfig.googleClientId} onCredential={handleGoogleSuccess} />}
 
               {authConfig.selfRegistration ? (
                 <div className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>

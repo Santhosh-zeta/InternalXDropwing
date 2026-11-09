@@ -16,6 +16,7 @@ const { startSessionCleanup } = require('./services/session.service');
 const { bootstrapAdmin } = require('./services/bootstrap');
 const { assertConfig, corsOrigins, trustProxySetting, cookieSecure } = require('./config/env');
 const { logger, captureConsole } = require('./utils/logger');
+const { runSelfCheck, logSelfCheck } = require('./config/selfcheck');
 
 // The real server process logs JSON lines only; tests and tooling keep the plain console.
 if (require.main === module) captureConsole();
@@ -179,6 +180,7 @@ app.use('/api/strategy', require('./routes/strategy.routes'));
 app.use('/api/search', require('./routes/search.routes'));
 app.use('/api/assistant', require('./routes/assistant.routes'));
 app.use('/api/team-members', require('./routes/team_rate.routes')); // PUT /:id/rate
+app.use('/api/admin', require('./routes/admin.routes'));
 
 // Serve uploads directory
 const path = require('path');
@@ -413,13 +415,15 @@ const startServer = async () => {
   // Sweeps rows past their expires_at hourly — see session.service.js. Timer
   // is unref()'d there so it never blocks process shutdown.
   startSessionCleanup();
-  require('./services/scheduler').startScheduler(); // no-op unless ENABLE_SCHEDULER=true
+  require('./services/scheduler').startScheduler(); // on in production unless ENABLE_SCHEDULER=false
 
   // Proxies (and Cloudflare) idle out at 60s; keep ours longer so they never reuse a closed socket.
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
   server.listen(PORT, () => {
     logger.info({ port: PORT, env: process.env.NODE_ENV }, 'InternalX API listening');
+    // Informational only: never blocks or breaks the boot.
+    runSelfCheck().then((r) => logSelfCheck(r, logger)).catch((err) => logger.warn({ err }, '[selfcheck] could not run'));
   });
 };
 

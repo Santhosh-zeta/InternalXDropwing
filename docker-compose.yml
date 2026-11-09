@@ -32,10 +32,6 @@ services:
   app:
     build:
       context: .
-      args:
-        # Public origin of the app, inlined into the web bundle at build time.
-        NEXT_PUBLIC_API_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env, e.g. https://internalx.example.com}
-        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     image: internalx:latest
     restart: unless-stopped
     depends_on:
@@ -45,7 +41,7 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      FRONTEND_URL: ${PUBLIC_URL}
+      FRONTEND_URL: ${PUBLIC_URL:?set PUBLIC_URL in .env, e.g. https://internalx.example.com}
       DB_HOST: db
       DB_PORT: "5432"
       DB_NAME: ${POSTGRES_DB:-internalx}
