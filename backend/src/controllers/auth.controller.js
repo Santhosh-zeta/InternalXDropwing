@@ -16,12 +16,14 @@ const GENERIC_OTP_FAILURE = 'Invalid or expired code. Sign in again to get a new
 // whether an account exists.
 const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12);
 
-const COOKIE_OPTIONS = {
+const { cookieSecure } = require('../config/env');
+
+const cookieOptions = () => ({
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: cookieSecure(),
   sameSite: 'strict',
   path: '/',
-};
+});
 
 const generateAuthResponse = async (user, res, message, req) => {
   const token = jwt.sign(
@@ -48,7 +50,7 @@ const generateAuthResponse = async (user, res, message, req) => {
   const { exp } = jwt.decode(token);
   await createSession(user.id, token, new Date(exp * 1000), req);
 
-  res.cookie('internalx_token', token, { ...COOKIE_OPTIONS, maxAge: 8 * 60 * 60 * 1000 });
+  res.cookie('internalx_token', token, { ...cookieOptions(), maxAge: 8 * 60 * 60 * 1000 });
 
   return res.json({
     success: true,
@@ -327,11 +329,11 @@ const logout = async (req, res) => {
     // A failure here means the token stays live until it expires, which the
     // user needs to know about rather than being told they are safely out.
     console.error('Session revocation failed:', err.message);
-    res.clearCookie('internalx_token', COOKIE_OPTIONS);
+    res.clearCookie('internalx_token', cookieOptions());
     return res.status(500).json({ success: false, message: 'Could not fully sign out. Please try again.' });
   }
 
-  res.clearCookie('internalx_token', COOKIE_OPTIONS);
+  res.clearCookie('internalx_token', cookieOptions());
   return res.json({ success: true, message: 'Logged out successfully' });
 };
 

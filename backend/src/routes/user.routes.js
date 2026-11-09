@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const { issueInvite } = require('../services/invite.service');
 const crypto = require('crypto');
 const { canManageUser } = require('../utils/canManageUser');
-const { avatarUpload, handleUploadErrors } = require('../middleware/upload.middleware');
+const { avatarUpload, handleUploadErrors, verifyUploadContent } = require('../middleware/upload.middleware');
 const { uploadLimiter } = require('../middleware/rateLimit.middleware');
 const { revokeAllSessionsForUser, createSession } = require('../services/session.service');
 const jwt = require('jsonwebtoken');
@@ -176,7 +176,7 @@ router.put('/me/password', authenticate, changePasswordRules, async (req, res) =
 });
 
 // POST /api/users/me/avatar — Upload avatar
-router.post('/me/avatar', authenticate, uploadLimiter, avatarUpload.single('avatar'), handleUploadErrors, async (req, res) => {
+router.post('/me/avatar', authenticate, uploadLimiter, avatarUpload.single('avatar'), handleUploadErrors, verifyUploadContent, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: 'No file provided' });
     

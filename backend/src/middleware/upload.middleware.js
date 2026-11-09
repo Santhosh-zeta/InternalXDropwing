@@ -135,6 +135,68 @@ const avatarUpload = multer({
 });
 
 /**
+ * Magic-byte check. Extension and declared MIME type are both client-controlled,
+ * so after multer has stored the file we read its first bytes and require them to
+ * match the format the extension claims. An .exe, an HTML page or an SVG renamed to
+ * .pdf/.png/.txt is deleted and refused. (HTML, SVG, scripts and executables are
+ * also absent from the allowlists above, so there is no extension that accepts them.)
+ */
+const startsWith = (buf, bytes, offset = 0) => bytes.every((b, i) => buf[offset + i] === b);
+const ZIP = [0x50, 0x4b, 0x03, 0x04];
+const OLE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+const SIGNATURES = {
+  '.pdf': (b) => startsWith(b, [0x25, 0x50, 0x44, 0x46, 0x2d]),
+  '.png': (b) => startsWith(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  '.jpg': (b) => startsWith(b, [0xff, 0xd8, 0xff]),
+  '.jpeg': (b) => startsWith(b, [0xff, 0xd8, 0xff]),
+  '.webp': (b) => startsWith(b, [0x52, 0x49, 0x46, 0x46]) && startsWith(b, [0x57, 0x45, 0x42, 0x50], 8),
+  '.docx': (b) => startsWith(b, ZIP),
+  '.xlsx': (b) => startsWith(b, ZIP),
+  '.pptx': (b) => startsWith(b, ZIP),
+  '.doc': (b) => startsWith(b, OLE),
+  '.xls': (b) => startsWith(b, OLE),
+  '.ppt': (b) => startsWith(b, OLE),
+};
+const EXECUTABLE_MAGIC = [[0x4d, 0x5a], [0x7f, 0x45, 0x4c, 0x46], [0xcf, 0xfa, 0xed, 0xfe], [0xca, 0xfe, 0xba, 0xbe], [0x23, 0x21]];
+const MARKUP = /^\s*<\s*(!doctype|html|head|body|script|svg|\?xml|iframe|object|embed|meta|link|style)/i;
+
+/** Plain-text formats: no binary bytes, no executable header, no markup that a browser would run. */
+const looksLikePlainText = (b) => {
+  if (b.includes(0)) return false;
+  if (EXECUTABLE_MAGIC.some((sig) => startsWith(b, sig))) return false;
+  return !MARKUP.test(b.toString('utf8').replace(/^\uFEFF/, ''));
+};
+
+const contentMatchesExtension = (ext, head) => {
+  if (EXECUTABLE_MAGIC.some((sig) => startsWith(head, sig))) return false;
+  if (ext === '.txt' || ext === '.csv') return looksLikePlainText(head);
+  const check = SIGNATURES[ext];
+  return Boolean(check && head.length > 0 && check(head));
+};
+
+/** Mount right after the multer middleware (and before handleUploadErrors is fine too). */
+const verifyUploadContent = (req, res, next) => {
+  const file = req.file;
+  if (!file) return next();
+  let head = Buffer.alloc(0);
+  try {
+    const fd = fs.openSync(file.path, 'r');
+    try {
+      head = Buffer.alloc(4096);
+      const n = fs.readSync(fd, head, 0, 4096, 0);
+      head = head.subarray(0, n);
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch (err) {
+    return next(err);
+  }
+  if (contentMatchesExtension(path.extname(file.filename).toLowerCase(), head)) return next();
+  fs.unlink(file.path, () => {});
+  return res.status(400).json({ success: false, message: 'File content does not match its type, or the type is not allowed.' });
+};
+
+/**
  * Turns multer's own errors into the JSON envelope the rest of the API uses.
  * Without this a rejected upload falls through to the generic error handler and
  * surfaces as a 500, which tells the user nothing and looks like a server bug.
@@ -163,6 +225,8 @@ module.exports = {
   documentUpload,
   avatarUpload,
   handleUploadErrors,
+  verifyUploadContent,
+  contentMatchesExtension,
   DOCUMENT_TYPES,
   AVATAR_TYPES,
   UPLOAD_ROOT,

@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const morgan = require('morgan');
+const crypto = require('crypto');
+const pinoHttp = require('pino-http');
 const cookieParser = require('cookie-parser');
 
 const authRoutes = require('./routes/auth.routes');
@@ -12,12 +13,37 @@ const { testConnection } = require('./config/database');
 const { apiLimiter } = require('./middleware/rateLimit.middleware');
 const { startSessionCleanup } = require('./services/session.service');
 const { bootstrapAdmin } = require('./services/bootstrap');
-const { assertConfig } = require('./config/env');
+const { assertConfig, corsOrigins, trustProxySetting } = require('./config/env');
+const { logger, captureConsole } = require('./utils/logger');
+
+// The real server process logs JSON lines only; tests and tooling keep the plain console.
+if (require.main === module) captureConsole();
 
 const app = express();
 
 // Security & Middleware
-app.set('trust proxy', 1);
+// TRUST_PROXY (see config/env.js): off unless you say how many proxies sit in front.
+app.set('trust proxy', trustProxySetting());
+
+// Request id (reuses a sane inbound X-Request-Id from the proxy, else mints one),
+// echoed back as X-Request-Id and attached to every log line of the request. Paths
+// are logged without the query string; credentials are redacted by the logger.
+const REQUEST_ID_RE = /^[A-Za-z0-9._-]{8,64}$/;
+app.use(pinoHttp({
+  logger,
+  genReqId: (req, res) => {
+    const inbound = req.headers['x-request-id'];
+    const id = typeof inbound === 'string' && REQUEST_ID_RE.test(inbound) ? inbound : crypto.randomUUID();
+    res.setHeader('X-Request-Id', id);
+    return id;
+  },
+  autoLogging: { ignore: (req) => req.url === '/api/health' || req.url === '/api/ready' },
+  customLogLevel: (req, res, err) => (err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info'),
+  serializers: {
+    req: (req) => ({ id: req.id, method: req.method, path: String(req.url).split('?')[0], ip: req.remoteAddress }),
+    res: (res) => ({ status: res.statusCode }),
+  },
+}));
 
 /**
  * Content-Security-Policy for the Next.js static export served from
@@ -79,6 +105,10 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 app.use(helmet({
+  strictTransportSecurity: { maxAge: 31536000, includeSubDomains: true },
+  // Same-origin only: nothing outside this app may embed our files or windows.
+  crossOriginResourcePolicy: { policy: 'same-origin' },
+  crossOriginOpenerPolicy: { policy: 'same-origin' },
   contentSecurityPolicy: {
     // helmet merges provided directives into its own default set unless told
     // not to — with useDefaults left on, style-src and font-src silently
@@ -89,7 +119,6 @@ app.use(helmet({
     directives: cspDirectives,
   },
 }));
-app.use(morgan('dev'));
 app.use(cookieParser());
 
 // Force HTTPS in production
@@ -100,16 +129,19 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS
+// CORS: CORS_ORIGINS (comma list) or FRONTEND_URL. The web app is served by this
+// server, so browsers normally make same-origin calls and never need it.
+const allowedOrigins = corsOrigins();
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-Id'],
+  exposedHeaders: ['X-Request-Id'],
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Routes
 // /api/auth keeps its own dedicated limiters (rateLimit.middleware.js) sized
@@ -177,7 +209,17 @@ app.use('/uploads', require('./routes/uploads.routes'));
  *     middleware/upload.middleware.js), so this is "public if you already
  *     have the exact URL", not "public and enumerable".
  */
-app.use('/uploads/avatars', express.static(path.join(__dirname, '../uploads/avatars')));
+app.use('/uploads/avatars', express.static(path.join(__dirname, '../uploads/avatars'), {
+  index: false,      // no directory listing
+  dotfiles: 'deny',
+  maxAge: '1h',
+  // Only the three raster types the upload allowlist accepts are ever served as images;
+  // anything else that might sit in the directory is forced to download.
+  setHeaders: (res, filePath) => {
+    if (!/\.(png|jpe?g|webp)$/i.test(filePath)) res.setHeader('Content-Disposition', 'attachment');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+  },
+}));
 
 // Serve frontend build
 app.use(express.static(path.join(__dirname, '../public/frontend-build'), { extensions: ['html'] }));
@@ -186,31 +228,30 @@ app.use(express.static(path.join(__dirname, '../public/frontend-build'), { exten
 app.get('/index.html', (req, res) => res.redirect(301, '/'));
 
 /**
- * Health check.
- *
- * Used to unconditionally report "ok", which is exactly the failure mode a
- * health check exists to prevent: an orchestrator or uptime monitor would
- * see green while the database was completely unreachable and every
- * DB-backed request was 500ing. It now actually asks Postgres, so a real
- * outage shows up here as 503 instead of hiding behind a healthy-looking API
- * process.
+ * Liveness: the process is up and the event loop answers. Deliberately does NOT
+ * touch the database: a DB outage must not make an orchestrator kill and restart
+ * a healthy API process. Use /api/ready for "can it serve traffic".
  */
-app.get('/api/health', async (req, res) => {
-  try {
-    await pgPool.query('SELECT 1');
-    res.json({ status: 'ok', message: 'InternalX API is running', database: 'connected', timestamp: new Date().toISOString() });
-  } catch (err) {
-    res.status(503).json({ status: 'degraded', message: 'API is running but the database is unreachable', database: 'disconnected', timestamp: new Date().toISOString() });
-  }
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', uptime: Math.round(process.uptime()), timestamp: new Date().toISOString() });
 });
 
-// Readiness: database reachable AND no pending migrations.
+let shuttingDown = false;
+
+/** Readiness: not draining, database reachable AND no pending migrations. */
 app.get('/api/ready', async (req, res) => {
+  if (shuttingDown) return res.status(503).json({ status: 'not_ready', reason: 'shutting_down' });
   try {
     await pgPool.query('SELECT 1');
     const m = await require('./migrate').migrationStatus();
-    res.status(m.ok ? 200 : 503).json({ status: m.ok ? 'ready' : 'not_ready', database: 'connected', migrations: m.ok ? 'up_to_date' : 'pending', pending: m.pending });
+    res.status(m.ok ? 200 : 503).json({
+      status: m.ok ? 'ready' : 'not_ready',
+      database: 'connected',
+      migrations: m.ok ? 'up_to_date' : 'pending',
+      ...(m.ok ? {} : { pending: m.pending }),
+    });
   } catch (err) {
+    req.log.error({ err }, 'readiness check failed');
     res.status(503).json({ status: 'not_ready', database: 'disconnected' });
   }
 });
@@ -247,7 +288,7 @@ app.use((req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   const status = err.status || err.statusCode || 500;
-  if (status >= 500) console.error(err.stack);
+  if (status >= 500) (req.log || logger).error({ err }, 'unhandled error');
   // Never echo internal error text (SQL, paths) to clients; 4xx messages from
   // body parsing and similar are safe and useful.
   res.status(status).json({
@@ -268,7 +309,7 @@ const { pgPool } = require('./config/database.pg');
 
 const io = new Server(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+    origin: allowedOrigins,
     credentials: true,
   }
 });
@@ -288,12 +329,12 @@ app.set('io', io);
  */
 if (require.main === module) {
   process.on('unhandledRejection', (reason) => {
-    console.error('Unhandled promise rejection — exiting:', reason);
+    logger.fatal({ err: reason }, 'unhandled promise rejection, exiting');
     process.exit(1);
   });
 
   process.on('uncaughtException', (err) => {
-    console.error('Uncaught exception — exiting:', err);
+    logger.fatal({ err }, 'uncaught exception, exiting');
     process.exit(1);
   });
 }
@@ -305,29 +346,28 @@ if (require.main === module) {
  * a deploy or restart is requested, rather than finishing what it was doing
  * first.
  */
-let shuttingDown = false;
 const shutdown = (signal) => {
   if (shuttingDown) return;
   shuttingDown = true;
-  console.log(`\n${signal} received — shutting down gracefully...`);
+  logger.info(`${signal} received, shutting down gracefully`);
 
   // Stop accepting new connections and requests; existing ones finish first.
   io.close();
   server.close(async (err) => {
-    if (err) console.error('Error while closing the HTTP server:', err.message);
+    if (err) logger.error({ err }, 'error while closing the HTTP server');
     try {
       await pgPool.end();
-      console.log('Database pool closed. Goodbye.');
+      logger.info('database pool closed, goodbye');
       process.exit(err ? 1 : 0);
     } catch (poolErr) {
-      console.error('Error while closing the database pool:', poolErr.message);
+      logger.error({ err: poolErr }, 'error while closing the database pool');
       process.exit(1);
     }
   });
 
   // A stuck connection or a slow client should not hang a deploy forever.
   setTimeout(() => {
-    console.error('Graceful shutdown timed out after 10s — forcing exit.');
+    logger.error('graceful shutdown timed out after 10s, forcing exit');
     process.exit(1);
   }, 10_000).unref();
 };
@@ -341,7 +381,7 @@ const startServer = async () => {
   try {
     assertConfig();
   } catch (err) {
-    console.error(`\n${err.message}\n`);
+    logger.fatal(err.message);
     process.exit(1);
   }
 
@@ -354,11 +394,11 @@ const startServer = async () => {
     try {
       await require('./migrate').migrate();
     } catch (err) {
-      console.error(`[migrate] ${err.message}`);
+      logger.fatal(`[migrate] ${err.message}`);
       process.exit(1);
     }
   } else {
-    console.warn('[migrate] AUTO_MIGRATE=false: not applying migrations at boot');
+    logger.warn('[migrate] AUTO_MIGRATE=false: not applying migrations at boot');
   }
 
   // Creates the first Super Admin from BOOTSTRAP_ADMIN_* if none exists. Logs
@@ -366,16 +406,18 @@ const startServer = async () => {
   try {
     await bootstrapAdmin();
   } catch (err) {
-    console.error('[bootstrap] failed:', err.message);
+    logger.error({ err }, '[bootstrap] failed');
   }
 
   // Sweeps rows past their expires_at hourly — see session.service.js. Timer
   // is unref()'d there so it never blocks process shutdown.
   startSessionCleanup();
 
+  // Proxies (and Cloudflare) idle out at 60s; keep ours longer so they never reuse a closed socket.
+  server.keepAliveTimeout = 65_000;
+  server.headersTimeout = 66_000;
   server.listen(PORT, () => {
-    console.log(`\n🚀 InternalX Backend running on http://localhost:${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV}`);
+    logger.info({ port: PORT, env: process.env.NODE_ENV }, 'InternalX API listening');
   });
 };
 
