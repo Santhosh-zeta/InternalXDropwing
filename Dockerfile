@@ -10,7 +10,7 @@
 # Optional build arg: NEXT_PUBLIC_CURRENCY (ISO code used to display money, default USD).
 
 # ── 1. Web app: Next.js static export ───────────────────────────────────────
-FROM node:20-alpine AS web
+FROM node:26-alpine AS web
 WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
@@ -21,13 +21,13 @@ ENV NEXT_PUBLIC_CURRENCY=$NEXT_PUBLIC_CURRENCY \
 RUN npm run build
 
 # ── 2. API dependencies: production only ────────────────────────────────────
-FROM node:20-alpine AS deps
+FROM node:26-alpine AS deps
 WORKDIR /app
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
 # ── 3. Runtime ──────────────────────────────────────────────────────────────
-FROM node:20-alpine
+FROM node:26-alpine
 ENV NODE_ENV=production \
     PORT=5000
 WORKDIR /app
