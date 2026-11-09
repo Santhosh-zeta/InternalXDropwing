@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback, useId } from 'react';
-import { User, VENTURES } from '@/lib/constants';
-import { getChatMessages, sendChatMessage, getUsers } from '@/lib/api';
+import { User } from '@/lib/constants';
+import { getChatMessages, sendChatMessage, getUsers, getChatChannels, ChatChannels } from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useSocket } from '@/components/SocketProvider';
 import { Send, Hash, MessageSquare, AtSign, Globe, Sparkles } from 'lucide-react';
@@ -67,6 +67,8 @@ function isSameDay(a: string, b: string) {
 export default function ChatView({ currentUser }: ChatViewProps) {
   const { socket, latestMessages } = useSocket();
   const [allUsers, setAllUsers] = useState<any[]>([]);
+  // The server decides which channels this account may open (and joins its socket to them).
+  const [channels, setChannels] = useState<ChatChannels>({ global: false, ventures: [] });
   const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'venture', id: 'global', name: 'Global HQ', color: 'var(--color-purple-glow)' });
   const [messages, setMessages] = useState<Msg[]>([]);
   const [inputMsg, setInputMsg] = useState('');
@@ -89,16 +91,13 @@ export default function ChatView({ currentUser }: ChatViewProps) {
 
   // Init users
   useEffect(() => {
-    getUsers().then(r => { if (r.success) setAllUsers(r.data.filter((u: any) => u.id !== currentUser.id)); });
+    getUsers().then(r => { if (r.success) setAllUsers(r.data.filter((u: any) => u.id !== currentUser.id && u.access_level < 9)); });
+    getChatChannels().then(r => { if (r.success) setChannels(r.data); }).catch(() => { /* sidebar just stays empty */ });
   }, []);
 
   // Join channel + listen
   useEffect(() => {
     if (!socket) return;
-    const ch = activeChannel.type === 'venture'
-      ? (activeChannel.id === 'global' ? 'global' : `venture_${activeChannel.id}`)
-      : `dm_${currentUser.id}`;
-    socket.emit('join_channel', ch);
     fetchMessages();
 
     const handler = (msg: Msg) => {
@@ -123,7 +122,11 @@ export default function ChatView({ currentUser }: ChatViewProps) {
       setIsTyping(false);
     };
 
-    const typingHandler = () => {
+    const typingHandler = (p: { userId: number; ventureId?: number | string; receiverId?: number }) => {
+      const here = activeChannel.type === 'venture'
+        ? p.ventureId !== undefined && String(p.ventureId) === String(activeChannel.id)
+        : p.receiverId === currentUser.id && p.userId === activeChannel.id;
+      if (!here) return;
       setIsTyping(true);
       clearTimeout(typingTimer.current);
       typingTimer.current = setTimeout(() => setIsTyping(false), 2500);
@@ -155,7 +158,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
   };
 
   const emitTyping = useCallback(() => {
-    socket?.emit('typing', activeChannel.id);
+    socket?.emit('typing', activeChannel.type === 'venture' ? { ventureId: activeChannel.id } : { receiverId: activeChannel.id });
   }, [socket, activeChannel]);
 
   const handleSend = async (e: React.FormEvent) => {
@@ -172,7 +175,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
       };
       const res = await sendChatMessage(payload);
       if (res.success) {
-        socket?.emit('send_message', { ...res.data, ventureId: payload.ventureId, receiverId: payload.receiverId });
+        // The server persisted it once and broadcasts it to the room itself.
         setMessages(prev => [...prev.filter(m => m.id !== res.data.id), res.data]);
       }
     } catch { toast.error('Failed to send message'); }
@@ -189,8 +192,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
     return lm ? new Date(lm.timestamp).getTime() : 0;
   };
 
-  const VENTURE_CHANNELS = VENTURES.map((v, i) => ({ v, vId: i + 1 }))
-    .filter(({ vId }) => currentUser.accessLevel <= 2 || currentUser.venture?.id === vId)
+  const VENTURE_CHANNELS = channels.ventures.map(v => ({ v, vId: v.id }))
     .sort((a, b) => getChannelTimestamp(`venture_${b.vId}`) - getChannelTimestamp(`venture_${a.vId}`));
 
   const sortedUsers = [...filteredUsers].sort((a, b) => getChannelTimestamp(`dm_${b.id}`) - getChannelTimestamp(`dm_${a.id}`));
@@ -201,6 +203,15 @@ export default function ChatView({ currentUser }: ChatViewProps) {
   const channelLabel = activeChannel
     ? (activeChannel.type === 'venture' ? `#${activeChannel.name}` : activeChannel.name)
     : '';
+
+  // Clients have no internal chat; the server refuses them too.
+  if (currentUser.accessLevel >= 9) {
+    return (
+      <div className="flex h-[calc(100vh-120px)] items-center justify-center">
+        <EmptyState icon={<MessageSquare size={22} />} title="Chat is for the internal team" description="Your project updates and documents are in the client portal." />
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-120px)] gap-0 rounded-2xl overflow-hidden border border-[var(--color-border)] shadow-2xl">
@@ -226,20 +237,20 @@ export default function ChatView({ currentUser }: ChatViewProps) {
               <Hash size={10} aria-hidden="true" /> Channels
             </h3>
             {/* Global */}
-            <SidebarBtn
+            {channels.global && <SidebarBtn
               active={globalActive}
               color="var(--color-purple-glow)"
               onClick={() => switchChannel({ type: 'venture', id: 'global', name: 'Global HQ', color: 'var(--color-purple-glow)' })}
               icon={<Globe size={14} aria-hidden="true" />}
               label="Global HQ"
               isRecent={!globalActive && !!globalUnread}
-            />
+            />}
             {VENTURE_CHANNELS.map(({ v, vId }) => {
               const chKey = `venture_${vId}`;
               const isRecent = latestMessages[chKey] && getChannelTimestamp(chKey) > Date.now() - 60000;
               const isActive = activeChannel.id === vId && activeChannel.type === 'venture';
               return (
-                <SidebarBtn key={v.slug} active={isActive}
+                <SidebarBtn key={v.id} active={isActive}
                   color={v.color}
                   onClick={() => switchChannel({ type: 'venture', id: vId, name: v.name, color: v.color })}
                   icon={<Hash size={14} aria-hidden="true" />}
