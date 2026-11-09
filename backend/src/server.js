@@ -240,7 +240,9 @@ app.use((err, req, res, next) => {
   // body parsing and similar are safe and useful.
   res.status(status).json({
     success: false,
-    message: status >= 500 ? 'Internal server error' : (err.message || 'Bad request'),
+    message: status >= 500
+      ? 'Internal server error'
+      : (err.type === 'entity.parse.failed' ? 'Invalid request body' : (err.message || 'Bad request')),
   });
 });
 

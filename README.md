@@ -343,6 +343,16 @@ curl http://localhost:5000/api/health
 # {"status":"ok","message":"InternalX API is running", ...}
 ```
 
+**Tests.** `npm test` in `backend/` runs Jest + Supertest against a throwaway Postgres database:
+
+```bash
+createdb internalx_test
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/internalx_test npm test
+```
+
+The suite **drops and recreates the `public` schema** of that database and applies
+`deployment/postgres/init/*.sql`, so never point it at real data. CI runs it in the `backend-tests` job.
+
 ### 3 · Web
 
 ```bash
