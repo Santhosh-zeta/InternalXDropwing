@@ -59,18 +59,4 @@ const authenticate = async (req, res, next) => {
   next();
 };
 
-const requireLevel = (...levels) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
-    }
-    // Lower number = higher access
-    const userLevel = req.user.accessLevel;
-    if (levels.includes(userLevel) || levels.some(l => userLevel <= l)) {
-      return next();
-    }
-    return res.status(403).json({ success: false, message: 'Insufficient access level' });
-  };
-};
-
-module.exports = { authenticate, requireLevel };
+module.exports = { authenticate };

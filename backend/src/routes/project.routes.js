@@ -1,9 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { authenticate, requireLevel } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
-const { withScope, toId, projectWhere, getAccessibleProject } = require('../utils/scope');
+const { withScope, atLeast, toId, projectWhere, getAccessibleProject } = require('../utils/scope');
 const {
   createProjectRules,
   updateProjectRules,
@@ -135,7 +135,7 @@ router.get('/:id', authenticate, withScope, projectIdRules, async (req, res) => 
 });
 
 // POST /api/projects — L<=4; venture is the caller's own (global users choose one)
-router.post('/', authenticate, withScope, requireLevel(4), createProjectRules, async (req, res) => {
+router.post('/', authenticate, withScope, atLeast(4), createProjectRules, async (req, res) => {
   try {
     const { scope } = req;
     const {
@@ -189,7 +189,7 @@ router.post('/', authenticate, withScope, requireLevel(4), createProjectRules, a
 });
 
 // PUT /api/projects/:id — L<=4 on projects in their scope. The venture never changes.
-router.put('/:id', authenticate, withScope, requireLevel(4), updateProjectRules, async (req, res) => {
+router.put('/:id', authenticate, withScope, atLeast(4), updateProjectRules, async (req, res) => {
   try {
     const { scope } = req;
     const existing = await getAccessibleProject(scope, req.params.id);
@@ -266,7 +266,7 @@ router.put('/:id', authenticate, withScope, requireLevel(4), updateProjectRules,
 });
 
 // DELETE /api/projects/:id — L<=3 within scope
-router.delete('/:id', authenticate, withScope, requireLevel(3), projectIdRules, async (req, res) => {
+router.delete('/:id', authenticate, withScope, atLeast(3), projectIdRules, async (req, res) => {
   try {
     const existing = await getAccessibleProject(req.scope, req.params.id);
     if (!existing) return fail(res, 404, 'Project not found');
