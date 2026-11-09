@@ -6,6 +6,8 @@
  *   GET    /api/assistant/conversations/:id
  *   DELETE /api/assistant/conversations/:id
  *   POST   /api/assistant/chat            (Server-Sent Events)
+ *   POST   /api/assistant/notes/propose   meeting notes -> draft tasks (managers; writes nothing)
+ *   POST   /api/assistant/notes/create    create the drafts a manager confirmed (existing task path)
  *
  * Clients (L9) never get the assistant. Without ANTHROPIC_API_KEY the feature
  * reports "not configured" and nothing else changes.
@@ -20,6 +22,8 @@ const { runTurn, AgentAbort } = require('../services/assistant/agent');
 const { ToolError, todayIn } = require('../services/assistant/queries');
 const usage = require('../services/assistant/usage');
 const store = require('../services/assistant/store');
+const notesTasks = require('../services/assistant/notesTasks');
+const { logAudit } = require('../services/audit.service');
 
 const router = express.Router();
 router.use(authenticate, withScope, internalOnly);
@@ -172,6 +176,45 @@ router.post('/chat', chatLimiter, async (req, res) => {
     console.error('[assistant] chat setup failed:', err.message);
     if (!res.headersSent) res.status(500).json({ success: false, message: 'Server error' });
     else res.end();
+  }
+});
+
+// ── Meeting notes -> tasks (managers and above) ──────────────────────────────
+
+const managersOnly = (req, res, next) => {
+  if (!(req.scope.global || req.scope.isVentureAdmin)) {
+    return res.status(403).json({ success: false, message: 'Turning notes into tasks is available to managers and above' });
+  }
+  next();
+};
+
+router.post('/notes/propose', managersOnly, chatLimiter, async (req, res) => {
+  const client = getClient();
+  if (!client) return res.status(503).json({ success: false, code: 'not_configured', message: 'The assistant is not configured on this server.' });
+  try {
+    const caps = await usage.checkCaps(req.scope.userId);
+    if (!caps.ok) return res.status(429).json({ success: false, code: 'daily_limit', message: caps.reason });
+    await usage.record(req.scope.userId, { messages: 1 });
+    const data = await notesTasks.propose({ client, cfg: config(), scope: req.scope, user: req.user, notes: req.body && req.body.notes, ip: req.ip });
+    await logAudit(req.user.id, 'ASSISTANT_NOTES_PROPOSE', 'assistant', null, { drafts: data.drafts.length }, req.ip);
+    res.json({ success: true, data });
+  } catch (err) {
+    if (err instanceof ToolError) return res.status(400).json({ success: false, message: err.message });
+    console.error('[assistant] notes propose failed:', err.message);
+    res.status(502).json({ success: false, message: 'The assistant ran into a problem. Please try again.' });
+  }
+});
+
+router.post('/notes/create', managersOnly, async (req, res) => {
+  try {
+    const results = await notesTasks.createConfirmed({ req, items: req.body && req.body.tasks });
+    const ids = results.filter((r) => r.ok).map((r) => r.id);
+    await logAudit(req.user.id, 'ASSISTANT_NOTES_CREATE', 'assistant', null, { created: ids, failed: results.length - ids.length }, req.ip);
+    res.json({ success: true, data: { created: ids.length, failed: results.length - ids.length, results } });
+  } catch (err) {
+    if (err instanceof ToolError) return res.status(400).json({ success: false, message: err.message });
+    console.error('[assistant] notes create failed:', err.message);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
