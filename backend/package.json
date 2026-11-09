@@ -5,8 +5,8 @@
   "description": "InternalX Dropwing Groups - Backend API",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
+    "start": "node init && node src/server.js",
+    "dev": "node init && nodemon src/server.js",
     "test": "jest --runInBand --forceExit",
     "seed:demo": "node scripts/seed-demo.js",
     "create-admin": "node scripts/create-admin.js",
