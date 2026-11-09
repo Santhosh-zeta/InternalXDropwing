@@ -330,5 +330,34 @@ export const streamAssistantChat = async (
   }
 };
 
+// Meeting notes -> draft tasks (managers). Nothing is created until the second call.
+export interface NoteDraft {
+  title: string;
+  description: string | null;
+  assignee: { id: number; name: string } | null;
+  assignee_candidates: { id: number; name: string }[];
+  project: { id: number; name: string } | null;
+  due_date: string | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent' | null;
+  warnings: string[];
+}
+export interface NotesProposal {
+  drafts: NoteDraft[];
+  people: { id: number; name: string }[];
+  projects: { id: number; name: string }[];
+}
+export interface ConfirmedTask {
+  title: string;
+  assigned_to: number;
+  project_id?: number | null;
+  due_date?: string | null;
+  priority?: string | null;
+  description?: string | null;
+}
+export const proposeTasksFromNotes = async (notes: string): Promise<NotesProposal> =>
+  (await api.post('/assistant/notes/propose', { notes })).data.data;
+export const createTasksFromNotes = async (tasks: ConfirmedTask[]): Promise<{ created: number; failed: number; results: { index: number; ok: boolean; id?: number; error?: string }[] }> =>
+  (await api.post('/assistant/notes/create', { tasks })).data.data;
+
 export default api;
 
