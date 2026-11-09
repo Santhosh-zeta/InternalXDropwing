@@ -86,6 +86,27 @@ jobs:
             -f deployment/postgres/init/02_indexes.sql \
             -f deployment/postgres/init/03_seed.sql
 
+      - name: Migrations are idempotent on top of the init schema
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_NAME: internalx
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+        run: npm run migrate && npm run migrate
+
+      - name: Tests (data isolation matrix, chat, money)
+        working-directory: backend
+        env:
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_NAME: internalx
+          DB_USER: postgres
+          DB_PASSWORD: postgres
+          JWT_SECRET: ci-only-not-a-real-secret
+        run: npm test
+
       - name: Tables referenced by controllers must exist in the schema
         env:
           PGPASSWORD: postgres
