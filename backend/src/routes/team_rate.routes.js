@@ -8,7 +8,7 @@ const { num } = require('../utils/rates');
 
 /**
  * Hourly rates: the single money input for every cost / budget / invoice figure
- * (utils/rates.js). L1/L2 manage anyone; L3 only people of lower seniority in
+ * (utils/rates.js). L1 manages anyone; L2 anyone strictly below L2 (never their own or L1's rate); L3 only people of lower seniority in
  * their own venture. Nobody else can read or write them.
  */
 // Per-route (not router.use): this router shares the /api/team-members mount with user.routes.js.
@@ -17,13 +17,14 @@ const guard = [authenticate, withScope, atLeast(3)];
 const fail = (res, status, message) => res.status(status).json({ success: false, message });
 
 /** Target user row if the caller may manage its rate, else null. */
-const manageable = async (scope, rawId) => {
+const manageable = async (scope, rawId, { write = false } = {}) => {
   const id = toId(rawId);
   if (!id) return null;
   const [rows] = await pool.query('SELECT id, full_name, access_level, venture_id, hourly_rate FROM users WHERE id = $1', [id]);
   const u = rows[0];
   if (!u) return null;
-  if (scope.global) return u;
+  // Writing: only L1 may set rates for L1/L2 (including themselves); an L2 sets rates strictly below.
+  if (scope.global) return (write && scope.level > 1 && u.access_level <= scope.level) ? null : u;
   return u.venture_id === scope.ventureId && u.access_level > scope.level ? u : null;
 };
 
@@ -42,7 +43,7 @@ router.get('/:id/rate', guard, async (req, res) => {
 // PUT /api/team-members/:id/rate { hourly_rate: number | null }
 router.put('/:id/rate', guard, async (req, res) => {
   try {
-    const u = await manageable(req.scope, req.params.id);
+    const u = await manageable(req.scope, req.params.id, { write: true });
     if (!u) return fail(res, 404, 'User not found');
 
     const raw = req.body.hourly_rate;
