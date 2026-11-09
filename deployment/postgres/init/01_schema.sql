@@ -72,6 +72,10 @@ CREATE TABLE users (
   is_active BOOLEAN DEFAULT TRUE,
   is_verified BOOLEAN DEFAULT FALSE,
   notification_preferences JSONB,
+  -- Cost/billing rate per hour: the ONE source every cost, budget, invoice and
+  -- client-portal figure is computed from (backend/src/utils/rates.js). NULL =
+  -- not set: hours are shown, money is not invented. Visible/settable by L<=3.
+  hourly_rate NUMERIC(10, 2),
   last_login TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -166,6 +170,8 @@ CREATE TABLE project_members (
   project_id INTEGER NOT NULL,
   user_id INTEGER NOT NULL,
   role VARCHAR(100) DEFAULT 'Contributor',
+  -- Optional per-project override of users.hourly_rate.
+  rate NUMERIC(10, 2),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -265,6 +271,8 @@ CREATE TABLE documents (
   venture_id INTEGER,
   project_id INTEGER,
   uploaded_by INTEGER,
+  -- Clients (L9) only ever see documents of their projects that staff flagged.
+  client_visible BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (venture_id) REFERENCES ventures(id) ON DELETE SET NULL,

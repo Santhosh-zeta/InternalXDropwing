@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node seed_pg.js"
+    "seed": "node seed_pg.js",
+    "migrate": "node src/migrate.js",
+    "test": "jest --runInBand"
   },
   "keywords": [],
   "author": "Dropwing Groups",
@@ -31,6 +33,14 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "jest": "^30.5.2",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.3.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/tests"
+    ]
   }
 }
