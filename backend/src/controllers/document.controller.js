@@ -1,6 +1,7 @@
 const { pool } = require('../config/database');
 const fs = require('fs');
 const path = require('path');
+const { logAudit } = require('../services/audit.service');
 
 exports.uploadDocument = async (req, res, next) => {
   try {
@@ -123,6 +124,7 @@ exports.deleteDocument = async (req, res, next) => {
 
     // Delete from DB
     await pool.query('DELETE FROM documents WHERE id = ?', [id]);
+    await logAudit(req.user.id, 'DELETE_DOCUMENT', 'document', id, { documentId: id, path: doc.path });
 
     res.json({ success: true, message: 'Document deleted successfully' });
   } catch (err) {
