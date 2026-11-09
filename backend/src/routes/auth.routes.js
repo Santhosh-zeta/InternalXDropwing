@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe, googleLogin } = require('../controllers/auth.controller');
+const { publicConfig, register, login, verifyOtp, forgotPassword, resetPassword, logout, getMe, googleLogin } = require('../controllers/auth.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { loginLimiter, accountLimiter, perEmailLimiter, authLimiter } = require('../middleware/rateLimit.middleware');
 const {
@@ -14,6 +14,7 @@ const {
 // Ceiling over the whole unauthenticated auth surface.
 router.use(authLimiter);
 
+router.get('/config', publicConfig);
 router.post('/register', accountLimiter, registerRules, register);
 router.post('/login', loginLimiter, perEmailLimiter, loginRules, login);
 router.post('/google-login', loginLimiter, googleLogin);

@@ -4,6 +4,7 @@ const { pool } = require('../config/database');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
 const bcrypt = require('bcryptjs');
+const { issueInvite } = require('../services/invite.service');
 const crypto = require('crypto');
 const { canManageUser } = require('../utils/canManageUser');
 const { avatarUpload, handleUploadErrors } = require('../middleware/upload.middleware');
@@ -21,14 +22,17 @@ const {
 // GET /api/users — List users based on access level
 router.get('/', authenticate, async (req, res) => {
   try {
+    // ?pending=true: self-registered accounts waiting for approval (L1/L2 only; they have no venture yet).
+    const wantPending = req.query.pending === 'true';
+    if (wantPending && req.user.accessLevel > 2) return res.json({ success: true, data: [] });
     let query = `
       SELECT u.id, u.employee_id, u.full_name, u.email, u.phone, u.access_level, u.department,
-             u.designation, u.is_active, u.last_login, u.created_at,
+             u.designation, u.is_active, u.pending_approval, u.last_login, u.created_at,
              al.level_name, v.name AS venture_name, u.venture_id, u.avatar_url
       FROM users u
       JOIN access_levels al ON u.access_level = al.level_number
       LEFT JOIN ventures v ON u.venture_id = v.id
-      WHERE 1=1
+      WHERE ${wantPending ? 'u.pending_approval = TRUE' : 'u.pending_approval = FALSE'}
     `;
     const params = [];
 
@@ -269,7 +273,7 @@ const lockTarget = async (conn, userId) => {
   // "count the L1s, then change one" sequence and rules out deadlocks.
   await conn.query('SELECT pg_advisory_xact_lock(?)', [USER_MUTATION_LOCK]);
   const [rows] = await conn.query(
-    'SELECT id, access_level, venture_id, is_active FROM users WHERE id = ? FOR UPDATE', [userId]);
+    'SELECT id, access_level, venture_id, is_active, pending_approval FROM users WHERE id = ? FOR UPDATE', [userId]);
   const target = rows[0] || null;
   const ctx = {};
   if (target && target.access_level === 1) {
@@ -306,10 +310,23 @@ router.put('/:id', authenticate, requireLevel(3), updateUserRules, async (req, r
       return res.status(verdict.status).json({ success: false, message: verdict.message });
     }
 
+    // Approving a pending self-registration: the account must end up with a venture
+    // (levels 3-9) before it can sign in, so it is never active with no scope.
+    const approving = target.pending_approval && patch.is_active === true;
+    if (approving) {
+      const level = patch.access_level !== undefined && patch.access_level !== null ? Number(patch.access_level) : target.access_level;
+      const venture = patch.venture_id !== undefined ? patch.venture_id : target.venture_id;
+      if (level >= 3 && !venture) {
+        await conn.rollback();
+        return res.status(400).json({ success: false, message: 'Assign a venture before approving this account' });
+      }
+    }
+
     const updates = [];
     const params = [];
     const changes = {};
     const set = (col, val) => { updates.push(`${col} = ?`); params.push(val); changes[col] = val; };
+    if (approving) set('pending_approval', false);
     if (patch.access_level !== undefined && patch.access_level !== null) set('access_level', Number(patch.access_level));
     if (patch.venture_id !== undefined) set('venture_id', patch.venture_id === null || Number(patch.venture_id) === 0 ? null : Number(patch.venture_id));
     if (patch.is_active !== undefined) set('is_active', patch.is_active);
@@ -397,10 +414,12 @@ router.delete('/:id', authenticate, requireLevel(3), userIdRules, async (req, re
   }
 });
 
-// POST /api/team-members — Create a new user
+// POST /api/team-members — Invite a new user.
+// No password is chosen or shown: the user gets a 72 h set-password link by email.
+// Without SMTP the one-time link is returned here for the admin to pass on.
 router.post('/', authenticate, requireLevel(3), createUserRules, async (req, res) => {
   try {
-    const { full_name, password, department, designation } = req.body;
+    const { full_name, department, designation } = req.body;
     const email = String(req.body.email || '').toLowerCase().trim();
     const access_level = Number(req.body.access_level);
     let venture_id = req.body.venture_id ? Number(req.body.venture_id) : null;
@@ -421,7 +440,9 @@ router.post('/', authenticate, requireLevel(3), createUserRules, async (req, res
       return res.status(409).json({ success: false, message: 'Email already registered' });
     }
 
-    const hash = await bcrypt.hash(password, 12);
+    // Nobody knows this password: it only exists so the NOT NULL column is filled
+    // until the invitee sets their own.
+    const hash = await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12);
     const employeeId = 'EMP-' + crypto.randomBytes(4).toString('hex').toUpperCase();
 
     const [result] = await pool.query(
@@ -430,10 +451,48 @@ router.post('/', authenticate, requireLevel(3), createUserRules, async (req, res
       [employeeId, full_name, email, hash, access_level, venture_id, department || null, designation || null]
     );
 
-    await logAudit(req.user.id, 'CREATE_USER', 'user', result.insertId,
-      { full_name, email, access_level, venture_id }, req.ip);
+    const [[inviter]] = await pool.query('SELECT full_name FROM users WHERE id = ?', [req.user.id]);
+    const invite = await issueInvite({ id: result.insertId, email, full_name }, inviter && inviter.full_name);
 
-    res.status(201).json({ success: true, message: 'User created successfully', userId: result.insertId });
+    await logAudit(req.user.id, 'CREATE_USER', 'user', result.insertId,
+      { full_name, email, access_level, venture_id, invited: true, emailed: invite.emailed }, req.ip);
+
+    res.status(201).json({
+      success: true,
+      message: invite.emailed ? 'Invitation sent' : 'User created. Email is not configured: share the invite link with them yourself.',
+      userId: result.insertId,
+      invite: { emailed: invite.emailed, expiresAt: invite.expiresAt, ...(invite.link ? { link: invite.link } : {}) },
+    });
+  } catch (err) {
+    sendDb(res, err);
+  }
+});
+
+// POST /api/team-members/:id/invite — issue a fresh invite link (lost email / expired link).
+// Only for accounts that never signed in: this must not become a way to take over a live account.
+router.post('/:id/invite', authenticate, requireLevel(3), userIdRules, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id, 10);
+    const actor = await freshActor(pool, req.user);
+    const [rows] = await pool.query(
+      'SELECT id, full_name, email, access_level, venture_id, is_active, last_login, pending_approval FROM users WHERE id = ?', [userId]);
+    const target = rows[0] || null;
+    const verdict = actor ? canManageUser(actor, target, { action: 'update' }) : { ok: false, status: 401, message: 'Authentication required' };
+    if (!verdict.ok) {
+      await deniedAudit(req, 'invite', userId, verdict, {});
+      return res.status(verdict.status).json({ success: false, message: verdict.message });
+    }
+    if (target.last_login || target.pending_approval || !target.is_active) {
+      return res.status(409).json({ success: false, message: 'Only active accounts that have not signed in yet can be re-invited' });
+    }
+    const [[inviter]] = await pool.query('SELECT full_name FROM users WHERE id = ?', [req.user.id]);
+    const invite = await issueInvite(target, inviter && inviter.full_name);
+    await logAudit(req.user.id, 'REINVITE_USER', 'user', userId, { emailed: invite.emailed }, req.ip);
+    res.json({
+      success: true,
+      message: invite.emailed ? 'Invitation sent' : 'Email is not configured: share the invite link with them yourself.',
+      invite: { emailed: invite.emailed, expiresAt: invite.expiresAt, ...(invite.link ? { link: invite.link } : {}) },
+    });
   } catch (err) {
     sendDb(res, err);
   }

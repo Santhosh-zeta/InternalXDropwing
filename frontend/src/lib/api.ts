@@ -58,6 +58,11 @@ export const register = async (fullName: string, email: string, password: string
   return res.data;
 };
 
+export const getAuthConfig = async (): Promise<{ selfRegistration: boolean; googleLogin: boolean }> => {
+  const res = await api.get('/auth/config');
+  return res.data.data;
+};
+
 export const forgotPassword = async (email: string) => {
   const res = await api.post('/auth/forgot-password', { email });
   return res.data;

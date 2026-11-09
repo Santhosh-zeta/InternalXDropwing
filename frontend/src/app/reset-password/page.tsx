@@ -24,6 +24,7 @@ function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token');
+  const isInvite = searchParams.get('invite') === '1';
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -109,10 +110,10 @@ function ResetPasswordForm() {
     <>
       <div className="mb-6 text-center">
         <h3 className="text-2xl font-semibold tracking-tight mb-2" style={{ color: 'var(--color-text-primary)' }}>
-          Set new password
+          {isInvite ? 'Welcome! Choose your password' : 'Set new password'}
         </h3>
         <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Your new password must be different from previously used passwords.
+          {isInvite ? 'This activates your account. After this you sign in with your email, password and a one-time code.' : 'Your new password must be different from previously used passwords.'}
         </p>
       </div>
 
@@ -228,7 +229,7 @@ function ResetPasswordForm() {
             color: 'var(--color-bg-primary)'
           }}
         >
-          {loading ? 'Resetting...' : 'Reset Password'}
+          {loading ? 'Saving...' : isInvite ? 'Activate account' : 'Reset Password'}
         </Button>
       </form>
 

@@ -307,7 +307,6 @@ const createUserRules = [
     .isLength({ max: 100 }).withMessage('Full name must be 100 characters or fewer'),
   body('email').isEmail().withMessage('A valid email address is required')
     .isLength({ max: 150 }).withMessage('Email is too long').normalizeEmail(),
-  passwordRule('password'),
   body('access_level').isInt({ min: ACCESS_LEVEL_MIN, max: ACCESS_LEVEL_MAX })
     .withMessage('access_level must be between 1 and 9'),
   optionalFk('venture_id'),

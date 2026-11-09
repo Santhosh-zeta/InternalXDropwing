@@ -72,6 +72,9 @@ CREATE TABLE users (
   phone VARCHAR(20),
   avatar_url VARCHAR(255),
   is_active BOOLEAN DEFAULT TRUE,
+  -- TRUE for accounts created by self-registration that wait for admin approval
+  -- (is_active is FALSE until then). Distinguishes "pending" from "deactivated".
+  pending_approval BOOLEAN NOT NULL DEFAULT FALSE,
   is_verified BOOLEAN DEFAULT FALSE,
   notification_preferences JSONB,
   -- Cost/billing rate per hour: the ONE source every cost, budget, invoice and

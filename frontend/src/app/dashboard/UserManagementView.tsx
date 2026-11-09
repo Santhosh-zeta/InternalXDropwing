@@ -46,15 +46,6 @@ const LEVELS = [
   { level: 9, name: 'Client', desc: 'External client portal access' }
 ];
 
-// Initial passwords are random per user and shown once to the admin; there is
-// deliberately no shared default password.
-const generateTempPassword = (): string => {
-  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
-  const bytes = new Uint32Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('') + 'a1!';
-};
-
 const SECTION_LABEL_CLASS =
   'block text-label font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]';
 
@@ -229,7 +220,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({
-    full_name: '', email: '', password: '',
+    full_name: '', email: '',
     access_level: 7, venture_id: 0, department: '', designation: ''
   });
 
@@ -242,7 +233,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
 
   const openAddModal = () => {
     setAddForm({
-      full_name: '', email: '', password: generateTempPassword(),
+      full_name: '', email: '',
       access_level: assignableLevels.find(l => l.level === 7)?.level ?? assignableLevels[0]?.level ?? 9,
       venture_id: canPickVenture ? 0 : ownVentureId,
       department: '', designation: '',
@@ -255,9 +246,17 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
       setSaving(true);
       const res = await createUser(addForm);
       if (res.success) {
-        toast.success(`User created. Temporary password (shown once): ${addForm.password}`, { duration: 30000 });
+        if (res.invite?.emailed) {
+          toast.success(`Invitation sent to ${addForm.email}`);
+        } else if (res.invite?.link) {
+          // No SMTP on the server: the link is shown once; hand it to the invitee yourself.
+          try { await navigator.clipboard.writeText(res.invite.link); } catch { /* clipboard unavailable */ }
+          toast.success(`Email is not set up. Invite link (valid 72 h, shown once, copied if allowed): ${res.invite.link}`, { duration: 60000 });
+        } else {
+          toast.success('User created');
+        }
         setShowAddModal(false);
-        setAddForm({ full_name: '', email: '', password: '', access_level: 7, venture_id: 0, department: '', designation: '' });
+        setAddForm({ full_name: '', email: '', access_level: 7, venture_id: 0, department: '', designation: '' });
         fetchUsers();
       } else {
         toast.error(res.message || 'Failed to create user');
@@ -823,8 +822,8 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
       <Modal
         open={showAddModal}
         onClose={() => setShowAddModal(false)}
-        title="Onboard New Member"
-        description="They will be able to sign in with the temporary password below."
+        title="Invite New Member"
+        description="They get an email with a link to set their own password (valid 72 hours)."
         size="md"
         footer={
           <>
@@ -835,7 +834,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
               disabled={!addForm.full_name || !addForm.email || (addForm.access_level >= 3 && !addForm.venture_id)}
               onClick={handleAddUser}
             >
-              {saving ? 'Creating...' : 'Create User'}
+              {saving ? 'Inviting...' : 'Send Invite'}
             </Button>
           </>
         }
@@ -855,12 +854,6 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
             value={addForm.email}
             onChange={e => setAddForm({...addForm, email: e.target.value})}
             placeholder="name@dropwing.com"
-          />
-          <TextField
-            label="Temporary Password"
-            hint="Share this with the new member; they should change it after first sign-in."
-            value={addForm.password}
-            onChange={e => setAddForm({...addForm, password: e.target.value})}
           />
           <div className="grid grid-cols-2 gap-4">
             <Field label="Access Level">
