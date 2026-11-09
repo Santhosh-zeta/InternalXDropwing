@@ -255,5 +255,15 @@ export const getStrategyData = async () => {
   return res.data;
 };
 
+// Search (Ctrl/Cmd+K palette) — scoped server-side
+export type SearchHitType = 'project' | 'task' | 'document' | 'announcement' | 'user' | 'message';
+export interface SearchHit { type: SearchHitType; id: number; title: string; subtitle: string; link: string }
+
+export const searchAll = async (q: string): Promise<SearchHit[]> => {
+  const res = await api.get('/search', { params: { q } });
+  const groups: Record<string, SearchHit[]> = res.data?.data?.groups || {};
+  return Object.values(groups).flat();
+};
+
 export default api;
 
