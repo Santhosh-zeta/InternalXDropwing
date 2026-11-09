@@ -10,45 +10,6 @@ const {
   roleAssignmentRules,
 } = require('../middleware/validate.middleware');
 
-// Ensure venture_roles table and venture_role_assignments table exist (idempotent)
-async function ensureTables() {
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS venture_roles (
-      id SERIAL PRIMARY KEY,
-      venture_id INT NULL,
-      role_name VARCHAR(100) NOT NULL,
-      role_key VARCHAR(60) NOT NULL,
-      description TEXT,
-      color VARCHAR(7) DEFAULT '#6366f1',
-      icon VARCHAR(10) DEFAULT '🔷',
-      base_level INT NOT NULL DEFAULT 5,
-      permissions JSON,
-      is_active BOOLEAN DEFAULT TRUE,
-      sort_order INT DEFAULT 100,
-      created_by INT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE (role_key, venture_id),
-      FOREIGN KEY (venture_id) REFERENCES ventures(id) ON DELETE CASCADE,
-      FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-    )
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS venture_role_assignments (
-      id SERIAL PRIMARY KEY,
-      user_id INT NOT NULL,
-      role_id INT NOT NULL,
-      assigned_by INT NULL,
-      assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      UNIQUE (user_id, role_id),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-      FOREIGN KEY (role_id) REFERENCES venture_roles(id) ON DELETE CASCADE,
-      FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
-    )
-  `);
-}
-
 // ── GET /api/role-management — List roles (filtered by venture for L4, all for L1/L2) ──
 router.get('/', authenticate, async (req, res) => {
   try {
