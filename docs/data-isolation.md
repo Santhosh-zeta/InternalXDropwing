@@ -24,6 +24,17 @@ sheet, never someone more senior; invoices and budgets need L<=5 / L<=4; tasks
 are edited only by their assignees/creator (staff) or venture admins; documents
 are shared with clients per document by L<=5.
 
+## Accounts and the team directory
+
+Accounts are invite-only: `POST /api/team-members` (L<=3, `canManageUser` rules) creates the user and
+issues a 72 h set-password link (emailed, or returned once when SMTP is missing). Self-registration is
+off unless `ALLOW_SELF_REGISTRATION=true`; then accounts are inactive + `pending_approval` with no
+venture until L1/L2 approve them (`GET /api/team-members?pending=true`).
+
+`GET /api/team-members` (also the DM picker): L1/L2 everyone; L3-L5 their venture (clients included, for
+user management) plus global leadership; L6-L8 their venture plus global leadership, never clients;
+L9 nothing. Other ventures' people are never returned. `GET /api/team-members/:id` follows the same rule.
+
 ## Chat
 
 Rooms: `venture_<id>` (that venture + global users), `global` (all internal

@@ -2,27 +2,20 @@
 
 <img src="docs/images/banner.png" alt="Dropwing Groups Engineering" width="100%" />
 
-# ✦ InternalX
+# InternalX
 
-**One internal operating system for a multi-venture company — web, mobile, and API.**
+**One internal operating system for a multi-venture company: web, mobile and API.**
 
-Most internal tools are *either* an ERP, *or* a CRM, *or* a project tracker, *or* a chat app.
-InternalX is the single place where a holding company runs **all** of it: four separate business
-ventures, nine tiers of access, and every module from OKRs to invoices to the intern onboarding
-checklist — behind one login.
+Four separate ventures, nine access levels, one login. People only ever see what their venture and
+project membership entitles them to; the Managing Director sees everything.
 
-[Features](#-what-it-actually-does) · [Screenshots](#-screenshots) · [Architecture](#-architecture) · [Quick start](#-quick-start) · [API](#-api-reference) · [Deployment](#-deployment) · [Security](#-security)
-
-<br/>
+[What it does](#what-it-does) · [Access model](#access-model) · [Accounts and invites](#accounts-and-invites) · [Quick start](#quick-start) · [Configuration](#configuration) · [Production](#production) · [API](#api-overview) · [Security](#security)
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=nextdotjs)
 ![React](https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react)
-![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript)
-![Tailwind](https://img.shields.io/badge/Tailwind-4-06B6D4?style=flat-square&logo=tailwindcss)
-![Node.js](https://img.shields.io/badge/Node.js-18+-5FA04E?style=flat-square&logo=nodedotjs)
+![Node.js](https://img.shields.io/badge/Node.js-20-5FA04E?style=flat-square&logo=nodedotjs)
 ![Express](https://img.shields.io/badge/Express-4-000000?style=flat-square&logo=express)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?style=flat-square&logo=postgresql)
-![Socket.IO](https://img.shields.io/badge/Socket.IO-4-010101?style=flat-square&logo=socketdotio)
 ![Flutter](https://img.shields.io/badge/Flutter-3-02569B?style=flat-square&logo=flutter)
 ![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)
 
@@ -30,663 +23,181 @@ checklist — behind one login.
 
 ---
 
-## 📖 Contents
+## What it does
 
-- [Why this exists](#-why-this-exists)
-- [What it actually does](#-what-it-actually-does)
-- [Screenshots](#-screenshots)
-- [Architecture](#-architecture)
-- [Tech stack](#-tech-stack)
-- [Repository layout](#-repository-layout)
-- [Quick start](#-quick-start)
-- [Configuration](#-configuration)
-- [Access model](#-access-model)
-- [API reference](#-api-reference)
-- [Data model](#-data-model)
-- [Mobile app](#-mobile-app)
-- [Deployment](#-deployment)
-- [Security](#-security)
-- [Roadmap](#-roadmap)
-- [License](#-license)
+**Dropwing Groups** runs four ventures: Dropwing Design Studio, Fenixa Solutions, PerSyniX and
+Grovia. InternalX gives them one database, one identity and one audit trail, with strict isolation
+between ventures and between internal staff and external clients.
 
----
-
-## 🌐 Why this exists
-
-**Dropwing Groups** is not one company — it is four:
-
-| Venture | What it does |
+| Domain | Modules |
 | :-- | :-- |
-| **Dropwing Design Studio** | Brand and product design |
-| **Fenixa Solutions** | Software services |
-| **PerSyniX** | Technology R&D |
-| **Grovia** | Growth and marketing |
+| Operations | Projects (members, milestones), Tasks, Timesheets with approval, Documents (per-project, optionally client-visible) |
+| Finance | Invoices, Budget, Reports (costs come from one rate source: project rate, else user hourly rate; no rate means no invented cost) |
+| Strategy | OKRs and key results, strategic risks, department KPIs |
+| People | User Management (invite, approve, change level/venture within your rank), Learning Hub for interns |
+| Collaboration | Team Chat (venture rooms, global room, direct messages), Notifications, Approvals, Calendar |
+| Clients (L9) | A restricted portal: their projects, client-visible documents and deliverables, their invoices |
+| Governance | Audit log of privileged actions |
 
-Running four ventures on four sets of SaaS tools meant four billing relationships, four user
-directories, and no way to answer a question like *"what did engineering across all ventures spend
-last quarter, and who approved it?"* without exporting spreadsheets.
+The web app is a Next.js 16 static export served by the API (one origin, one container). The
+Flutter app in `mobile/` talks to the same REST + Socket.IO API.
 
-InternalX replaces that. **One database, one identity, one audit trail** — with venture-scoped data
-isolation so a Fenixa manager sees Fenixa's numbers, a Managing Director sees all four, and an
-external client sees only their own project.
+## Access model
 
-This is the part that makes it different from a generic ERP or CRM template: the app is not built
-around *records*, it is built around **who is allowed to see which venture's records**, and that rule
-is enforced at the route layer, the query layer, and the UI layer.
+Nine levels, lower number = more power. The single source of truth is `backend/src/utils/scope.js`
+(see [docs/data-isolation.md](docs/data-isolation.md) for the full rules and the test matrix).
 
----
+| Level | Role | Sees |
+| :-: | :-- | :-- |
+| 1 | Super Admin | Every venture, every row |
+| 2 | Managing Director | Every venture, every row |
+| 3 | Admin | Own venture, all of its data; manages users below them in that venture |
+| 4, 5 | CXO, Manager | Own venture, all of its data (L5 approves timesheets) |
+| 6, 7, 8 | Executive Staff, Staff, Intern | Own venture, but only projects they are members of, tasks assigned to or created by them, their own timesheets |
+| 9 | Client | Only projects they belong to and client-safe data: no internal chat, no staff, no other people's timesheets or finance |
 
-## ⚡ What it actually does
+- The scope is re-read from the database on every request, so a demotion or deactivation applies
+  immediately. Ids in request bodies or queries never grant access.
+- Nobody can create, edit, promote or delete a user at or above their own level (L1 may manage
+  everyone except demoting the last Super Admin). Venture and level changes of others are for L1/L2;
+  an L3 admin manages levels 4-9 in their own venture only.
+- Staff (L6-L8) get a team directory of their own venture plus the global leadership; never clients
+  or other ventures' people.
+- Real-time chat rooms are assigned and validated by the server against the same scope.
 
-InternalX is nineteen modules sharing one permission system. Grouped by what they're for:
+## Accounts and invites
 
-<table>
-<tr><th align="left">Domain</th><th align="left">Modules</th></tr>
-<tr>
-<td><strong>🏢 Operations</strong></td>
-<td>
+InternalX is **invite-only by default**; there is no open sign-up and no shipped account.
 
-**Projects** — milestones, team assignment, per-venture boards
-**Tasks** — assignment, priority, status, level-gated create/delete
-**Timesheets** — logging, manager approval workflow, cost rollup
-**Documents** — upload, per-venture visibility, soft delete
+1. **First admin.** Set `BOOTSTRAP_ADMIN_EMAIL` and a strong `BOOTSTRAP_ADMIN_PASSWORD` for the first
+   boot (created only while no Super Admin exists; remove the password afterwards), or run
+   `npm run create-admin` in `backend/`.
+2. **Invite.** User Management > Invite creates the user and emails a one-time set-password link valid
+   for 72 hours. No temporary password is ever shown. If SMTP is not configured the API returns the
+   link once to the inviting admin (it is never logged). `POST /api/team-members/:id/invite` re-issues
+   it for someone who has not signed in yet.
+3. **Sign in** with email + password, then a one-time code sent by email (or Google sign-in for
+   accounts that already exist). Passwords can be reset by email.
+4. **Optional self-registration:** `ALLOW_SELF_REGISTRATION=true` lets people request an account at
+   `/register`. It is created inactive and pending, with no venture, and an L1/L2 admin approves it
+   (`GET /api/team-members?pending=true`, then `PUT` with `is_active` and a venture). `GET /api/auth/config`
+   tells the web app which mode is on.
 
-</td>
-</tr>
-<tr>
-<td><strong>💰 Finance</strong></td>
-<td>
+## Quick start
 
-**Invoices** — generation, line items, client-facing PDF export
-**Budget** — expense tracking, monthly burn, per-venture summaries
-**Reports** — cross-venture analytics, exportable via `jsPDF`
-
-</td>
-</tr>
-<tr>
-<td><strong>🧭 Strategy</strong></td>
-<td>
-
-**Strategy / OKRs** — objectives, key results, progress rollup
-**Strategic risks** — register with severity and ownership
-**Department KPIs** — HR and per-department metric dashboards
-
-</td>
-</tr>
-<tr>
-<td><strong>👥 People</strong></td>
-<td>
-
-**User management** — create/edit/deactivate people with level and venture, under strict ceilings (nobody manages a level at or above their own; venture admins stay inside their venture; the last Super Admin is protected)
-**Learning Hub** — intern onboarding checklists, resources, feedback loop
-
-</td>
-</tr>
-<tr>
-<td><strong>💬 Collaboration</strong></td>
-<td>
-
-**Team Chat** — real-time, Socket.IO, venture rooms + direct messages, persisted to Postgres
-**Notifications** — in-app bell, read/unread state, FCM push on mobile
-**Client Portal** — a restricted L9 surface where external clients track their own work only
-
-</td>
-</tr>
-<tr>
-<td><strong>🔍 Governance</strong></td>
-<td>
-
-**Audit logs** — every privileged action, actor, and timestamp
-
-</td>
-</tr>
-</table>
-
-**Also worth knowing:**
-
-- **Real-time** — Socket.IO with JWT handshake auth; messages broadcast to venture rooms and DM rooms, then persisted.
-- **Auth** — email + password (bcrypt, 12 rounds), Google OAuth, email OTP verification, and password reset over SMTP.
-- **Cross-platform** — the Flutter app is not a webview. It's 28 native screens against the same REST API.
-- **Design system** — "Nebula": a shared token set implemented twice, as CSS custom properties for web and as a Flutter `ThemeExtension`, so both clients stay visually identical in light and dark mode.
-
----
-
-## 📸 Screenshots
-
-> The same application, rendered for nine different access levels. Note that the sidebar,
-> the metric tiles, and the venture list all change based on who signed in — that is the
-> access model doing its job, not six different pages.
-
-<div align="center">
-
-**Sign-in**
-<img src="docs/images/01-login.png" alt="InternalX login screen" width="100%" />
-
-</div>
-
-<table>
-<tr>
-<td width="50%"><strong>L1 · Super Admin</strong><br/><em>All four ventures, system health, every module</em><br/><img src="docs/images/02-super-admin.png" alt="Super Admin dashboard" /></td>
-<td width="50%"><strong>L2 · Managing Director</strong><br/><em>Cross-venture strategy and financial oversight</em><br/><img src="docs/images/03-managing-director.png" alt="Managing Director dashboard" /></td>
-</tr>
-<tr>
-<td><strong>L3 · Admin</strong><br/><em>Administrative control, scoped to one venture</em><br/><img src="docs/images/04-admin.png" alt="Admin dashboard" /></td>
-<td><strong>L4 · CXO</strong><br/><em>Cross-departmental visibility, no user administration</em><br/><img src="docs/images/05-cxo.png" alt="CXO dashboard" /></td>
-</tr>
-<tr>
-<td><strong>L5 · Manager</strong><br/><em>Team, approvals, and reporting</em><br/><img src="docs/images/06-manager.png" alt="Manager dashboard" /></td>
-<td><strong>L6 · Executive Staff</strong><br/><em>Expanded task and document access</em><br/><img src="docs/images/07-executive-staff.png" alt="Executive staff dashboard" /></td>
-</tr>
-<tr>
-<td><strong>L7 · Staff</strong><br/><em>Day-to-day: my tasks, my timesheets, team chat</em><br/><img src="docs/images/08-staff.png" alt="Staff dashboard" /></td>
-<td><strong>L8 · Intern</strong><br/><em>Learning Hub onboarding checklist front and centre</em><br/><img src="docs/images/09-intern.png" alt="Intern dashboard" /></td>
-</tr>
-<tr>
-<td colspan="2"><strong>L9 · Client</strong> — <em>the external portal: their projects, their invoices, nothing else</em><br/><img src="docs/images/10-client-portal.png" alt="Client portal" width="50%" /></td>
-</tr>
-</table>
-
-📘 A walkthrough of every screen lives in **[docs/visual-guide.md](docs/visual-guide.md)**.
-
----
-
-## 🏗 Architecture
-
-```
-                    ┌──────────────────────┐     ┌──────────────────────┐
-                    │   Next.js 16 (web)   │     │  Flutter 3 (mobile)  │
-                    │  React 19 · TS · TW4 │     │  Riverpod · go_router│
-                    │  19 dashboard views  │     │   28 native screens  │
-                    └──────────┬───────────┘     └──────────┬───────────┘
-                               │                            │
-                        REST + WebSocket            REST + WebSocket + FCM
-                               │                            │
-                               └────────────┬───────────────┘
-                                            │
-                            ┌───────────────▼────────────────┐
-                            │      Express 4 API server      │
-                            │                                │
-                            │  helmet · cors · rate-limit    │
-                            │  ─────────────────────────     │
-                            │  authenticate()  → verify JWT  │
-                            │  requireLevel(n) → gate route  │
-                            │  ─────────────────────────     │
-                            │  19 route modules, 81 endpoints│
-                            │  Socket.IO (JWT handshake)     │
-                            │  audit · email · notification  │
-                            └───────────────┬────────────────┘
-                                            │
-                            ┌───────────────▼────────────────┐
-                            │      PostgreSQL 16             │
-                            │   24 tables · venture-scoped   │
-                            └────────────────────────────────┘
-```
-
-**Three design decisions worth calling out:**
-
-1. **Access level is a number, and lower wins.** `requireLevel(7)` admits levels 1–7 and rejects
-   8–9. One comparison replaces a permission table lookup on every request, and new roles slot in
-   without touching route code.
-
-2. **`venture_id` is the tenancy boundary.** Nearly every table carries it. A `NULL` venture means
-   global scope (L1/L2 only). Queries filter on it rather than relying on the UI to hide things.
-
-3. **The Postgres layer is a compatibility shim.** `backend/src/config/database.pg.js` wraps `pg`
-   with a MySQL-shaped interface (`?` placeholders, `[rows, fields]` tuples, `NOW()` → `CURRENT_TIMESTAMP`).
-   That's what let the project migrate from MySQL to PostgreSQL without rewriting 81 endpoints —
-   a pragmatic trade documented honestly in [docs/postgres-validation.md](docs/postgres-validation.md).
-
----
-
-## 🧰 Tech stack
-
-| Layer | Choices |
-| :-- | :-- |
-| **Web** | Next.js 16 (App Router, Turbopack) · React 19 · TypeScript 5 · Tailwind CSS 4 · Framer Motion · Recharts · lucide-react · react-hot-toast · jsPDF |
-| **Mobile** | Flutter 3 · Riverpod · go_router · Dio · Hive · flutter_secure_storage · Firebase Messaging |
-| **API** | Node.js 18+ · Express 4 · Socket.IO 4 · JWT · bcryptjs · Multer · Nodemailer · google-auth-library |
-| **Data** | PostgreSQL 16 · raw SQL (no ORM) · indexed migrations |
-| **Hardening** | helmet · express-rate-limit · express-validator · cookie-parser · HTTPS redirect · CORS allowlist |
-| **Ops** | Docker Compose · Cloudflare Tunnel · GitHub Actions |
-
-**Scale:** ~14k lines TypeScript · ~26k lines Dart · ~3.9k lines backend JS · ~800 lines SQL.
-
----
-
-## 📁 Repository layout
-
-```
-InternalXDropwing/
-├── backend/                    Express API server
-│   ├── src/
-│   │   ├── config/             DB pool, Postgres compat shim, env checks
-│   │   ├── controllers/        Business logic
-│   │   ├── middleware/         authenticate() · requireLevel()
-│   │   ├── routes/             19 route modules
-│   │   ├── services/           email · notifications · audit
-│   │   └── server.js           App bootstrap + Socket.IO
-│   ├── migrations/             Incremental schema changes
-│   ├── postgres_migration/     MySQL → Postgres migration reports
-│   ├── seed_pg.js              Seed ventures, levels, learning checklist (no users)
-│   ├── seed_dev_users.js       DEV-ONLY demo users (refuses NODE_ENV=production)
-│   ├── scripts/create-admin.js CLI to create/reset a Super Admin or MD
-│   └── .env.example
-│
-├── frontend/                   Next.js 16 web client
-│   └── src/
-│       ├── app/dashboard/      19 feature views + shell
-│       ├── components/ui/      Nebula design system (Button, Card, Modal…)
-│       ├── components/         RequireAuth · SocketProvider · GoogleAuthProvider
-│       └── lib/                API client, types, constants
-│
-├── mobile/                     Flutter client
-│   └── lib/
-│       ├── core/               theme · router · api · socket · cache
-│       └── features/           20 features, 28 screens (clean architecture)
-│
-├── deployment/
-│   ├── postgres/               Production compose + init SQL + backup scripts
-│   └── cloudflare/             Tunnel config + one-command deploy
-│
-├── docs/                       Screenshots, visual guide, deployment guides
-├── scripts/                    Dev helpers and smoke tests
-└── docker-compose.yml          Local PostgreSQL for development
-```
-
----
-
-## 🚀 Quick start
-
-**Prerequisites:** Node.js 18+, Docker (or a local PostgreSQL 16), and Flutter 3.3+ for the mobile app.
-
-### 1 · Database
+Prerequisites: Node.js 20, Docker (or a local PostgreSQL 16), Flutter 3 for the mobile app.
 
 ```bash
-git clone https://github.com/Santhosh-zeta/InternalXDropwing.git
-cd InternalXDropwing
-
-docker compose up -d      # PostgreSQL 16 on :5432, schema + seed applied automatically
+git clone https://github.com/Santhosh-zeta/InternalXDropwing.git && cd InternalXDropwing
+./scripts/setup.sh                      # or do the steps below by hand
 ```
-
-Running without Docker? Create the database by hand and apply the init scripts in order:
 
 ```bash
-createdb internalx
-psql -d internalx -f deployment/postgres/init/01_schema.sql
-psql -d internalx -f deployment/postgres/init/02_indexes.sql
-psql -d internalx -f deployment/postgres/init/03_seed.sql
+# 1. database (loopback only, throwaway dev credentials)
+docker compose -f docker-compose.dev.yml up -d
+
+# 2. API
+cd backend && cp .env.example .env      # set JWT_SECRET, DB_*; add BOOTSTRAP_ADMIN_* for a first login
+npm ci && npm run dev                   # http://localhost:5000, applies migrations at boot
+
+# 3. web
+cd ../frontend && cp .env.example .env.local && npm ci && npm run dev   # http://localhost:3000
 ```
 
-### 2 · API
+For local exploration only: `node scripts/seed-demo.js` in `backend/` creates four ventures with a
+user per level, projects, tasks and timesheets; `node scripts/dev-token.js dd.l5` prints a session
+token for curl. Both refuse to run with `NODE_ENV=production`. The dev login page shows quick-login
+buttons for demo accounts; they are compiled out of production builds.
 
-```bash
-cd backend
-cp .env.example .env      # then edit — see Configuration below
-npm install
-npm run dev               # → http://localhost:5000
-```
-
-**First login.** The repository ships no user accounts. Either put `BOOTSTRAP_ADMIN_EMAIL` and a
-strong `BOOTSTRAP_ADMIN_PASSWORD` (12+ chars) in `backend/.env` — the first boot creates the Super
-Admin if none exists, after which you should delete the password from the file — or run
-`npm run create-admin -- --email you@company.com` (prompts for the password). Then invite everyone
-else from **User Management**.
-
-For local development only, `npm run seed:dev` creates one demo account per level and venture
-(password `Test@1234`, or `DEV_SEED_PASSWORD`). It refuses to run when `NODE_ENV=production`.
-`npm run seed` only loads reference data (ventures, levels, learning checklist).
-
-Verify it's up:
-
-```bash
-curl http://localhost:5000/api/health
-# {"status":"ok","message":"InternalX API is running", ...}
-```
-
-**Tests.** `npm test` in `backend/` runs Jest + Supertest against a throwaway Postgres database:
+**Tests.** Jest + Supertest against a disposable database (the suite drops and recreates its `public`
+schema, so never point it at real data):
 
 ```bash
 createdb internalx_test
-TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/internalx_test npm test
+cd backend && TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/internalx_test npm test
 ```
 
-The suite **drops and recreates the `public` schema** of that database and applies
-`deployment/postgres/init/*.sql`, so never point it at real data. CI runs it in the `backend-tests` job.
+**Mobile:** `cd mobile && flutter pub get && flutter run --dart-define=API_URL=http://10.0.2.2:5000/api`
 
-### 3 · Web
+## Configuration
 
-```bash
-cd frontend
-cp .env.example .env.local
-npm install
-npm run dev               # → http://localhost:3000
-```
-
-In development the login page shows **Quick Access Logins** — one-click buttons for each seeded
-access level, so you can see all nine dashboards without creating accounts. These are compiled out
-of production builds (`NODE_ENV === 'production'` returns an empty list), so the demo passwords
-cannot reach a production bundle.
-
-### 4 · Mobile *(optional)*
-
-```bash
-cd mobile
-flutter pub get
-flutter run --dart-define=API_URL=http://10.0.2.2:5000/api   # 10.0.2.2 = host from Android emulator
-```
-
----
-
-## ⚙️ Configuration
-
-Every service reads configuration from environment variables. **Nothing secret is committed** —
-copy the `.env.example` templates and fill them in locally.
-
-### `backend/.env`
-
-| Variable | Required | Notes |
-| :-- | :-: | :-- |
-| `NODE_ENV` | ✓ | `development` \| `production` |
-| `PORT` | ✓ | Default `5000` |
-| `FRONTEND_URL` | ✓ | CORS origin **and** the base for links in outgoing email |
-| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | ✓ | PostgreSQL connection |
-| `JWT_SECRET` | ✓ | Long random string — see below. Production refuses to boot if it is missing, shorter than 32 chars, or a placeholder |
-| `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` | first run | Creates the first Super Admin if none exists (password 12+ chars, no placeholders). Remove the password afterwards |
-| `ALLOWED_EMAIL_DOMAINS` | | Comma-separated domains allowed to self-register and sign in with Google (default: the four venture domains + `dropwinggroups.com`) |
-| `JWT_EXPIRES_IN` | | Default `8h` |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | | Omit to disable Google sign-in. Google sign-in is invite-only: it never creates accounts, and requires a verified Google email on an allowed domain |
-| `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | | Omit to disable OTP and password reset email |
-
-Generate a JWT secret:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"
-```
-
-### `frontend/.env.local`
+Everything comes from environment variables; nothing secret is committed. Templates:
+`backend/.env.example` (development) and `deployment/production-env.example` (production). The full
+production table is in [docs/production-checklist.md](docs/production-checklist.md#1-environment-variables).
+The ones you will touch first:
 
 | Variable | Notes |
 | :-- | :-- |
-| `NEXT_PUBLIC_API_URL` | Backend base URL, no trailing slash — e.g. `http://localhost:5000/api` |
-| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Must match the backend's `GOOGLE_CLIENT_ID`; blank hides the Google button |
+| `JWT_SECRET` | 32+ random characters. Production refuses to boot without a real one |
+| `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | PostgreSQL connection |
+| `FRONTEND_URL` | Public origin; used in email links and as the default CORS origin (required in production) |
+| `AUTO_MIGRATE` | `true` (default) applies pending migrations at boot |
+| `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD` | First Super Admin, first boot only |
+| `ALLOW_SELF_REGISTRATION` | `false` by default |
+| `ALLOWED_EMAIL_DOMAINS` | Self-registration and Google sign-in allowlist |
+| `SMTP_*` | Needed for sign-in codes, invites and resets |
+| `TRUST_PROXY` `COOKIE_SECURE` `CORS_ORIGINS` `LOG_LEVEL` | Behind-a-proxy and logging behaviour |
 
-> `NEXT_PUBLIC_*` variables are inlined into the browser bundle. Never put a secret behind that prefix.
+Frontend: `NEXT_PUBLIC_API_URL` (backend origin, baked into the bundle at build time) and
+`NEXT_PUBLIC_GOOGLE_CLIENT_ID`. `NEXT_PUBLIC_*` values are public; never put a secret behind that prefix.
 
-### Mobile
-
-Passed at build time, not through a file:
+## Production
 
 ```bash
-flutter run --dart-define=API_URL=https://your-api-host/api
+cp deployment/production-env.example .env      # fill in every value
+docker compose up -d --build                   # app (API + web) + PostgreSQL 16
+curl -s http://127.0.0.1:5000/api/ready
 ```
 
----
+The multi-stage `Dockerfile` builds the web export into the API image, runs as a non-root user with a
+healthcheck, and `docker-compose.yml` keeps data in named volumes (`pgdata`, `uploads`), publishes the
+app on loopback only and refuses to start without secrets. Put a TLS proxy or Cloudflare Tunnel
+(`deployment/cloudflare/`) in front. Nightly backups: `deployment/backup/`. Operations
+(first deploy, backups and restore, upgrades, monitoring): **[docs/production-checklist.md](docs/production-checklist.md)**.
 
-## 🔐 Access model
+Migrations: `backend/migrations/NNNN_*.sql`, numbered, idempotent, checksummed, applied at boot or with
+`npm run migrate`. `deployment/postgres/init/*.sql` is the same schema at head for dev and tests; a test
+keeps the two identical.
 
-Nine levels. **Lower number = more access.** `requireLevel(n)` admits every level from `1` to `n`.
+## Repository layout
 
-| L | Role | Scope |
-| :-: | :-- | :-- |
-| **1** | Super Admin | Everything, all ventures |
-| **2** | Managing Director | Strategic + financial oversight across all ventures |
-| **3** | Admin | Full administration of **one** assigned venture |
-| **4** | CXO | Cross-departmental visibility; no user administration |
-| **5** | Manager | Team management, timesheet approval, reporting |
-| **6** | Executive Staff | Senior staff — expanded task and document access |
-| **7** | Staff | Standard employee: own tasks, timesheets, chat, documents |
-| **8** | Intern | Limited, Learning-Hub-centric |
-| **9** | Client | External portal — their own projects and invoices only |
-
-Enforcement happens in three places, and all three have to agree:
-
-```js
-// 1. Route layer — backend/src/routes/task.routes.js
-router.post('/',       authenticate, requireLevel(7), createTask);   // L1–L7 may create
-router.delete('/:id',  authenticate, requireLevel(5), deleteTask);   // only L1–L5 may delete
-
-// 2. Query layer — venture scope is applied in SQL, not in the UI
-//    WHERE venture_id = $1 OR $2 <= 2      ← L1/L2 bypass venture scoping
-
-// 3. UI layer — <RequireAuth> gates routes, and the sidebar renders per level
+```
+backend/            Express API (src/routes, controllers, middleware, services, utils/scope.js), migrations/, tests/, scripts/
+frontend/           Next.js 16 web app (static export served by the API)
+mobile/             Flutter client
+deployment/         postgres/init (schema at head), backup/ (nightly dump + restore), cloudflare/ (tunnel config)
+docs/               data-isolation.md, production-checklist.md, client portal spec, visual guide
+Dockerfile          production image
+docker-compose.yml  production stack; docker-compose.dev.yml is the local database only
 ```
 
-Sessions are JWTs, stored in an `internalx_token` cookie and also accepted as
-`Authorization: Bearer`. The Socket.IO handshake verifies the same token before joining any room,
-so a chat connection cannot outlive or outrank the HTTP session.
+## API overview
 
----
+Base URL `/api`. Everything except `/api/health`, `/api/ready` and `/api/auth/*` needs a session
+(`internalx_token` httpOnly cookie, or `Authorization: Bearer`). Every list endpoint applies the same
+scope predicate as the single-row check.
 
-## 🔌 API reference
-
-Base URL `/api`. All routes except `/api/health` and `/api/auth/*` require a valid token.
-
-<details>
-<summary><strong>Authentication</strong> — <code>/api/auth</code></summary>
-
-| Method | Path | Purpose |
-| :-- | :-- | :-- |
-| `POST` | `/register` | Create account, send OTP |
-| `POST` | `/login` | Email + password → JWT |
-| `POST` | `/google-login` | Google ID token → JWT (auto-verified) |
-| `POST` | `/verify-otp` | Confirm email address |
-| `POST` | `/forgot-password` | Email a reset link |
-| `POST` | `/reset-password` | Consume reset token |
-| `POST` | `/logout` | Clear session cookie |
-| `GET` | `/me` | Current user + venture + level |
-
-</details>
-
-<details>
-<summary><strong>People & access</strong> — <code>/api/team-members</code></summary>
-
-| Method | Path | Purpose |
-| :-- | :-- | :-- |
-| `GET` | `/team-members` | List users (venture-scoped) |
-| `POST` `PUT` `DELETE` | `/team-members/:id` | User CRUD |
-| `GET` `PUT` | `/team-members/me/profile` | Own profile |
-| `PUT` | `/team-members/me/password` | Change own password |
-| `POST` | `/team-members/me/avatar` | Avatar upload (Multer) |
-| `GET` | `/team-members/ventures` · `/access-levels` | Reference data |
-
-</details>
-
-<details>
-<summary><strong>Work</strong> — <code>/api/projects</code>, <code>/api/tasks</code>, <code>/api/timesheets</code>, <code>/api/documents</code></summary>
-
-| Method | Path | Gate |
-| :-- | :-- | :-- |
-| `GET` `POST` `PUT` `DELETE` | `/projects`, `/projects/:id` | Level-gated |
-| `GET` | `/tasks`, `/tasks/:id` | Any authenticated user |
-| `POST` `PUT` | `/tasks` | `requireLevel(7)` |
-| `DELETE` | `/tasks/:id` | `requireLevel(5)` |
-| `POST` `GET` | `/timesheets` | Log and list entries |
-| `PATCH` | `/timesheets/:id/approve` | Manager approval |
-| `GET` | `/timesheets/financials` | Cost rollup |
-| `POST` | `/documents/upload` | Multer upload |
-| `GET` `DELETE` | `/documents`, `/documents/:id` | Venture-scoped |
-
-</details>
-
-<details>
-<summary><strong>Money & insight</strong> — <code>/api/invoices</code>, <code>/api/budget</code>, <code>/api/kpis</code>, <code>/api/strategy</code>, <code>/api/platform-metrics</code></summary>
-
-| Method | Path | Purpose |
-| :-- | :-- | :-- |
-| `GET` | `/invoices`, `/invoices/:id` | Invoice list and detail |
-| `GET` | `/budget/summary` · `/expenses` · `/monthly` | Budget analytics |
-| `GET` | `/kpis/hr` · `/kpis/department` | KPI dashboards |
-| `GET` | `/strategy` | OKRs, key results, strategic risks |
-| `GET` | `/platform-metrics` | Cross-venture platform analytics |
-| `GET` | `/client-portal/overview` | L9 client-scoped summary |
-
-</details>
-
-<details>
-<summary><strong>Collaboration & governance</strong> — <code>/api/chat</code>, <code>/api/notifications</code>, <code>/api/learning</code>, <code>/api/action-logs</code></summary>
-
-| Method | Path | Purpose |
-| :-- | :-- | :-- |
-| `GET` `POST` | `/chat/messages` | Message history and send |
-| `GET` | `/notifications` | Inbox |
-| `PATCH` | `/notifications/:id/read` · `/read-all` | Mark read |
-| `DELETE` | `/notifications/clear` | Clear all |
-| `GET` `POST` `DELETE` | `/learning/checklist` · `/resources` · `/feedback` | Learning Hub |
-| `GET` `PATCH` | `/learning/progress` | Intern progress tracking |
-| `GET` | `/action-logs` | Audit trail |
-
-</details>
-
-### WebSocket events
-
-| Direction | Event | Payload |
-| :-- | :-- | :-- |
-| → server | `join_channel` | `channelId` (`global`, `venture_<id>`, or `dm_<userId>`) |
-| → server | `send_message` | `{ content, ventureId? , receiverId? }` |
-| ← client | `receive_message` | `{ content, sender_id, ventureId?, receiverId? }` |
-
-The handshake requires `auth.token` (or an `Authorization` header). `sender_id` is taken from the
-verified token, never from the client payload — a client cannot spoof who a message came from.
-
----
-
-## 🗄 Data model
-
-24 tables. The ones that carry the design:
-
-| Table | Role |
+| Area | Paths |
 | :-- | :-- |
-| `ventures` | The four businesses — the tenancy root |
-| `access_levels` | L1–L9 definitions |
-| `users` | Employee ID, bcrypt hash, `access_level`, `venture_id` |
-| `sessions` | Backs real server-side token revocation — checked on every authenticated request and the Socket.IO handshake |
-| `venture_roles` · `venture_role_assignments` | Custom roles layered on top of levels |
-| `projects` · `project_members` · `project_milestones` | Delivery |
-| `tasks` · `task_assignees` · `timesheets` | Execution, shared ownership, and time capture |
-| `okrs` · `key_results` · `strategic_risks` | Strategy |
-| `documents` · `announcements` | Content |
-| `messages` · `notifications` | Communication |
-| `learning_checklist_items` · `learning_intern_progress` · `learning_resources` · `learning_feedback` | Onboarding |
-| `audit_logs` | Every privileged mutation |
+| Auth | `/auth/config` `/auth/login` `/auth/verify-otp` `/auth/google-login` `/auth/forgot-password` `/auth/reset-password` `/auth/logout` `/auth/me`; `/auth/register` only when enabled |
+| People | `/team-members` (list, invite, update, delete, `:id/invite`, `?pending=true`), `/team-members/me/*`, `/team-members/ventures`, `/access-levels`, `PUT /:id/rate` (L<=3) |
+| Work | `/projects` `/tasks` `/timesheets` `/documents` `/uploads/:file` |
+| Money and insight | `/invoices` `/budget` `/kpis` `/strategy` `/platform-metrics` `/client-portal` |
+| Collaboration | `/chat/channels` `/chat/messages` `/notifications` `/learning` |
+| Governance | `/action-logs` |
+| Ops | `/health` (liveness), `/ready` (database + migrations) |
 
-Schema: [`deployment/postgres/init/01_schema.sql`](deployment/postgres/init/01_schema.sql) ·
-Indexes: [`02_indexes.sql`](deployment/postgres/init/02_indexes.sql) ·
-Seed: [`03_seed.sql`](deployment/postgres/init/03_seed.sql)
+Socket.IO: the server assigns rooms on connect (`venture_<id>`, `global`, `dm_<userId>`); clients can
+only join rooms their scope allows, and messages are emitted by the server with the sender taken from
+the authenticated user.
 
----
+## Security
 
-## 📱 Mobile app
+See [SECURITY.md](SECURITY.md) for reporting and the control list. In short: bcrypt passwords, OTP second
+step, server-side session revocation, httpOnly cookies, scope enforced in SQL, rate limits, request
+validation, a strict CSP, upload allowlists with magic-byte checks, authenticated document downloads,
+redacted structured logs with request ids, and an audit trail.
 
-A native Flutter client — not a wrapper — covering 20 features across 28 screens: workspace, tasks,
-projects, timesheets, approvals, chat, documents, budget, KPIs, strategy, analytics, audit,
-calendar, team, learning hub, notifications, client portal, and profile.
+## License
 
-- **State** — Riverpod providers, feature-scoped
-- **Routing** — `go_router` with auth guards mirroring the web's `<RequireAuth>`
-- **Network** — Dio with a JWT interceptor; tokens in `flutter_secure_storage`, never `SharedPreferences`
-- **Offline** — Hive caches for read-heavy screens
-- **Real-time** — the same Socket.IO contract as web
-- **Push** — Firebase Cloud Messaging
-- **Theme** — the Nebula tokens again, as a Flutter `ThemeExtension`, with a live light/dark switch
-
-```bash
-cd mobile
-flutter pub get
-flutter run --dart-define=API_URL=http://10.0.2.2:5000/api
-flutter build apk --release --dart-define=API_URL=https://your-api-host/api
-```
-
----
-
-## 🚢 Deployment
-
-**Cloudflare Tunnel** — no open inbound ports, TLS terminated at the edge:
-
-```bash
-./deployment/cloudflare/deploy-with-tunnel.sh
-```
-
-Full guides: [quick start](docs/deployment/quick-start.md) ·
-[tunnel setup](docs/deployment/cloudflare-tunnel.md) ·
-[summary](docs/deployment/summary.md)
-
-**Single-server bundle** — `node build_package.js` builds the frontend, copies the backend, and
-emits a deployable `DGOS-PRODUCTION/` directory plus a zip. The Express server serves the static
-Next.js export from `public/frontend-build/` with an SPA fallback, so one Node process serves both
-API and UI.
-
-**Production database** — [`deployment/postgres/`](deployment/postgres/) carries a hardened compose
-file, init SQL, and `backup.sh` / `restore.sh`.
-
-### Pre-flight checklist
-
-- [ ] `NODE_ENV=production` on the API
-- [ ] `JWT_SECRET` is a fresh 48-byte random value, not the development one
-- [ ] `FRONTEND_URL` is the real origin — it drives CORS *and* email links
-- [ ] Database user is **not** a superuser and has no `CREATEDB`
-- [ ] `backend/uploads/` is writable, backed up, and not served with execute permissions
-- [ ] TLS terminated in front of the app (the server force-redirects HTTP in production)
-- [ ] `deployment/postgres/backup/backup.sh` scheduled
-
----
-
-## 🛡 Security
-
-Implemented:
-
-| Control | Where |
-| :-- | :-- |
-| Password hashing — bcrypt, 12 rounds | `auth.controller.js` |
-| JWT sessions, 8 h expiry, httpOnly cookie — and a real server-side revocation check, so logout actually ends the session instead of waiting out the 8 hours | `auth.middleware.js`, `session.service.js` |
-| The session token never touches client-side JavaScript — no `localStorage`, no JS-writable cookie. The web app trusts only the server-verified `/api/auth/me` response for who's signed in, not a client-editable cache | `frontend/src/lib/api.ts`, `frontend/src/components/RequireAuth.tsx` |
-| OTPs hashed (HMAC-SHA256) and compared in constant time | `otp.js` |
-| Level-based route authorisation | `requireLevel()` |
-| Venture scoping enforced in SQL | every controller |
-| Socket.IO handshake authentication — token, header, or the same httpOnly cookie, revocation-checked | `server.js` |
-| Upload MIME/extension allowlist; authenticated, venture-scoped document downloads | `upload.middleware.js`, `uploads.routes.js` |
-| Parameterised queries throughout (no ORM, no string-built SQL) | `database.pg.js` |
-| A real Content-Security-Policy — see [SECURITY.md](SECURITY.md) for the specific, documented exceptions it needs | `server.js` |
-| Rate limiting across the whole API, tighter on uploads/reports, per-mailbox on OTP/reset email, keyed on the verified user id | `rateLimit.middleware.js` |
-| Request validation on every mutating endpoint | `validate.middleware.js` |
-| CORS allowlist (single origin, credentials on) | `server.js` |
-| Forced HTTPS in production | `server.js` |
-| Audit logging of privileged actions | `audit.service.js` |
-| Demo credentials stripped from production builds | `lib/constants.ts` |
-
-Reporting a vulnerability: **[SECURITY.md](SECURITY.md)**.
-
-> **Note for anyone cloning this repo:** every credential is supplied through environment
-> variables and no `.env` file is tracked. If you fork it, generate your own `JWT_SECRET` and
-> database password before exposing anything to a network.
-
----
-
-## 🗺 Roadmap
-
-- [ ] Automated test suite (Jest + Supertest for the API, Playwright for the web)
-- [ ] OpenAPI 3 specification generated from the route modules
-- [ ] A nonce-based CSP — needs the frontend build to move off a static export so a nonce can be
-      stamped in per request; see [SECURITY.md](SECURITY.md) for what today's policy has to allow
-      without one
-- [ ] Redis adapter for Socket.IO, to scale past one API process
-- [ ] Per-venture theming in the client portal
-- [ ] Structured logging (pino) with request IDs end to end
-
----
-
-## 📄 License
-
-Released under the **MIT License** — see [LICENSE](LICENSE).
-
-Copyright © 2026 Dropwing Groups. You're free to use, modify and distribute this, including
-commercially, as long as the copyright notice travels with it.
-
----
-
-<div align="center">
-
-**Built by [Santhosh V](https://github.com/Santhosh-zeta) for Dropwing Groups.**
-
-<sub>Four ventures. One login. One audit trail.</sub>
-
-</div>
+MIT. See [LICENSE](LICENSE). Contributions: [CONTRIBUTING.md](CONTRIBUTING.md).

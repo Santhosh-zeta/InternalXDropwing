@@ -1,0 +1,35 @@
+# LOCAL DEVELOPMENT database only. Not for production: see docker-compose.yml.
+#
+#   docker compose -f docker-compose.dev.yml up -d      start PostgreSQL 16 on 127.0.0.1:5432
+#   docker compose -f docker-compose.dev.yml down       stop it (data is kept in the named volume)
+#   docker compose -f docker-compose.dev.yml down -v    stop it and wipe the data
+#
+# The port is bound to loopback only, so the throwaway dev credentials below are not
+# reachable from the network. On first start deployment/postgres/init/*.sql builds the
+# schema; later schema changes arrive through backend/migrations (applied at server boot).
+#
+#   backend/.env:  DB_HOST=localhost  DB_PORT=5432  DB_NAME=internalx
+#                  DB_USER=postgres   DB_PASSWORD=postgres
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: internalx-postgres-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: internalx
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./deployment/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d internalx"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

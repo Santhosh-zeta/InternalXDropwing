@@ -1,0 +1,4 @@
+# Nightly database backup at 02:15 server time. Install with:  sudo cp internalx-backup.cron /etc/cron.d/internalx-backup
+# Adjust the user (must be able to run docker) and the path to the repository.
+# Copy the dumps off the machine as well (rclone/rsync/object storage): a backup on the same disk is not a backup.
+15 2 * * * deploy cd /opt/internalx && BACKUP_RETENTION_DAYS=14 deployment/backup/backup.sh >> /var/log/internalx-backup.log 2>&1

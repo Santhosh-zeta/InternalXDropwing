@@ -1,5 +1,7 @@
 # InternalX — Client Portal (L9) Product Specification & Gap Analysis
 
+> **Status note.** This is a product-vision gap analysis. The "current implementation" column is a historical snapshot and partly outdated: the access rules that are enforced today (client scope, client-visible documents, no internal chat for clients) are described in [data-isolation.md](data-isolation.md).
+
 This document provides a comprehensive technical audit and functional comparison between the **InternalX Client Portal (Level 9 Access) Product Vision** and the **Current Codebase Implementation**. It highlights critical bugs, missing UI/backend features, security boundaries, and architectural implementation guidelines.
 
 ---
