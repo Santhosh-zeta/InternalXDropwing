@@ -1,5 +1,5 @@
 const { pool } = require('../config/database');
-const { toId, ventureWhere } = require('../utils/scope');
+const { toId, ventureWhere, taskWhere } = require('../utils/scope');
 const { rateJoin, rateExpr, costExpr, sumColumns, money, num } = require('../utils/rates');
 
 /**
@@ -92,11 +92,14 @@ exports.getInvoiceDetails = async (req, res, next) => {
     // what rows come back, so a foreign venture id simply yields "not found".
     const params = [ventureId, month];
     const where = invoiceScope(scope, params);
+    // Task titles only for tasks the caller may see (a client: deliverables
+    // assigned to them), never the title of someone else's internal task.
+    const taskVisible = taskWhere(scope, 'ts', params);
     const [timesheets] = await pool.query(`
       SELECT t.id, t.date, t.hours_worked, t.notes,
              u.full_name AS user_name,
              p.name AS project_name,
-             ts.title AS task_title,
+             CASE WHEN ${taskVisible} THEN ts.title END AS task_title,
              ${rateExpr('u', 'pmr')} AS rate,
              ${costExpr('t', 'u', 'pmr')} AS amount
       FROM timesheets t
@@ -118,6 +121,17 @@ exports.getInvoiceDetails = async (req, res, next) => {
       totalHours += hours;
       const hasRate = t.rate != null;
       if (hasRate) totalAmount += parseFloat(t.amount); else unrated += hours;
+      if (scope.isClient) {
+        // Client-safe fields only: no staff names, rates, per-line prices or
+        // internal timesheet notes. The invoice total is what they pay.
+        return {
+          id: t.id,
+          date: t.date,
+          project: t.project_name || 'General Deliverables',
+          task: t.task_title || 'Professional services',
+          hours,
+        };
+      }
       return {
         id: t.id,
         date: t.date,
@@ -133,24 +147,24 @@ exports.getInvoiceDetails = async (req, res, next) => {
 
     const [venture] = await pool.query('SELECT name, logo_url, primary_color FROM ventures WHERE id = ?', [ventureId]);
 
-    res.json({
-      success: true,
-      data: {
-        id: req.params.id,
-        invoice_number: `INV-${ventureId}-${month.replace('-', '')}`,
-        month,
-        venture_name: venture.length ? venture[0].name : 'Unknown Venture',
-        items,
-        total_hours: Math.round(totalHours * 100) / 100,
-        total_amount: Math.round(totalAmount * 100) / 100,
-        unrated_hours: Math.round(unrated * 100) / 100,
-        rate_missing: unrated > 0,
-        // Blended rate over the priced hours (rates can differ per person); null if nothing is priced.
-        billing_rate: totalHours - unrated > 0 ? Math.round((totalAmount / (totalHours - unrated)) * 100) / 100 : null,
-        issue_date: `${month}-28`,
-        due_date: new Date(new Date(`${month}-28`).getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      },
-    });
+    const summary = {
+      id: req.params.id,
+      invoice_number: `INV-${ventureId}-${month.replace('-', '')}`,
+      month,
+      venture_name: venture.length ? venture[0].name : 'Unknown Venture',
+      items,
+      total_hours: Math.round(totalHours * 100) / 100,
+      total_amount: Math.round(totalAmount * 100) / 100,
+      rate_missing: unrated > 0,
+      issue_date: `${month}-28`,
+      due_date: new Date(new Date(`${month}-28`).getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    };
+    if (!scope.isClient) {
+      summary.unrated_hours = Math.round(unrated * 100) / 100;
+      // Blended rate over the priced hours (rates can differ per person); null if nothing is priced.
+      summary.billing_rate = totalHours - unrated > 0 ? Math.round((totalAmount / (totalHours - unrated)) * 100) / 100 : null;
+    }
+    res.json({ success: true, data: summary });
   } catch (err) {
     next(err);
   }
