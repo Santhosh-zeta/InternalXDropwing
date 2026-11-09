@@ -53,13 +53,17 @@ const accountLimiter = rateLimit({
 
 /**
  * Per-mailbox budget for endpoints that send email (login OTP, password
- * reset), keyed on the target address so rotating IPs does not help an
- * attacker flood one victim. The unauthenticated routes see the parsed body
+ * reset), keyed on target address + caller IP: one caller cannot flood one
+ * victim's mailbox, and cannot starve the victim's own budget either (the
+ * per-IP limiters cap rotating IPs). The unauthenticated routes see the parsed body
  * because express.json() is mounted app-wide before them.
  */
 const emailKey = (req) => {
   const email = typeof req.body?.email === 'string' ? req.body.email.toLowerCase().trim() : '';
-  return email ? `email:${email}` : `ip:${ipKeyGenerator(req.ip)}`;
+  const ip = ipKeyGenerator(req.ip);
+  // email + IP: an attacker's requests land in their own bucket and cannot
+  // use up the budget of the real user (a different IP) for the same mailbox.
+  return email ? `email:${email}|${ip}` : `ip:${ip}`;
 };
 
 const perEmailLimiter = rateLimit({
@@ -157,6 +161,7 @@ module.exports = {
   loginLimiter,
   accountLimiter,
   perEmailLimiter,
+  emailKey,
   authLimiter,
   apiLimiter,
   uploadLimiter,

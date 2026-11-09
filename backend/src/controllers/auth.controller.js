@@ -171,10 +171,13 @@ const verifyOtp = async (req, res) => {
 
     // Count the attempt BEFORE checking the code, in one atomic statement, so
     // parallel requests cannot all get a free guess; a locked account matches
-    // no row at all. Per account, independent of the caller's IP.
+    // no row at all. Only an outstanding, unexpired OTP can be guessed at, so
+    // an unauthenticated caller cannot burn the budget of an account that has no
+    // code in flight (and so cannot lock anyone out ahead of time).
     const { rows: counted } = await pgPool.query(
       `UPDATE users SET otp_attempts = otp_attempts + 1
         WHERE email = $1 AND is_active = TRUE
+          AND otp IS NOT NULL AND otp_expires_at > CURRENT_TIMESTAMP
           AND (otp_locked_until IS NULL OR otp_locked_until <= CURRENT_TIMESTAMP)
         RETURNING id, otp, otp_expires_at, otp_attempts`,
       [normalizedEmail]
@@ -194,7 +197,7 @@ const verifyOtp = async (req, res) => {
       if (attempt.otp_attempts >= OTP_MAX_ATTEMPTS) {
         // Burn the code and lock the account out of OTP verification for a while.
         await pgPool.query(
-          'UPDATE users SET otp = NULL, otp_expires_at = NULL, otp_locked_until = $1 WHERE id = $2',
+          'UPDATE users SET otp = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = $1 WHERE id = $2',
           [new Date(Date.now() + OTP_LOCK_MS), attempt.id]
         );
       }
