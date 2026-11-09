@@ -24,7 +24,7 @@ beforeAll(async () => {
 afterAll(() => t.close());
 
 const byId = (report) => Object.fromEntries(report.checks.map((c) => [c.id, c]));
-const SECRET = 'sk-ant-VERY-SECRET-VALUE-1234567890';
+const LEAK_PROBE = 'sk-ant-VERY-LEAK_PROBE-VALUE-1234567890';
 
 describe('runSelfCheck', () => {
   const env = {
@@ -32,7 +32,7 @@ describe('runSelfCheck', () => {
     JWT_SECRET: 'x'.repeat(48),
     FRONTEND_URL: 'https://internalx.example.com',
     TRUST_PROXY: '1',
-    ANTHROPIC_API_KEY: SECRET,
+    ANTHROPIC_API_KEY: LEAK_PROBE,
     SMTP_HOST: 'smtp.example.com',
     SMTP_USER: 'u',
     SMTP_PASS: 'p-secret-pass',
@@ -52,7 +52,7 @@ describe('runSelfCheck', () => {
     expect(c.google.status).toBe('warn');
     expect(c.google.fix).toMatch(/GOOGLE_CLIENT_ID/);
     const text = JSON.stringify(r);
-    for (const v of [SECRET, env.SMTP_PASS, env.JWT_SECRET]) expect(text).not.toContain(v);
+    for (const v of [LEAK_PROBE, env.SMTP_PASS, env.JWT_SECRET]) expect(text).not.toContain(v);
     expect(r.summary.ok + r.summary.warn + r.summary.missing).toBe(r.checks.length);
   });
 

@@ -3,7 +3,7 @@ const { app } = require('../src/server');
 const { resetUsers, createUser, tokenFor, auth, pgPool, close } = require('./helpers/db');
 
 const api = () => request(app);
-const PASSWORD = 'Brand-New-Pass-77!';
+const NEW_PW = 'Brand-New-Pass-77!';
 
 beforeEach(async () => {
   await resetUsers();
@@ -19,7 +19,7 @@ const as = async (level, ventureId = null) => {
 const tokenOf = (link) => new URL(link).searchParams.get('token');
 
 describe('self-registration policy', () => {
-  const body = () => ({ fullName: 'Pat Newcomer', email: 'pat@dropwing.in', password: PASSWORD });
+  const body = () => ({ fullName: 'Pat Newcomer', email: 'pat@dropwing.in', password: NEW_PW });
 
   test('is disabled by default and config says so', async () => {
     expect((await api().get('/api/auth/config')).body.data.selfRegistration).toBe(false);
@@ -36,7 +36,7 @@ describe('self-registration policy', () => {
     expect(res.status).toBe(202);
     const { rows } = await pgPool.query("SELECT is_active, pending_approval, venture_id, access_level FROM users WHERE email = 'pat@dropwing.in'");
     expect(rows[0]).toEqual({ is_active: false, pending_approval: true, venture_id: null, access_level: 8 });
-    const login = await api().post('/api/auth/login').send({ email: 'pat@dropwing.in', password: PASSWORD });
+    const login = await api().post('/api/auth/login').send({ email: 'pat@dropwing.in', password: NEW_PW });
     expect(login.status).toBe(401);
     // same answer for an address that already exists: no account probing
     const again = await api().post('/api/auth/register').send(body());
@@ -93,9 +93,9 @@ describe('invite flow', () => {
     expect(logged.join('\n')).not.toContain(token);
 
     // the invitee sets a password with the link, once
-    expect((await api().post('/api/auth/reset-password').send({ token, newPassword: PASSWORD })).status).toBe(200);
-    expect((await api().post('/api/auth/reset-password').send({ token, newPassword: PASSWORD })).status).toBe(400);
-    const login = await api().post('/api/auth/login').send({ email: 'ivy@dropwing.in', password: PASSWORD });
+    expect((await api().post('/api/auth/reset-password').send({ token, newPassword: NEW_PW })).status).toBe(200);
+    expect((await api().post('/api/auth/reset-password').send({ token, newPassword: NEW_PW })).status).toBe(400);
+    const login = await api().post('/api/auth/login').send({ email: 'ivy@dropwing.in', password: NEW_PW });
     expect(login.status).toBe(200);
     expect(login.body.requiresOTP).toBe(true);
   });
