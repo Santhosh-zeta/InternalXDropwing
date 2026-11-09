@@ -1,16 +1,19 @@
 'use client';
 
-import { MessageSquarePlus, Sparkles, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { ClipboardList, MessageSquarePlus, Sparkles, Trash2 } from 'lucide-react';
 import { Button, Card, EmptyState, cn, useConfirm } from '@/components/ui';
 import { AssistantChat } from '@/components/assistant/AssistantChat';
 import { useAssistant } from '@/components/assistant/useAssistant';
+import NotesToTasksModal from '@/components/assistant/NotesToTasksModal';
 import type { User } from '@/lib/constants';
 
 /** Full-page "Ask InternalX": conversation history on the left, the chat on the right. */
 export default function AssistantView({ currentUser }: { currentUser: User }) {
   const chat = useAssistant();
   const confirm = useConfirm();
-  void currentUser;
+  const [notesOpen, setNotesOpen] = useState(false);
+  const isManager = currentUser.accessLevel <= 5;
 
   const onDelete = async (id: number, title: string) => {
     const ok = await confirm({
@@ -83,8 +86,18 @@ export default function AssistantView({ currentUser }: { currentUser: User }) {
           busy={chat.busy}
           onSend={chat.send}
           onStop={chat.stop}
+          toolbar={isManager ? (
+            <button
+              type="button"
+              onClick={() => setNotesOpen(true)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-medium text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-card-hover)] hover:text-[var(--color-text-primary)]"
+            >
+              <ClipboardList size={12} aria-hidden="true" /> Notes to tasks
+            </button>
+          ) : undefined}
         />
       </Card>
+      {isManager && <NotesToTasksModal open={notesOpen} onClose={() => setNotesOpen(false)} />}
     </div>
   );
 }
