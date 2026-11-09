@@ -22,3 +22,10 @@ process.env.SESSION_CACHE_TTL_MS = '0';
 process.env.ALLOWED_EMAIL_DOMAINS = 'dropwinggroups.com,dropwing.in,fenixa.com,persynix.com,grovia.in';
 delete process.env.BOOTSTRAP_ADMIN_EMAIL;
 delete process.env.BOOTSTRAP_ADMIN_PASSWORD;
+
+// A developer's local, git-ignored backend/.env (written by scripts/dev.sh) is loaded by the server;
+// pin the settings the tests depend on so results do not vary by machine.
+process.env.FRONTEND_URL = 'http://localhost:3000';
+for (const k of ['CORS_ORIGINS', 'TRUST_PROXY', 'SMTP_HOST', 'ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'AI_PROVIDER', 'ENABLE_SCHEDULER']) {
+  process.env[k] = '';
+}
