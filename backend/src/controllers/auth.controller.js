@@ -1,12 +1,12 @@
 const { pool } = require('../config/database');
 const { OAuth2Client } = require('google-auth-library');
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { generateOTP, generateResetToken, hashOTP, verifyOTP } = require('../utils/otp');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.service');
 const { createSession, revokeSession } = require('../services/session.service');
+const { isAllowedEmailDomain } = require('../utils/emailDomains');
 
 const generateAuthResponse = async (user, res, message, req) => {
   const token = jwt.sign(
@@ -360,9 +360,7 @@ const register = async (req, res) => {
     return res.status(400).json({ success: false, message: 'Password must be at least 8 characters long' });
   }
 
-  const allowedDomains = ['dropwinggroups.com', 'dropwing.in', 'fenixa.com', 'persynix.com', 'grovia.in'];
-  const emailDomain = email.split('@')[1]?.toLowerCase();
-  if (!allowedDomains.includes(emailDomain)) {
+  if (!isAllowedEmailDomain(email)) {
     return res.status(403).json({
       success: false,
       message: 'Registration is restricted to Dropwing Groups team members. Please contact your admin.'
@@ -395,65 +393,69 @@ const register = async (req, res) => {
 
 /**
  * POST /api/auth/google-login
+ *
+ * Invite-only. Google proves who owns an email address; it never decides what
+ * that person may do. So: the Google token must be valid for OUR client id, the
+ * email must be verified by Google and on the allowed-domain list, and a user
+ * row must ALREADY exist (created by an admin or by registration) and be
+ * active. No account is ever created here, so this path can never mint a
+ * privileged (or any) account.
  */
 const googleLogin = async (req, res) => {
   const { credential } = req.body;
 
-  if (!credential) {
+  if (!credential || typeof credential !== 'string') {
     return res.status(400).json({ success: false, message: 'Google credential is required' });
   }
 
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    // With no audience configured verifyIdToken would accept a token minted
+    // for ANY Google client, so refuse outright.
+    return res.status(503).json({ success: false, message: 'Google sign-in is not configured on this server' });
+  }
+
   try {
-    const ticket = await googleClient.verifyIdToken({
-      idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID,
-    });
+    const googleClient = new OAuth2Client(clientId);
+    let payload;
+    try {
+      const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: clientId });
+      payload = ticket.getPayload();
+    } catch (verifyErr) {
+      return res.status(401).json({ success: false, message: 'Google sign-in failed' });
+    }
 
-    const payload = ticket.getPayload();
-    const { email, name, picture } = payload;
+    const email = String(payload?.email || '').toLowerCase().trim();
+    if (!email || payload.email_verified !== true) {
+      return res.status(401).json({ success: false, message: 'Your Google email address is not verified' });
+    }
+    if (!isAllowedEmailDomain(email)) {
+      return res.status(403).json({ success: false, message: 'Sign-in is restricted to Dropwing Groups team members.' });
+    }
 
-    // Check if user exists
     const [rows] = await pool.query(
       `SELECT u.*, al.level_name, v.name AS venture_name, v.slug AS venture_slug, v.primary_color
        FROM users u
        JOIN access_levels al ON u.access_level = al.level_number
        LEFT JOIN ventures v ON u.venture_id = v.id
        WHERE u.email = ? AND u.is_active = TRUE`,
-      [email.toLowerCase().trim()]
+      [email]
     );
 
-    let user;
-    if (rows.length > 0) {
-      user = rows[0];
-      // Mark as verified if not already (Google users are auto-verified)
-      if (!user.is_verified) {
-        await pool.query('UPDATE users SET is_verified = TRUE WHERE id = ?', [user.id]);
-        user.is_verified = TRUE;
-      }
-    } else {
-      // Create new user (Intern level 8 by default)
-      const employeeId = 'EMP-G-' + crypto.randomBytes(3).toString('hex').toUpperCase();
-      const randomPassword = crypto.randomBytes(16).toString('hex');
-      const passwordHash = await bcrypt.hash(randomPassword, 12);
-
-      const [result] = await pool.query(
-        `INSERT INTO users (employee_id, full_name, email, password_hash, access_level, is_verified, avatar_url) 
-         VALUES (?, ?, ?, ?, 8, 1, ?) RETURNING id`,
-        [employeeId, name, email.toLowerCase().trim(), passwordHash, picture]
-      );
-
-      const [newUser] = await pool.query(
-        `SELECT u.*, al.level_name, v.name AS venture_name, v.slug AS venture_slug, v.primary_color
-         FROM users u
-         JOIN access_levels al ON u.access_level = al.level_number
-         LEFT JOIN ventures v ON u.venture_id = v.id
-         WHERE u.id = ?`,
-        [result.insertId]
-      );
-      user = newUser[0];
+    if (rows.length === 0) {
+      return res.status(403).json({
+        success: false,
+        message: 'No account exists for this Google address. Ask your administrator to invite you first.',
+      });
     }
 
-    await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
+    const user = rows[0];
+    await pool.query(
+      `UPDATE users SET is_verified = TRUE, last_login = CURRENT_TIMESTAMP,
+              avatar_url = COALESCE(avatar_url, ?) WHERE id = ?`,
+      [payload.picture || null, user.id]
+    );
+    user.is_verified = true;
     return await generateAuthResponse(user, res, 'Google login successful', req);
   } catch (err) {
     console.error('Google login error:', err);
