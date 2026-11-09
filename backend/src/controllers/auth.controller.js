@@ -34,7 +34,8 @@ const generateAuthResponse = async (user, res, message, req) => {
       ventureSlug: user.venture_slug,
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '8h', algorithm: 'HS256' }
+    // jwtid makes every token unique, so two logins in the same second are two sessions.
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h', algorithm: 'HS256', jwtid: crypto.randomUUID() }
   );
 
   /**
