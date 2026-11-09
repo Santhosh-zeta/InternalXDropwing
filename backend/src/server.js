@@ -13,7 +13,7 @@ const { testConnection } = require('./config/database');
 const { apiLimiter } = require('./middleware/rateLimit.middleware');
 const { startSessionCleanup } = require('./services/session.service');
 const { bootstrapAdmin } = require('./services/bootstrap');
-const { assertConfig, corsOrigins, trustProxySetting } = require('./config/env');
+const { assertConfig, corsOrigins, trustProxySetting, cookieSecure } = require('./config/env');
 const { logger, captureConsole } = require('./utils/logger');
 
 // The real server process logs JSON lines only; tests and tooling keep the plain console.
@@ -100,7 +100,8 @@ const cspDirectives = {
   formAction: ["'self'"],
   frameAncestors: ["'self'"],
 };
-if (process.env.NODE_ENV === 'production') {
+// Only when cookies are Secure too: a plain-http LAN install (COOKIE_SECURE=false) must keep working.
+if (process.env.NODE_ENV === 'production' && cookieSecure()) {
   cspDirectives.upgradeInsecureRequests = [];
 }
 
