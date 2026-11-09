@@ -22,7 +22,9 @@ predicate as the single-row check (`projectWhere`, `taskWhere`, `timesheetWhere`
 Notable rules: timesheet approval needs L<=5 inside the scope, never your own
 sheet, never someone more senior; invoices and budgets need L<=5 / L<=4; tasks
 are edited only by their assignees/creator (staff) or venture admins; documents
-are shared with clients per document by L<=5.
+are shared with clients per document by L<=5. A client's invoice detail returns totals and
+client-safe lines only (date, project, hours, task title when it is their own deliverable): no
+rates, per-line prices, staff names or internal timesheet notes.
 
 ## Accounts and the team directory
 
