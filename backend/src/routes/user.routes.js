@@ -39,10 +39,13 @@ router.get('/', authenticate, async (req, res) => {
     // Clients never see the staff directory.
     if (req.user.accessLevel >= 9) return res.json({ success: true, data: [] });
 
-    // Levels 1-2 see everyone; everybody else only their own venture.
+    // Levels 1-2 see everyone. Everyone else sees their own venture plus the global
+    // leadership (L1/L2, the same people they may DM); never another venture's people.
+    // Venture staff (L6-L8) also never see clients (L9): only L3-L5 manage those.
     if (req.user.accessLevel > 2) {
-      query += ` AND u.venture_id = ?`;
+      query += ` AND (u.venture_id = ? OR u.access_level <= 2)`;
       params.push(req.user.ventureId);
+      if (req.user.accessLevel > 5) query += ` AND u.access_level < 9`;
     }
 
     if (req.query.search) {
@@ -197,9 +200,11 @@ router.get('/:id', authenticate, userIdRules, async (req, res) => {
       if (req.user.accessLevel >= 9) {
         return res.status(403).json({ success: false, message: 'Not allowed' });
       }
-      const [targetUser] = await pool.query('SELECT venture_id FROM users WHERE id = ?', [userId]);
+      const [targetUser] = await pool.query('SELECT venture_id, access_level FROM users WHERE id = ?', [userId]);
       if (!targetUser.length) return res.status(404).json({ success: false, message: 'User not found' });
-      if (targetUser[0].venture_id === null || targetUser[0].venture_id !== req.user.ventureId) {
+      const t = targetUser[0];
+      const visible = t.access_level <= 2 || (t.venture_id !== null && t.venture_id === req.user.ventureId);
+      if (!visible || (req.user.accessLevel > 5 && t.access_level >= 9)) {
         return res.status(403).json({ success: false, message: 'Cannot view users outside your venture' });
       }
     }
