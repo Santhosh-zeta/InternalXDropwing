@@ -171,7 +171,7 @@ that prefix.
 
 **Self-check.** At boot the server logs a `[selfcheck]` block, and Super Admins / Managing Directors see the same report
 in **Settings > System** (`GET /api/admin/system-status`): JWT secret, database + migrations, bootstrap admin, SMTP
-(with a real connection test), `ANTHROPIC_API_KEY`, Google sign-in, allowed domains, public URL / CORS, proxy,
+(with a real connection test), the AI provider key, Google sign-in, allowed domains, public URL / CORS, proxy,
 scheduler and the uploads directory, each `ok` / `warn` / `missing` with a one-line fix. It never shows secret values.
 
 ## Production
@@ -218,7 +218,7 @@ scope predicate as the single-row check.
 | Work | `/projects` `/tasks` `/timesheets` `/documents` `/uploads/:file` |
 | Money and insight | `/invoices` `/budget` `/kpis` `/strategy` `/platform-metrics` `/client-portal` |
 | Collaboration | `/chat/channels` `/chat/messages` `/notifications` (+ `/preferences`) `/learning` |
-| Search and AI | `/search` (scoped full-text, Ctrl+K), `/assistant/*` (Ask InternalX, SSE; staff only; needs `ANTHROPIC_API_KEY`) |
+| Search and AI | `/search` (scoped full-text, Ctrl+K), `/assistant/*` (Ask InternalX, SSE; staff only; needs one of `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`) |
 | Governance | `/action-logs` (L1/L2), `/admin/system-status` (L1/L2, configuration self-check) |
 | Ops | `/health` (liveness), `/ready` (database + migrations) |
 

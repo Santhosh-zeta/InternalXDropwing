@@ -1,8 +1,6 @@
 # ─────────────────────────────────────────────────────────────
 #  Secrets — NEVER COMMIT ANYTHING MATCHING THESE
 # ─────────────────────────────────────────────────────────────
-.env
-.env.*
 !.env.example
 env
 env.*
@@ -130,7 +128,6 @@ tmp/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
-.vscode/
 !.vscode/extensions.json
 .idea/
 *.swp
@@ -139,3 +136,4 @@ Desktop.ini
 
 # App source files that happen to match the env.* secret rule above
 !backend/src/config/env.js
+config.bat
