@@ -118,7 +118,7 @@ export default function ForgotPasswordPage() {
                   Forgot password?
                 </h3>
                 <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  No worries, we'll send you reset instructions.
+                  No worries, we&apos;ll send you reset instructions.
                 </p>
               </div>
 

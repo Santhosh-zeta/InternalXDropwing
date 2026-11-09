@@ -38,36 +38,56 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AuthState>('checking');
   const [user, setUser] = useState<User | null>(null);
 
-  const check = useCallback(async () => {
-    setState('checking');
-    try {
-      const res = await getMe();
-      setUser(res.data as User);
-      setState('authed');
-    } catch (error: unknown) {
-      const status = (error as { response?: { status?: number } })?.response?.status;
+  const [attempt, setAttempt] = useState(0);
 
-      if (status === 401 || status === 403) {
-        // The axios 401 interceptor in lib/api.ts already redirects;
-        // `replace` keeps a dead dashboard entry out of history in case it
-        // does not.
-        window.location.replace('/login');
-        return;
-      }
-
-      // Network failure or a 5xx — do NOT sign the user out over a flaky
-      // connection. Offer a retry instead.
-      setState('unreachable');
+  // A dead session goes to /login; anything else (network, 5xx) offers a retry
+  // instead of signing the user out.
+  const onFailure = useCallback((error: unknown) => {
+    const status = (error as { response?: { status?: number } })?.response?.status;
+    if (status === 401 || status === 403) {
+      // The axios 401 interceptor in lib/api.ts already redirects; `replace`
+      // keeps a dead dashboard entry out of history in case it does not.
+      window.location.replace('/login');
+      return;
     }
+    setState('unreachable');
   }, []);
 
   useEffect(() => {
-    void check();
-  }, [check]);
+    let cancelled = false;
+    getMe().then(
+      (res) => {
+        if (cancelled) return;
+        setUser(res.data);
+        setState('authed');
+      },
+      (error: unknown) => {
+        if (!cancelled) onFailure(error);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt, onFailure]);
+
+  const retry = useCallback(() => {
+    setState('checking');
+    setAttempt((n) => n + 1);
+  }, []);
+
+  // Silent re-fetch for `refresh()`: never flips back to 'checking', so the
+  // dashboard stays mounted while the user object updates.
+  const refresh = useCallback(async () => {
+    try {
+      setUser((await getMe()).data);
+    } catch (error) {
+      onFailure(error);
+    }
+  }, [onFailure]);
 
   if (state === 'authed' && user) {
     return (
-      <AuthUserContext.Provider value={{ user, refresh: check }}>
+      <AuthUserContext.Provider value={{ user, refresh }}>
         {children}
       </AuthUserContext.Provider>
     );
@@ -89,7 +109,7 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
           <p className="mt-2 text-sm text-[var(--color-text-muted)]">
             Your session could not be verified. You have not been signed out.
           </p>
-          <Button variant="primary" className="mt-6" onClick={() => void check()}>
+          <Button variant="primary" className="mt-6" onClick={retry}>
             Retry
           </Button>
         </div>

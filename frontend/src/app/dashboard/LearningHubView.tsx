@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { User } from '@/lib/constants';
 import {
@@ -11,7 +11,9 @@ import {
   Badge, Button, Card, EmptyState, Field, Select, SkeletonCard, SkeletonTable,
   Textarea, TextField, useConfirm,
 } from '@/components/ui';
-import api from '@/lib/api';
+import api, { apiGet } from '@/lib/api';
+import { unwrapList, useApi } from '@/lib/useApi';
+import type { Envelope } from '@/lib/types';
 
 /**
  * axios throws on a non-2xx response (fetch, which this file used to use,
@@ -23,61 +25,46 @@ import api from '@/lib/api';
 const errMessage = (err: unknown, fallback: string): string =>
   (err as { response?: { data?: { message?: string } } })?.response?.data?.message || fallback;
 
+interface ChecklistItem { id: number; title: string; description?: string; category: string; completed?: boolean | number; completions?: number; total_interns?: number }
+interface InternProgress { id: number; full_name: string; department?: string; email: string; total_items: number; completed_items: number; last_activity?: string }
+interface Resource { id: number; title: string; description?: string; url: string; category: string; resource_type: string; added_by_name: string; created_at: string }
+interface Feedback { id: number; intern_name?: string; manager_name?: string; note: string; rating?: number | null; week_label?: string; created_at: string }
+
 interface LearningHubViewProps { currentUser: User; }
 
 export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   const isManager = currentUser.accessLevel <= 5;
   const [activeTab, setActiveTab] = useState(isManager ? 'progress' : 'checklist');
-  const [loading, setLoading] = useState(true);
-  const [checklists, setChecklists] = useState<any[]>([]);
-  const [progressSummary, setProgressSummary] = useState<any[]>([]);
-  const [resources, setResources] = useState<any[]>([]);
-  const [feedback, setFeedback] = useState<any[]>([]);
+  // Each tab loads its own data, only while it is the active tab. Managers
+  // always load the progress list: the Feedback form needs it for its intern picker.
+  const getList = <T,>(url: string) => (signal: AbortSignal) => unwrapList(apiGet<Envelope<T[]>>(url, signal));
+  const checklistApi = useApi(activeTab === 'checklist' || activeTab === 'manage_checklists' ? 'learn-checklist' : null, getList<ChecklistItem>('/learning/checklist'));
+  const progressApi = useApi(isManager ? 'learn-progress' : null, getList<InternProgress>('/learning/progress'));
+  const resourcesApi = useApi(activeTab === 'resources' ? 'learn-resources' : null, getList<Resource>('/learning/resources'));
+  const feedbackApi = useApi(activeTab === 'feedback' ? 'learn-feedback' : null, getList<Feedback>('/learning/feedback'));
+  const active = { checklist: checklistApi, manage_checklists: checklistApi, progress: progressApi, resources: resourcesApi, feedback: feedbackApi }[activeTab] ?? checklistApi;
+  const loading = active.loading;
+  const checklists = checklistApi.data ?? [];
+  const progressSummary = progressApi.data ?? [];
+  const resources = resourcesApi.data ?? [];
+  const feedback = feedbackApi.data ?? [];
   const [newChecklist, setNewChecklist] = useState({ title: '', description: '', category: 'General', due_days: '' });
   const [newResource, setNewResource] = useState({ title: '', description: '', url: '', category: 'General', resource_type: 'link' });
   const [newFeedback, setNewFeedback] = useState({ intern_id: '', note: '', rating: '', week_label: '' });
   const confirm = useConfirm();
 
-  useEffect(() => { fetchData(activeTab); }, [activeTab]);
-
-  // Always load progressSummary on mount so the Feedback tab intern dropdown is populated
-  // regardless of which tab the user starts on.
-  useEffect(() => {
-    if (isManager) fetchData('progress');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const fetchData = async (tab: string) => {
-    setLoading(true);
-    try {
-      const endpointMap: Record<string, string> = {
-        checklist: '/learning/checklist', manage_checklists: '/learning/checklist',
-        progress: '/learning/progress', resources: '/learning/resources', feedback: '/learning/feedback',
-      };
-      const ep = endpointMap[tab];
-      if (!ep) { setLoading(false); return; }
-      const { data } = await api.get(ep);
-      if (!data.success) return;
-      if (tab === 'checklist' || tab === 'manage_checklists') setChecklists(data.data);
-      else if (tab === 'progress') setProgressSummary(data.data);
-      else if (tab === 'resources') setResources(data.data);
-      else if (tab === 'feedback') setFeedback(data.data);
-    } catch { toast.error('Failed to load data'); }
-    finally { setLoading(false); }
-  };
-
   const toggleProgress = async (id: number, current: boolean) => {
     try {
       const { data } = await api.patch(`/learning/progress/${id}`, { completed: !current });
-      if (data.success) setChecklists(p => p.map(c => c.id === id ? { ...c, completed: !current } : c));
-    } catch { toast.error('Failed to update progress'); }
+      if (data.success) checklistApi.setData(p => p?.map(c => c.id === id ? { ...c, completed: !current } : c));
+    } catch (err) { toast.error(errMessage(err, 'Failed to update progress')); }
   };
 
   const createChecklist = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const { data } = await api.post('/learning/checklist', newChecklist);
-      if (data.success) { toast.success('Item created'); setNewChecklist({ title: '', description: '', category: 'General', due_days: '' }); fetchData('manage_checklists'); }
+      if (data.success) { toast.success('Item created'); setNewChecklist({ title: '', description: '', category: 'General', due_days: '' }); checklistApi.refetch(); }
       else toast.error(data.message);
     } catch (err) { toast.error(errMessage(err, 'Failed to create item')); }
   };
@@ -92,7 +79,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
     if (!confirmed) return;
     try {
       const { data } = await api.delete(`/learning/checklist/${id}`);
-      if (data.success) { toast.success('Deleted'); fetchData('manage_checklists'); }
+      if (data.success) { toast.success('Deleted'); checklistApi.refetch(); }
     } catch (err) { toast.error(errMessage(err, 'Failed to delete')); }
   };
 
@@ -100,7 +87,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
     e.preventDefault();
     try {
       const { data } = await api.post('/learning/resources', newResource);
-      if (data.success) { toast.success('Resource added'); setNewResource({ title: '', description: '', url: '', category: 'General', resource_type: 'link' }); fetchData('resources'); }
+      if (data.success) { toast.success('Resource added'); setNewResource({ title: '', description: '', url: '', category: 'General', resource_type: 'link' }); resourcesApi.refetch(); }
       else toast.error(data.message);
     } catch (err) { toast.error(errMessage(err, 'Failed to add resource')); }
   };
@@ -108,7 +95,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   const deleteResource = async (id: number) => {
     try {
       const { data } = await api.delete(`/learning/resources/${id}`);
-      if (data.success) { toast.success('Deleted'); fetchData('resources'); }
+      if (data.success) { toast.success('Deleted'); resourcesApi.refetch(); }
     } catch (err) { toast.error(errMessage(err, 'Failed to delete')); }
   };
 
@@ -116,7 +103,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
     e.preventDefault();
     try {
       const { data } = await api.post('/learning/feedback', newFeedback);
-      if (data.success) { toast.success('Feedback added'); setNewFeedback({ intern_id: '', note: '', rating: '', week_label: '' }); fetchData('feedback'); }
+      if (data.success) { toast.success('Feedback added'); setNewFeedback({ intern_id: '', note: '', rating: '', week_label: '' }); feedbackApi.refetch(); }
       else toast.error(data.message);
     } catch (err) { toast.error(errMessage(err, 'Failed to add feedback')); }
   };
@@ -124,7 +111,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   const deleteFeedback = async (id: number) => {
     try {
       const { data } = await api.delete(`/learning/feedback/${id}`);
-      if (data.success) { toast.success('Deleted'); fetchData('feedback'); }
+      if (data.success) { toast.success('Deleted'); feedbackApi.refetch(); }
     } catch (err) { toast.error(errMessage(err, 'Failed to delete')); }
   };
 
@@ -457,7 +444,7 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
                         </div>
                         {f.rating && (
                           <div role="img" aria-label={`Rating: ${f.rating} out of 5`} className="flex gap-0.5">
-                            {[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} aria-hidden="true" className={s <= f.rating ? 'text-amber-400 fill-amber-400' : 'text-[var(--color-border)]'} />)}
+                            {[1, 2, 3, 4, 5].map(s => <Star key={s} size={14} aria-hidden="true" className={s <= (f.rating ?? 0) ? 'text-amber-400 fill-amber-400' : 'text-[var(--color-border)]'} />)}
                           </div>
                         )}
                       </div>

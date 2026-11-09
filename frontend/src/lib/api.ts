@@ -1,6 +1,13 @@
-import axios from 'axios';
+import axios, { isAxiosError } from 'axios';
+import type { User } from './constants';
+import type { Analytics, AppNotification, AuditLog, ChatMessage, Envelope, EnvelopeWith, Payload, Project, Task, TeamMember, UserTaskActivity, Venture } from './types';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://internalx.dropwinggroups.com';
+/**
+ * Origin of the API. Empty (same origin) in production, where the backend serves
+ * this app. For `next dev` on :3000 set NEXT_PUBLIC_API_URL=http://localhost:5000
+ * in frontend/.env.local (see .env.example).
+ */
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/+$/, '');
 
 const api = axios.create({
   baseURL: `${API_URL}/api`,
@@ -27,232 +34,126 @@ const api = axios.create({
 // to sign in. There's no client-side token to clear: the server already
 // cleared the cookie on logout, and a 401 here just means whatever cookie
 // the browser sent was rejected.
+const redirectToLogin = () => {
+  if (typeof window === 'undefined' || window.location.pathname.startsWith('/login')) return;
+  // A full page load on purpose: it drops every piece of in-memory session state.
+  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+  window.location.href = '/login';
+};
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      window.location.href = '/login';
-    }
+    if (error.response?.status === 401) redirectToLogin();
     return Promise.reject(error);
   }
 );
 
+
+/** Best human-readable message for a failed request. */
+export const errMsg = (error: unknown, fallback = 'Something went wrong'): string => {
+  if (isAxiosError(error)) {
+    const msg = (error.response?.data as { message?: string } | undefined)?.message;
+    if (msg) return msg;
+    if (!error.response) return 'Cannot reach the server. Check your connection.';
+  } else if (error instanceof Error && error.message) {
+    return error.message;
+  }
+  return fallback;
+};
+
+/** True when a request was cancelled on purpose (unmount, new request). */
+export const isAborted = (error: unknown): boolean => isAxiosError(error) && error.code === 'ERR_CANCELED';
+
+const unwrap = <T>(p: Promise<{ data: T }>) => p.then((r) => r.data);
+
+export const apiGet = <T>(url: string, signal?: AbortSignal, params?: Record<string, string | number | boolean | undefined>) =>
+  unwrap<T>(api.get(url, { signal, params }));
+
 // Auth
-export const loginUser = async (email: string, password: string) => {
-  const res = await api.post('/auth/login', { email, password });
-  return res.data;
+/** Login-type responses: `data` is absent while a one-time code is still required. */
+export type AuthResponse = Omit<Envelope<{ token?: string; user: { fullName: string } }>, 'data'> & {
+  data?: { token?: string; user: { fullName: string } };
+  requiresOTP?: boolean;
 };
 
-export const googleLogin = async (credential: string) => {
-  const res = await api.post('/auth/google-login', { credential });
-  return res.data;
-};
-
-export const verifyOtp = async (email: string, otp: string) => {
-  const res = await api.post('/auth/verify-otp', { email, otp });
-  return res.data;
-};
-
-export const register = async (fullName: string, email: string, password: string) => {
-  const res = await api.post('/auth/register', { fullName, email, password });
-  return res.data;
-};
+export const loginUser = (email: string, password: string) => unwrap<AuthResponse>(api.post('/auth/login', { email, password }));
+export const googleLogin = (credential: string) => unwrap<AuthResponse>(api.post('/auth/google-login', { credential }));
+export const verifyOtp = (email: string, otp: string) => unwrap<AuthResponse>(api.post('/auth/verify-otp', { email, otp }));
+export const register = (fullName: string, email: string, password: string) =>
+  unwrap<AuthResponse>(api.post('/auth/register', { fullName, email, password }));
 
 export const getAuthConfig = async (): Promise<{ selfRegistration: boolean; googleLogin: boolean }> => {
   const res = await api.get('/auth/config');
   return res.data.data;
 };
 
-export const forgotPassword = async (email: string) => {
-  const res = await api.post('/auth/forgot-password', { email });
-  return res.data;
-};
-
-export const resetPassword = async (token: string, newPassword: string) => {
-  const res = await api.post('/auth/reset-password', { token, newPassword });
-  return res.data;
-};
-
-export const logoutUser = async () => {
-  const res = await api.post('/auth/logout');
-  return res.data;
-};
-
-export const getMe = async () => {
-  const res = await api.get('/auth/me');
-  return res.data;
-};
+export const forgotPassword = (email: string) => unwrap<Envelope<unknown>>(api.post('/auth/forgot-password', { email }));
+export const resetPassword = (token: string, newPassword: string) =>
+  unwrap<Envelope<unknown>>(api.post('/auth/reset-password', { token, newPassword }));
+export const logoutUser = () => unwrap<Envelope<unknown>>(api.post('/auth/logout'));
+export const getMe = () => unwrap<Envelope<User>>(api.get('/auth/me'));
 
 // Users
-export const getUsers = async () => {
-  const res = await api.get('/team-members');
-  return res.data;
-};
-
-export const createUser = async (data: any) => {
-  const res = await api.post('/team-members', data);
-  return res.data;
-};
-
-export const updateUser = async (id: number, data: any) => {
-  const res = await api.put(`/team-members/${id}`, data);
-  return res.data;
-};
-
-export const deleteUser = async (id: number) => {
-  const res = await api.delete(`/team-members/${id}`);
-  return res.data;
-};
-
-export const getUserDetails = async (id: number) => {
-  const res = await api.get(`/team-members/${id}`);
-  return res.data;
-};
+export const getUsers = (signal?: AbortSignal) => apiGet<Envelope<TeamMember[]>>('/team-members', signal);
+export const getPendingUsers = (signal?: AbortSignal) => apiGet<Envelope<TeamMember[]>>('/team-members', signal, { pending: 'true' });
+export const getVentures = (signal?: AbortSignal) => apiGet<Envelope<Venture[]>>('/team-members/ventures', signal);
+export const createUser = (data: Payload) => unwrap<InviteResponse & { userId: number }>(api.post('/team-members', data));
+export const updateUser = (id: number, data: Payload) => unwrap<Envelope<TeamMember>>(api.put(`/team-members/${id}`, data));
+export const deleteUser = (id: number) => unwrap<Envelope<null>>(api.delete(`/team-members/${id}`));
+export const getUserDetails = (id: number) =>
+  unwrap<Envelope<{ user: TeamMember; activity: UserTaskActivity[] }>>(api.get(`/team-members/${id}`));
+/** Invite outcome: `link` is present only when email is not configured (share it yourself). */
+export interface InviteResponse { success: boolean; message?: string; invite: { emailed: boolean; expiresAt?: string; link?: string } }
+export const resendInvite = (id: number) => unwrap<InviteResponse>(api.post(`/team-members/${id}/invite`));
+export const getUserRate = (id: number, signal?: AbortSignal) => apiGet<Envelope<{ user_id: number; hourly_rate: number | null }>>(`/team-members/${id}/rate`, signal);
+export const setUserRate = (id: number, hourlyRate: number | null) =>
+  unwrap<Envelope<{ user_id: number; hourly_rate: number | null }>>(api.put(`/team-members/${id}/rate`, { hourly_rate: hourlyRate }));
 
 // Tasks
-export const getTasks = async () => {
-  const res = await api.get('/tasks');
-  return res.data;
-};
-
-export const createTask = async (data: any) => {
-  const res = await api.post('/tasks', data);
-  return res.data;
-};
-
-export const updateTask = async (id: number, data: any) => {
-  const res = await api.put(`/tasks/${id}`, data);
-  return res.data;
-};
-
-export const deleteTask = async (id: number) => {
-  const res = await api.delete(`/tasks/${id}`);
-  return res.data;
-};
+export const getTasks = (signal?: AbortSignal) => apiGet<Envelope<Task[]>>('/tasks', signal);
+export const createTask = (data: Payload) => unwrap<Envelope<Task>>(api.post('/tasks', data));
+export const updateTask = (id: number, data: Payload) => unwrap<Envelope<Task>>(api.put(`/tasks/${id}`, data));
+export const deleteTask = (id: number) => unwrap<Envelope<null>>(api.delete(`/tasks/${id}`));
 
 // Projects
-export const getProjects = () => api.get('/projects').then(res => res.data);
-export const getProject = (id: number) => api.get(`/projects/${id}`).then(res => res.data);
-export const createProject = (data: any) => api.post('/projects', data).then(res => res.data);
-
-export const updateProject = async (id: number, data: any) => {
-  const res = await api.put(`/projects/${id}`, data);
-  return res.data;
-};
-
-export const deleteProject = async (id: number) => {
-  const res = await api.delete(`/projects/${id}`);
-  return res.data;
-};
+export const getProjects = (signal?: AbortSignal) => apiGet<Envelope<Project[]>>('/projects', signal);
+export const getProject = (id: number) => unwrap<Envelope<Project>>(api.get(`/projects/${id}`));
+export const createProject = (data: Payload) => unwrap<Envelope<Project>>(api.post('/projects', data));
+export const updateProject = (id: number, data: Payload) => unwrap<Envelope<Project>>(api.put(`/projects/${id}`, data));
+export const deleteProject = (id: number) => unwrap<Envelope<null>>(api.delete(`/projects/${id}`));
 
 // Chat
-export const getChatMessages = async (params: { ventureId?: string | number, receiverId?: number }) => {
-  const query = new URLSearchParams(params as any).toString();
-  const res = await api.get(`/chat/messages?${query}`);
-  return res.data;
-};
+export const getChatMessages = (params: { ventureId?: string | number; receiverId?: number }) =>
+  unwrap<Envelope<ChatMessage[]>>(api.get('/chat/messages', { params }));
 
-export interface ChatChannels { global: boolean; ventures: { id: number; name: string; slug: string; color: string }[]; }
-export const getChatChannels = async (): Promise<{ success: boolean; data: ChatChannels }> => {
-  const res = await api.get('/chat/channels');
-  return res.data;
-};
+export interface ChatChannels { global: boolean; ventures: { id: number; name: string; slug: string; color: string }[] }
+export const getChatChannels = (): Promise<{ success: boolean; data: ChatChannels }> => unwrap(api.get('/chat/channels'));
 
-export const sendChatMessage = async (data: { content: string, ventureId?: string | number, receiverId?: number }) => {
-  const res = await api.post('/chat/messages', data);
-  return res.data;
-};
+export const sendChatMessage = (data: { content: string; ventureId?: string | number; receiverId?: number }) =>
+  unwrap<Envelope<ChatMessage>>(api.post('/chat/messages', data));
 
 // Analytics
-export const getAnalytics = async (days?: number) => {
-  const query = days ? `?days=${days}` : '';
-  const res = await api.get(`/platform-metrics${query}`);
-  return res.data;
-};
+export const getAnalytics = (days?: number, signal?: AbortSignal) => apiGet<Envelope<Analytics>>('/platform-metrics', signal, { days });
 
 // Audit
-export const getAuditLogs = async () => {
-  const res = await api.get('/action-logs');
-  return res.data;
-};
+export const getAuditLogs = (signal?: AbortSignal) => apiGet<Envelope<AuditLog[]>>('/action-logs', signal);
 
 // Notifications
-export const getNotifications = async () => {
-  const res = await api.get('/notifications');
-  return res.data;
-};
+export const getNotifications = (signal?: AbortSignal) =>
+  apiGet<EnvelopeWith<AppNotification[], { unreadCount?: number }>>('/notifications', signal);
+export const markNotificationRead = (id: number) => unwrap<Envelope<null>>(api.patch(`/notifications/${id}/read`));
+export const markAllNotificationsRead = () => unwrap<Envelope<null>>(api.patch('/notifications/read-all'));
+export const clearReadNotifications = () => unwrap<Envelope<null>>(api.delete('/notifications/clear'));
 
-export const markNotificationRead = async (id: number) => {
-  const res = await api.patch(`/notifications/${id}/read`);
-  return res.data;
-};
+export interface NotificationPrefs { digest: boolean; alerts: boolean; email: boolean; digestAvailable?: boolean; alertsAvailable?: boolean }
+export const getNotificationPrefs = (signal?: AbortSignal) => apiGet<Envelope<NotificationPrefs>>('/notifications/preferences', signal);
+export const setNotificationPrefs = (prefs: Partial<Pick<NotificationPrefs, 'digest' | 'alerts' | 'email'>>) =>
+  unwrap<Envelope<NotificationPrefs>>(api.put('/notifications/preferences', prefs));
 
-export const markAllNotificationsRead = async () => {
-  const res = await api.patch('/notifications/read-all');
-  return res.data;
-};
-
-export const clearReadNotifications = async () => {
-  const res = await api.delete('/notifications/clear');
-  return res.data;
-};
-
-
-// Learning Hub
-export const getLearningChecklist = async () => {
-  const res = await api.get('/learning/checklist');
-  return res.data;
-};
-
-export const createChecklistItem = async (data: any) => {
-  const res = await api.post('/learning/checklist', data);
-  return res.data;
-};
-
-export const deleteChecklistItem = async (id: number) => {
-  const res = await api.delete(`/learning/checklist/${id}`);
-  return res.data;
-};
-
-export const updateInternProgress = async (checklistItemId: number, completed: boolean) => {
-  const res = await api.patch(`/learning/progress/${checklistItemId}`, { completed });
-  return res.data;
-};
-
-export const getInternProgressSummaries = async () => {
-  const res = await api.get('/learning/progress');
-  return res.data;
-};
-
-export const getLearningResources = async () => {
-  const res = await api.get('/learning/resources');
-  return res.data;
-};
-
-export const createLearningResource = async (data: any) => {
-  const res = await api.post('/learning/resources', data);
-  return res.data;
-};
-
-export const deleteLearningResource = async (id: number) => {
-  const res = await api.delete(`/learning/resources/${id}`);
-  return res.data;
-};
-
-export const getLearningFeedback = async () => {
-  const res = await api.get('/learning/feedback');
-  return res.data;
-};
-
-export const createLearningFeedback = async (data: any) => {
-  const res = await api.post('/learning/feedback', data);
-  return res.data;
-};
-
-export const deleteLearningFeedback = async (id: number) => {
-  const res = await api.delete(`/learning/feedback/${id}`);
-  return res.data;
-};
+// Documents
+export const setDocumentClientVisible = (id: number, clientVisible: boolean) =>
+  unwrap<Envelope<unknown>>(api.patch(`/documents/${id}/client-visible`, { clientVisible }));
 
 // Strategy
 export const getStrategyData = async () => {
@@ -313,7 +214,7 @@ export const streamAssistantChat = async (
   if (!res.ok || !res.body) {
     let info: { message?: string; code?: string } = {};
     try { info = await res.json(); } catch { /* not JSON */ }
-    if (res.status === 401 && typeof window !== 'undefined') window.location.href = '/login';
+    if (res.status === 401) redirectToLogin();
     throw Object.assign(new Error(info.message || 'The assistant is unavailable right now.'), { code: info.code });
   }
   const reader = res.body.getReader();
