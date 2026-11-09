@@ -92,7 +92,9 @@ const canManageUser = (actor, target, patch = {}, ctx = {}) => {
   }
 
   // Result state must be coherent when level or venture is being touched.
-  if (action === 'update' && (wantsLevel || wantsVenture)) {
+  const levelChanged = wantsLevel && newLevel !== target.access_level;
+  const ventureChanged = wantsVenture && newVenture !== toNumOrNull(target.venture_id);
+  if (action === 'update' && (levelChanged || ventureChanged)) {
     const level = wantsLevel ? newLevel : target.access_level;
     const venture = wantsVenture ? newVenture : toNumOrNull(target.venture_id);
     if (level <= 2 && venture !== null) return deny('Global levels (1-2) cannot belong to a venture', 400);

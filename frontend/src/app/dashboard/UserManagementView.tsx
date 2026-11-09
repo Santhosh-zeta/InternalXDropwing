@@ -46,6 +46,15 @@ const LEVELS = [
   { level: 9, name: 'Client', desc: 'External client portal access' }
 ];
 
+// Initial passwords are random per user and shown once to the admin; there is
+// deliberately no shared default password.
+const generateTempPassword = (): string => {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const bytes = new Uint32Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('') + 'a1!';
+};
+
 const SECTION_LABEL_CLASS =
   'block text-label font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]';
 
@@ -139,7 +148,14 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
     if (!editingUser) return;
     try {
       setSaving(true);
-      const res = await updateUser(editingUser.id, editForm);
+      // Only send the privileged fields that actually changed, so a profile edit
+      // is never mistaken for a level/venture change by the server.
+      const { access_level, venture_id, is_active, ...profile } = editForm;
+      const payload: Record<string, unknown> = { ...profile };
+      if (access_level !== editingUser.access_level) payload.access_level = access_level;
+      if (venture_id !== (editingUser.venture_id || 0)) payload.venture_id = venture_id;
+      if (is_active !== editingUser.is_active) payload.is_active = is_active;
+      const res = await updateUser(editingUser.id, payload);
       if (res.success) {
         toast.success('User updated successfully');
         setEditingUser(null);
@@ -154,12 +170,19 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
     }
   };
 
+  // Mirrors canManageUser(): L1-L3 only, strictly below own level (L1 exempt), L3 inside own venture.
+  const canEditUser = (user: any) =>
+    currentUser.accessLevel <= 3 &&
+    (currentUser.accessLevel === 1 ||
+      (user.access_level > currentUser.accessLevel &&
+        (currentUser.accessLevel === 2 || (user.venture_id ?? 0) === (currentUser.venture?.id ?? -1))));
+
   // backend/src/routes/user.routes.js DELETE /:id: requireLevel(3), and for
   // anyone below L2 the target must be strictly below the caller's own level.
   const canDeleteUser = (user: any) =>
     currentUser.accessLevel <= 3 &&
     user.id !== currentUser.id &&
-    !(currentUser.accessLevel > 2 && user.access_level <= currentUser.accessLevel);
+    !(currentUser.accessLevel > 1 && user.access_level <= currentUser.accessLevel);
 
   const handleDelete = async (user: any) => {
     if (!canDeleteUser(user)) {
@@ -206,18 +229,35 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForm, setAddForm] = useState({
-    full_name: '', email: '', password: 'InternalXUser123!',
+    full_name: '', email: '', password: '',
     access_level: 7, venture_id: 0, department: '', designation: ''
   });
+
+  // Mirrors backend/src/utils/canManageUser.js: L1 may grant anything, everyone
+  // else only levels strictly below their own. Only L1/L2 choose ventures; an
+  // L3 admin always works inside their own venture.
+  const assignableLevels = LEVELS.filter(l => currentUser.accessLevel === 1 || l.level > currentUser.accessLevel);
+  const canPickVenture = currentUser.accessLevel <= 2;
+  const ownVentureId = currentUser.venture?.id ?? 0;
+
+  const openAddModal = () => {
+    setAddForm({
+      full_name: '', email: '', password: generateTempPassword(),
+      access_level: assignableLevels.find(l => l.level === 7)?.level ?? assignableLevels[0]?.level ?? 9,
+      venture_id: canPickVenture ? 0 : ownVentureId,
+      department: '', designation: '',
+    });
+    setShowAddModal(true);
+  };
 
   const handleAddUser = async () => {
     try {
       setSaving(true);
       const res = await createUser(addForm);
       if (res.success) {
-        toast.success('User created successfully');
+        toast.success(`User created. Temporary password (shown once): ${addForm.password}`, { duration: 30000 });
         setShowAddModal(false);
-        setAddForm({ full_name: '', email: '', password: 'InternalXUser123!', access_level: 7, venture_id: 0, department: '', designation: '' });
+        setAddForm({ full_name: '', email: '', password: '', access_level: 7, venture_id: 0, department: '', designation: '' });
         fetchUsers();
       } else {
         toast.error(res.message || 'Failed to create user');
@@ -279,13 +319,15 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
             >
               Export PDF
             </Button>
-            <Button
-              variant="primary"
-              leadingIcon={<UserPlus size={16} strokeWidth={2.5} aria-hidden="true" />}
-              onClick={() => setShowAddModal(true)}
-            >
-              Add Member
-            </Button>
+            {currentUser.accessLevel <= 3 && (
+              <Button
+                variant="primary"
+                leadingIcon={<UserPlus size={16} strokeWidth={2.5} aria-hidden="true" />}
+                onClick={openAddModal}
+              >
+                Add Member
+              </Button>
+            )}
           </div>
         </div>
 
@@ -346,15 +388,15 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
           icon={<UserPlus size={22} aria-hidden="true" />}
           title="No team members yet"
           description="Onboard your first member to give them access to tasks, projects and the venture data they need."
-          action={
+          action={currentUser.accessLevel <= 3 ? (
             <Button
               variant="primary"
               leadingIcon={<UserPlus size={16} strokeWidth={2.5} aria-hidden="true" />}
-              onClick={() => setShowAddModal(true)}
+              onClick={openAddModal}
             >
               Add your first member
             </Button>
-          }
+          ) : undefined}
         />
       ) : filteredUsers.length === 0 ? (
         <EmptyState
@@ -490,6 +532,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
               <Button
                 variant="primary"
                 loading={saving}
+                disabled={!canEditUser(editingUser)}
                 leadingIcon={<Check size={16} strokeWidth={2.5} aria-hidden="true" />}
                 onClick={handleSaveEdit}
               >
@@ -657,6 +700,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
                     <button
                       type="button"
                       aria-pressed={editForm.venture_id === 0}
+                      disabled={!canPickVenture}
                       onClick={() => setEditForm({...editForm, venture_id: 0})}
                       className={`p-4 rounded-xl text-left border-2 transition-all ${editForm.venture_id === 0 ? 'border-[var(--color-purple-glow)] bg-[var(--color-purple-glow)]/10' : 'border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-text-muted)]'}`}
                     >
@@ -671,6 +715,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
                       <Select
                         id={id}
                         value={editForm.venture_id}
+                        disabled={!canPickVenture}
                         onChange={e => setEditForm({...editForm, venture_id: parseInt(e.target.value)})}
                       >
                         <option value={0}>Global Access (All Ventures)</option>
@@ -683,12 +728,17 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
                 <div>
                   <p id="access-level-label" className={`${SECTION_LABEL_CLASS} mb-3`}>Access Level (L1 - L9)</p>
                   <div role="group" aria-labelledby="access-level-label" className="flex flex-col gap-2">
-                    {LEVELS.map(level => (
+                    {assignableLevels.map(level => (
                       <button
                         key={level.level}
                         type="button"
                         aria-pressed={editForm.access_level === level.level}
-                        onClick={() => setEditForm({...editForm, access_level: level.level})}
+                        onClick={() => setEditForm({
+                          ...editForm,
+                          access_level: level.level,
+                          // Levels 1-2 are global; 3-9 must belong to a venture.
+                          venture_id: level.level <= 2 ? 0 : editForm.venture_id,
+                        })}
                         className={`w-full p-3 px-4 rounded-xl text-left flex items-center gap-4 border-2 transition-all ${
                           editForm.access_level === level.level
                             ? 'border-cyan-500 bg-cyan-500/10'
@@ -782,7 +832,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
             <Button
               variant="primary"
               loading={saving}
-              disabled={!addForm.full_name || !addForm.email}
+              disabled={!addForm.full_name || !addForm.email || (addForm.access_level >= 3 && !addForm.venture_id)}
               onClick={handleAddUser}
             >
               {saving ? 'Creating...' : 'Create User'}
@@ -818,9 +868,12 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
                 <Select
                   id={id}
                   value={addForm.access_level}
-                  onChange={e => setAddForm({...addForm, access_level: parseInt(e.target.value)})}
+                  onChange={e => {
+                    const level = parseInt(e.target.value);
+                    setAddForm({...addForm, access_level: level, venture_id: level <= 2 ? 0 : addForm.venture_id});
+                  }}
                 >
-                  {LEVELS.map(l => <option key={l.level} value={l.level}>L{l.level} - {l.name}</option>)}
+                  {assignableLevels.map(l => <option key={l.level} value={l.level}>L{l.level} - {l.name}</option>)}
                 </Select>
               )}
             </Field>
@@ -829,6 +882,7 @@ export default function UserManagementView({ currentUser }: UserManagementViewPr
                 <Select
                   id={id}
                   value={addForm.venture_id}
+                  disabled={!canPickVenture || addForm.access_level <= 2}
                   onChange={e => setAddForm({...addForm, venture_id: parseInt(e.target.value)})}
                 >
                   <option value={0}>Global Access</option>

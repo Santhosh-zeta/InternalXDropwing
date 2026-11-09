@@ -1,12 +1,27 @@
 const { pool } = require('../config/database');
+const { pgPool } = require('../config/database.pg');
 const { OAuth2Client } = require('google-auth-library');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { generateOTP, generateResetToken, hashOTP, verifyOTP } = require('../utils/otp');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.service');
-const { createSession, revokeSession } = require('../services/session.service');
+const { createSession, revokeSession, revokeAllSessionsForUser } = require('../services/session.service');
 const { isAllowedEmailDomain } = require('../utils/emailDomains');
+
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_LOCK_MS = 15 * 60 * 1000;
+const GENERIC_OTP_FAILURE = 'Invalid or expired code. Sign in again to get a new one.';
+// Compared against when the email is unknown, so response time does not reveal
+// whether an account exists.
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', 12);
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'strict',
+  path: '/',
+};
 
 const generateAuthResponse = async (user, res, message, req) => {
   const token = jwt.sign(
@@ -19,7 +34,7 @@ const generateAuthResponse = async (user, res, message, req) => {
       ventureSlug: user.venture_slug,
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
+    { expiresIn: process.env.JWT_EXPIRES_IN || '8h', algorithm: 'HS256' }
   );
 
   /**
@@ -32,12 +47,7 @@ const generateAuthResponse = async (user, res, message, req) => {
   const { exp } = jwt.decode(token);
   await createSession(user.id, token, new Date(exp * 1000), req);
 
-  res.cookie('internalx_token', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 8 * 60 * 60 * 1000, // 8 hours
-  });
+  res.cookie('internalx_token', token, { ...COOKIE_OPTIONS, maxAge: 8 * 60 * 60 * 1000 });
 
   return res.json({
     success: true,
@@ -86,15 +96,17 @@ const login = async (req, res) => {
       [email.toLowerCase().trim()]
     );
 
-    if (rows.length === 0) {
+    const user = rows[0];
+    const isValid = await bcrypt.compare(password, user ? user.password_hash : DUMMY_HASH);
+
+    if (!user || !isValid) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
-    const user = rows[0];
-    const isValid = await bcrypt.compare(password, user.password_hash);
-
-    if (!isValid) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    // A locked account gets no new OTP until the lock expires; otherwise anyone
+    // holding the password could keep resetting the attempt counter.
+    if (user.otp_locked_until && new Date(user.otp_locked_until) > new Date()) {
+      return res.status(429).json({ success: false, message: 'Too many failed attempts. Please try again later.' });
     }
 
     // Generate OTP and send via email (2FA)
@@ -105,7 +117,7 @@ const login = async (req, res) => {
     // Only the hash is persisted — the cleartext OTP exists solely in the email
     // we are about to send. See utils/otp.js for why it is an HMAC.
     await pool.query(
-      'UPDATE users SET otp = ?, otp_expires_at = ? WHERE id = ?',
+      'UPDATE users SET otp = ?, otp_expires_at = ?, otp_attempts = 0, otp_locked_until = NULL WHERE id = ?',
       [hashOTP(otp), otpExpiresAt, user.id]
     );
 
@@ -152,31 +164,53 @@ const verifyOtp = async (req, res) => {
   }
 
   try {
+    const normalizedEmail = String(email).toLowerCase().trim();
+
+    // Count the attempt BEFORE checking the code, in one atomic statement, so
+    // parallel requests cannot all get a free guess; a locked account matches
+    // no row at all. Per account, independent of the caller's IP.
+    const { rows: counted } = await pgPool.query(
+      `UPDATE users SET otp_attempts = otp_attempts + 1
+        WHERE email = $1 AND is_active = TRUE
+          AND (otp_locked_until IS NULL OR otp_locked_until <= CURRENT_TIMESTAMP)
+        RETURNING id, otp, otp_expires_at, otp_attempts`,
+      [normalizedEmail]
+    );
+
+    if (counted.length === 0) {
+      return res.status(401).json({ success: false, message: GENERIC_OTP_FAILURE });
+    }
+
+    const attempt = counted[0];
+    const otpExpired = !attempt.otp_expires_at || new Date() > new Date(attempt.otp_expires_at);
+    const withinBudget = attempt.otp_attempts <= OTP_MAX_ATTEMPTS;
+
+    // Constant-time compare against the stored hash, so the number of matching
+    // leading digits cannot be read off the response latency.
+    if (!withinBudget || otpExpired || !verifyOTP(otp, attempt.otp)) {
+      if (attempt.otp_attempts >= OTP_MAX_ATTEMPTS) {
+        // Burn the code and lock the account out of OTP verification for a while.
+        await pgPool.query(
+          'UPDATE users SET otp = NULL, otp_expires_at = NULL, otp_locked_until = $1 WHERE id = $2',
+          [new Date(Date.now() + OTP_LOCK_MS), attempt.id]
+        );
+      }
+      return res.status(401).json({ success: false, message: GENERIC_OTP_FAILURE });
+    }
+
     const [rows] = await pool.query(
       `SELECT u.*, al.level_name, v.name AS venture_name, v.slug AS venture_slug, v.primary_color
        FROM users u
        JOIN access_levels al ON u.access_level = al.level_number
        LEFT JOIN ventures v ON u.venture_id = v.id
-       WHERE u.email = ? AND u.is_active = TRUE`,
-      [email.toLowerCase().trim()]
+       WHERE u.id = ?`,
+      [attempt.id]
     );
-
-    if (rows.length === 0) {
-      return res.status(401).json({ success: false, message: 'Invalid request' });
-    }
-
     const user = rows[0];
 
-    // Constant-time compare against the stored hash, so the number of matching
-    // leading digits cannot be read off the response latency.
-    const otpExpired = !user.otp_expires_at || new Date() > new Date(user.otp_expires_at);
-    if (otpExpired || !verifyOTP(otp, user.otp)) {
-      return res.status(401).json({ success: false, message: 'Invalid or expired OTP' });
-    }
-
-    // Mark as verified, clear OTP and update last login
+    // Mark as verified, clear OTP state and update last login
     await pool.query(
-      'UPDATE users SET is_verified = TRUE, otp = NULL, otp_expires_at = NULL, last_login = CURRENT_TIMESTAMP WHERE id = ?',
+      'UPDATE users SET is_verified = TRUE, otp = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = NULL, last_login = CURRENT_TIMESTAMP WHERE id = ?',
       [user.id]
     );
 
@@ -261,9 +295,14 @@ const resetPassword = async (req, res) => {
     const newPasswordHash = await bcrypt.hash(newPassword, 12);
 
     await pool.query(
-      'UPDATE users SET password_hash = ?, reset_password_token = NULL, reset_password_expires_at = NULL WHERE id = ?',
+      `UPDATE users SET password_hash = ?, reset_password_token = NULL, reset_password_expires_at = NULL,
+              otp = NULL, otp_expires_at = NULL, otp_attempts = 0, otp_locked_until = NULL WHERE id = ?`,
       [newPasswordHash, user.id]
     );
+
+    // A reset is what people do when they think someone else has access: every
+    // existing session for this account must stop working now.
+    await revokeAllSessionsForUser(user.id);
 
     return res.json({ success: true, message: 'Password successfully reset' });
   } catch (err) {
@@ -287,11 +326,11 @@ const logout = async (req, res) => {
     // A failure here means the token stays live until it expires, which the
     // user needs to know about rather than being told they are safely out.
     console.error('Session revocation failed:', err.message);
-    res.clearCookie('internalx_token');
+    res.clearCookie('internalx_token', COOKIE_OPTIONS);
     return res.status(500).json({ success: false, message: 'Could not fully sign out. Please try again.' });
   }
 
-  res.clearCookie('internalx_token');
+  res.clearCookie('internalx_token', COOKIE_OPTIONS);
   return res.json({ success: true, message: 'Logged out successfully' });
 };
 

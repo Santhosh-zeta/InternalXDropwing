@@ -351,68 +351,6 @@ const changePasswordRules = [
   validate,
 ];
 
-/* ─── ROLE MANAGEMENT ─────────────────────────────────────────────────────── */
-
-const roleBodyRules = [
-  optionalText('description', 5000),
-  // color goes into VARCHAR(7) and is rendered as a CSS value in the clients.
-  body('color').optional({ values: 'falsy' }).isHexColor()
-    .withMessage('color must be a hex colour such as #6366f1')
-    .isLength({ max: 7 }).withMessage('color must be 7 characters or fewer'),
-  optionalText('icon', 10),
-  body('base_level').optional({ values: 'null' })
-    .isInt({ min: ACCESS_LEVEL_MIN, max: ACCESS_LEVEL_MAX })
-    .withMessage('base_level must be between 1 and 9'),
-  optionalPlainObject('permissions'),
-  body('sort_order').optional({ values: 'null' }).isInt({ min: 0, max: 100000 })
-    .withMessage('sort_order must be a non-negative integer'),
-];
-
-const createRoleRules = [
-  body('role_name').trim().notEmpty().withMessage('role_name is required')
-    .isLength({ max: 100 }).withMessage('role_name must be 100 characters or fewer'),
-  body('role_key').trim().notEmpty().withMessage('role_key is required')
-    .isLength({ max: 60 }).withMessage('role_key must be 60 characters or fewer'),
-  optionalFk('venture_id'),
-  ...roleBodyRules,
-  validate,
-];
-
-const updateRoleRules = [
-  idParam(),
-  body('role_name').optional({ values: 'falsy' }).trim().isLength({ min: 1, max: 100 })
-    .withMessage('role_name must be between 1 and 100 characters'),
-  body('role_key').optional({ values: 'falsy' }).trim().isLength({ min: 1, max: 60 })
-    .withMessage('role_key must be between 1 and 60 characters'),
-  ...roleBodyRules,
-  validate,
-];
-
-const roleIdRules = [idParam(), validate];
-
-const roleAssignmentRules = [
-  body('user_id').isInt({ min: 1 }).withMessage('user_id must be a valid user id'),
-  body('role_id').isInt({ min: 1 }).withMessage('role_id must be a valid role id'),
-  validate,
-];
-
-/* ─── ACCESS CONTROL ──────────────────────────────────────────────────────── */
-
-const twoFactorConfigRules = [
-  body('enable2FA').exists().withMessage('enable2FA is required')
-    .isBoolean().withMessage('enable2FA must be true or false'),
-  validate,
-];
-
-const updateAccessLevelRules = [
-  param('level').isInt({ min: ACCESS_LEVEL_MIN, max: ACCESS_LEVEL_MAX })
-    .withMessage('level must be between 1 and 9'),
-  body('permissions').custom(v =>
-    typeof v === 'object' && v !== null && !Array.isArray(v)
-  ).withMessage('permissions must be an object'),
-  validate,
-];
-
 /* ─── LEARNING HUB ────────────────────────────────────────────────────────── */
 
 const createChecklistItemRules = [
@@ -499,16 +437,6 @@ module.exports = {
   userIdRules,
   updateProfileRules,
   changePasswordRules,
-
-  // role management
-  createRoleRules,
-  updateRoleRules,
-  roleIdRules,
-  roleAssignmentRules,
-
-  // access control
-  twoFactorConfigRules,
-  updateAccessLevelRules,
 
   // learning
   createChecklistItemRules,

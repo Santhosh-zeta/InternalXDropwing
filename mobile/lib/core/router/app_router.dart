@@ -36,9 +36,6 @@ import '../../features/invoices/presentation/screens/invoices_screen.dart';
 import '../../features/invoices/presentation/screens/invoice_detail_screen.dart';
 import '../../features/reports/presentation/screens/reports_screen.dart';
 import '../../features/user_management/presentation/screens/user_management_screen.dart';
-import '../../features/role_management/presentation/screens/roles_screen.dart';
-import '../../features/access_control/presentation/screens/access_control_screen.dart';
-import '../../features/db_explorer/presentation/screens/db_explorer_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
@@ -185,18 +182,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/user-management',
         builder: (context, state) => const UserManagementScreen(),
-      ),
-      GoRoute(
-        path: '/role-management',
-        builder: (context, state) => const RolesScreen(),
-      ),
-      GoRoute(
-        path: '/access-control',
-        builder: (context, state) => const AccessControlScreen(),
-      ),
-      GoRoute(
-        path: '/database',
-        builder: (context, state) => const DbExplorerScreen(),
       ),
 
       // ── Bottom Navigation Shell ───────────────────────────────────────────

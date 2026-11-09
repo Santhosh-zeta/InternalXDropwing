@@ -43,7 +43,6 @@ CREATE TABLE access_levels (
   level_number INTEGER NOT NULL UNIQUE,
   level_name VARCHAR(50) NOT NULL,
   description TEXT,
-  permissions JSONB,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -61,6 +60,9 @@ CREATE TABLE users (
   -- only fit the plaintext 6-digit code.
   otp VARCHAR(64),
   otp_expires_at TIMESTAMP NULL,
+  -- Failed-guess counter for the current OTP and the lockout it can trigger.
+  otp_attempts INTEGER NOT NULL DEFAULT 0,
+  otp_locked_until TIMESTAMP NULL,
   reset_password_token VARCHAR(255),
   reset_password_expires_at TIMESTAMP NULL,
   access_level INTEGER NOT NULL DEFAULT 8,
@@ -92,45 +94,6 @@ CREATE TABLE sessions (
   expires_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-);
-
--- =============================================
--- VENTURE ROLES TABLE
--- =============================================
-CREATE TABLE venture_roles (
-  id SERIAL PRIMARY KEY,
-  venture_id INTEGER NULL,
-  role_name VARCHAR(100) NOT NULL,
-  role_key VARCHAR(60) NOT NULL,
-  description TEXT,
-  color VARCHAR(7) DEFAULT '#6366f1',
-  icon VARCHAR(10) DEFAULT '🔷',
-  base_level INTEGER NOT NULL DEFAULT 5,
-  permissions JSONB,
-  is_active BOOLEAN DEFAULT TRUE,
-  sort_order INTEGER DEFAULT 100,
-  created_by INTEGER NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (role_key, venture_id),
-  FOREIGN KEY (venture_id) REFERENCES ventures(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL
-);
-CREATE TRIGGER update_venture_roles_modtime BEFORE UPDATE ON venture_roles FOR EACH ROW EXECUTE PROCEDURE update_modified_column();
-
--- =============================================
--- VENTURE ROLE ASSIGNMENTS TABLE
--- =============================================
-CREATE TABLE venture_role_assignments (
-  id SERIAL PRIMARY KEY,
-  user_id INTEGER NOT NULL,
-  role_id INTEGER NOT NULL,
-  assigned_by INTEGER NULL,
-  assigned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE (user_id, role_id),
-  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  FOREIGN KEY (role_id) REFERENCES venture_roles(id) ON DELETE CASCADE,
-  FOREIGN KEY (assigned_by) REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- =============================================

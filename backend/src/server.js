@@ -12,6 +12,7 @@ const { testConnection } = require('./config/database');
 const { apiLimiter } = require('./middleware/rateLimit.middleware');
 const { startSessionCleanup } = require('./services/session.service');
 const { bootstrapAdmin } = require('./services/bootstrap');
+const { assertConfig } = require('./config/env');
 
 const app = express();
 
@@ -135,15 +136,12 @@ app.use('/api/action-logs', require('./routes/audit.routes'));
 app.use('/api/documents', require('./routes/document.routes'));
 app.use('/api/timesheets', require('./routes/timesheet.routes'));
 app.use('/api/invoices', require('./routes/invoice.routes'));
-app.use('/api/access-control', require('./routes/access_control.routes'));
 app.use('/api/notifications', require('./routes/notifications.routes'));
 app.use('/api/budget', require('./routes/budget.routes'));
 app.use('/api/kpis', require('./routes/kpis.routes'));
 app.use('/api/client-portal', require('./routes/client_portal.routes'));
 app.use('/api/learning', require('./routes/learning.routes'));
-app.use('/api/database', require('./routes/database.routes'));
 app.use('/api/strategy', require('./routes/strategy.routes'));
-app.use('/api/role-management', require('./routes/role_management.routes'));
 
 // Serve uploads directory
 const path = require('path');
@@ -236,10 +234,13 @@ app.use((req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.status || 500).json({
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(err.stack);
+  // Never echo internal error text (SQL, paths) to clients; 4xx messages from
+  // body parsing and similar are safe and useful.
+  res.status(status).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: status >= 500 ? 'Internal server error' : (err.message || 'Bad request'),
   });
 });
 
@@ -282,7 +283,7 @@ io.use(async (socket, next) => {
                   socket.handshake.headers?.authorization?.replace('Bearer ', '') ||
                   cookie.parse(socket.handshake.headers?.cookie || '').internalx_token;
     if (!token) return next(new Error('Authentication required'));
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
 
     // Same revocation check as the REST authenticate() middleware, so a
     // logged-out token cannot keep an open chat connection alive — see
@@ -397,6 +398,13 @@ if (require.main === module) {
 }
 
 const startServer = async () => {
+  try {
+    assertConfig();
+  } catch (err) {
+    console.error(`\n${err.message}\n`);
+    process.exit(1);
+  }
+
   await testConnection();
 
   // Creates the first Super Admin from BOOTSTRAP_ADMIN_* if none exists. Logs

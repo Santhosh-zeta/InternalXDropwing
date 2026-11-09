@@ -183,9 +183,7 @@ List<_Route> _buildRoutes() {
 
     // ── User management (admin) ─────────────────────────────────────────
     _Route('GET', '/team-members/ventures', (_, __) => _envelope(demo.venturesRolesJson())),
-    _Route('GET', '/team-members/access-levels', (_, __) => _envelope(demo.accessControlJson()
-        .map((l) => {'level_number': l['level_number'], 'level_name': l['level_name'], 'description': l['description']})
-        .toList())),
+    _Route('GET', '/team-members/access-levels', (_, __) => _envelope(demo.accessControlJson())),
     _Route('GET', '/team-members', (_, __) => _envelope(demo.teamMembersJson())),
     _Route('GET', '/team-members/:id', (p, __) {
       final id = int.tryParse(p[0]) ?? 1;
@@ -206,43 +204,5 @@ List<_Route> _buildRoutes() {
     _Route('POST', '/team-members/me/avatar', (_, __) => _envelope({'avatar_url': null})),
     _Route('PUT', '/team-members/me/profile', (_, __) => {'success': true}),
     _Route('PUT', '/team-members/me/password', (_, __) => {'success': true}),
-
-    // ── Role management ───────────────────────────────────────────────────
-    _Route('GET', '/role-management/ventures', (_, __) => _envelope(demo.venturesRolesJson())),
-    _Route('GET', '/role-management/assign-team-members', (_, __) => _envelope(demo.assignableTeamMembersJson())),
-    _Route('GET', '/role-management', (_, __) => _envelope(demo.rolesJson())),
-    _Route('GET', '/role-management/:id', (p, __) {
-      final id = int.tryParse(p[0]) ?? 1;
-      return _envelope(demo.rolesJson().firstWhere((r) => r['id'] == id, orElse: () => demo.rolesJson().first));
-    }),
-    _Route('POST', '/role-management/:id/duplicate', (_, __) => _envelope({...demo.rolesJson().first, 'id': 9006, 'role_name': '${demo.rolesJson().first['role_name']} (copy)'})),
-    _Route('POST', '/role-management/assign', (_, __) => {'success': true}),
-    _Route('DELETE', '/role-management/assign', (_, __) => {'success': true}),
-    _Route('POST', '/role-management', (_, __) => _envelope({...demo.rolesJson().first, 'id': 9007})),
-    _Route('PUT', '/role-management/:id', (p, o) {
-      final id = int.tryParse(p[0]) ?? 1;
-      final base = demo.rolesJson().firstWhere((r) => r['id'] == id, orElse: () => demo.rolesJson().first);
-      final updates = o.data is Map ? Map<String, dynamic>.from(o.data as Map) : <String, dynamic>{};
-      return _envelope({...base, ...updates});
-    }),
-    _Route('DELETE', '/role-management/:id', (_, __) => {'success': true, 'message': 'Role deleted (demo mode).'}),
-
-    // ── Access control (Super Admin) ─────────────────────────────────────
-    _Route('GET', '/access-control/2fa-config', (_, __) => {'success': true, 'enable2FA': false}),
-    _Route('PUT', '/access-control/2fa-config', (_, __) => {'success': true, 'enable2FA': false}),
-    _Route('GET', '/access-control', (_, __) => _envelope(demo.accessControlJson())),
-    _Route('PUT', '/access-control/:level', (_, __) => {'success': true, 'message': 'Level 1 cannot be edited.'}),
-
-    // ── Database console (Super Admin) — flat envelope, not `{data: ...}` ─
-    _Route('GET', '/database/tables', (_, __) => {'success': true, 'tables': demo.dbTablesJson()}),
-    _Route('GET', '/database/table/:name', (p, __) => {'success': true, ...demo.dbTablePreviewJson(p[0])}),
-    _Route('POST', '/database/query', (_, o) {
-      final query = (o.data is Map ? o.data['query']?.toString() : null) ?? '';
-      if (!query.trim().toUpperCase().startsWith('SELECT')) {
-        return {'success': false, 'message': 'Only SELECT queries are permitted on this console.'};
-      }
-      final preview = demo.dbTablePreviewJson('users');
-      return {'success': true, 'results': preview['rows'], 'fields': (preview['columns'] as List).map((c) => c['Field']).toList()};
-    }),
   ];
 }
