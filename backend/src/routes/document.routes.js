@@ -3,7 +3,7 @@ const router = express.Router();
 const documentController = require('../controllers/document.controller');
 const { authenticate } = require('../middleware/auth.middleware');
 const { withScope } = require('../utils/scope');
-const { documentUpload, handleUploadErrors } = require('../middleware/upload.middleware');
+const { documentUpload, handleUploadErrors, verifyUploadContent } = require('../middleware/upload.middleware');
 const { uploadLimiter } = require('../middleware/rateLimit.middleware');
 const { uploadDocumentRules, documentIdRules } = require('../middleware/validate.middleware');
 
@@ -19,6 +19,7 @@ router.post(
   uploadLimiter,
   documentUpload.single('file'),
   handleUploadErrors,
+  verifyUploadContent,
   uploadDocumentRules,
   documentController.uploadDocument
 );

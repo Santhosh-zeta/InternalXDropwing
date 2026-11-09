@@ -79,7 +79,7 @@ describe('checkAdminPassword / validateConfig', () => {
 
   test('production refuses a missing or placeholder JWT_SECRET', () => {
     expect(validateConfig({ NODE_ENV: 'production' }).errors.join()).toMatch(/JWT_SECRET/);
-    const env = { NODE_ENV: 'production', DB_HOST: 'h', DB_NAME: 'n', DB_USER: 'u', DB_PASSWORD: 'p' };
+    const env = { NODE_ENV: 'production', DB_HOST: 'h', DB_NAME: 'n', DB_USER: 'u', DB_PASSWORD: 'p', FRONTEND_URL: 'https://app.example' };
     expect(validateConfig({ ...env, JWT_SECRET: 'change_me_use_a_long_random_string_please_ok' }).errors.length).toBe(1);
     expect(validateConfig({ ...env, JWT_SECRET: 'short' }).errors.length).toBe(1);
     expect(validateConfig({ ...env, JWT_SECRET: 'k3J9xQ2mVb7LpT4zR8wYc1NdHs6GfA0eUiO5' }).errors).toEqual([]);
