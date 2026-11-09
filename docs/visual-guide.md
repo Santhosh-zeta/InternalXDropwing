@@ -48,7 +48,7 @@ InternalX utilizes a highly dynamic Role-Based Access Control (RBAC) system. The
 **Purpose:** Ultimate global oversight across all 4 ventures.
 - **Code Mapping:** `app/dashboard/OverviewView.tsx`, `components/charts/CrossVentureChart.tsx`
 - **UI Wireframe Details:**
-  - **Sidebar:** Full access to all modules including **Access Control**, **Audit Logs**, and **Database**.
+  - **Sidebar:** Full access to all modules including **User Management** and **Audit Logs**.
   - **Main View:** High-level metrics showing total active users, system health, and cross-venture performance.
   - **Theme:** Uses the global system accent (Violet `#8B5CF6`).
 

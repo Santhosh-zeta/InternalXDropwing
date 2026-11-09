@@ -85,6 +85,7 @@ const makeClientWrapper = (client) => {
           return [resultSetHeader, result.fields];
         }
       } catch (err) {
+        // Values are deliberately not logged: they can hold password hashes and OTP digests.
         console.error('Query execution error:', err.message, 'Query:', pgText);
         throw err;
       }
@@ -121,7 +122,8 @@ const poolWrapper = {
         return [resultSetHeader, result.fields];
       }
     } catch (err) {
-      console.error('Query execution error:', err.message, 'Query:', pgText);
+      // Values are deliberately not logged: they can hold password hashes and OTP digests.
+        console.error('Query execution error:', err.message, 'Query:', pgText);
       throw err;
     }
   },

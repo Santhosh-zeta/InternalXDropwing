@@ -41,9 +41,10 @@ Before you expose an instance to a network:
    `DELETE` on the application schema — not `SUPERUSER`, not `CREATEDB`, not ownership of the
    database.
 
-3. **Don't reuse the seed passwords.** `npm run seed` creates demo accounts, including an L1 Super
-   Admin, with a well-known password. It's for local development. Never run it against anything
-   reachable from the internet.
+3. **Never run `npm run seed:dev` in production.** It creates demo accounts with a well-known
+   password and refuses to run when `NODE_ENV=production`. Production has no seeded users: the first
+   Super Admin comes from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (first boot only —
+   remove the password afterwards) or `npm run create-admin`.
 
 4. **Set `NODE_ENV=production`.** It switches cookies to `secure`, enables the HTTPS redirect, and
    strips the demo quick-login accounts out of the web bundle.
@@ -68,9 +69,8 @@ Before you expose an instance to a network:
 | **The session token is never held in client-side JavaScript.** The web app relies solely on the `httpOnly` cookie the server sets — nothing in `localStorage`, nothing in a JS-writable cookie — so an XSS bug has nothing to exfiltrate. The current, server-verified user (not a client-cached copy) is what every view in the dashboard reads its own access level from. | `frontend/src/lib/api.ts`, `frontend/src/components/{RequireAuth,AuthUserContext}.tsx` |
 | Socket.IO handshake authentication — accepts `auth.token` (mobile), an `Authorization` header, or the `httpOnly` cookie parsed off the raw handshake (web); revocation-checked the same way as REST | `backend/src/server.js` |
 | Upload MIME/extension allowlist (blocks a disguised executable) plus authenticated, venture-scoped document downloads in place of a fully public `/uploads` | `backend/src/middleware/upload.middleware.js`, `backend/src/routes/uploads.routes.js` |
-| Read-only-enforced SQL console for L1 — single `SELECT` only, no chained statements, a row cap and a statement timeout, every attempt audit-logged | `backend/src/utils/sqlGuard.js`, `backend/src/routes/database.routes.js` |
 | Parameterised queries throughout — no ORM, no string-built SQL | `backend/src/config/database.pg.js` |
-| Rate limiting across the whole API, with tighter limits on uploads, the SQL console, and reporting endpoints, keyed on the verified user id where available | `backend/src/middleware/rateLimit.middleware.js` |
+| Rate limiting across the whole API, with tighter limits on uploads and reporting endpoints, and a per-mailbox limit on OTP/reset email, keyed on the verified user id where available | `backend/src/middleware/rateLimit.middleware.js` |
 | Request validation on every mutating endpoint (not just auth) | `backend/src/middleware/validate.middleware.js` |
 | A real Content-Security-Policy (documented exceptions below) | `helmet` config in `server.js` |
 | CORS allowlist — single origin, credentials on | `server.js` |

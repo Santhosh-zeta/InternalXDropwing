@@ -45,7 +45,28 @@ const loginLimiter = rateLimit({
 const accountLimiter = rateLimit({
   ...shared,
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  // Per IP, and a whole office can share one IP, so this is a flood ceiling,
+  // not the abuse control: the per-email limiter below is what stops one
+  // mailbox being spammed.
+  limit: 30,
+});
+
+/**
+ * Per-mailbox budget for endpoints that send email (login OTP, password
+ * reset), keyed on the target address so rotating IPs does not help an
+ * attacker flood one victim. The unauthenticated routes see the parsed body
+ * because express.json() is mounted app-wide before them.
+ */
+const emailKey = (req) => {
+  const email = typeof req.body?.email === 'string' ? req.body.email.toLowerCase().trim() : '';
+  return email ? `email:${email}` : `ip:${ipKeyGenerator(req.ip)}`;
+};
+
+const perEmailLimiter = rateLimit({
+  ...shared,
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  keyGenerator: emailKey,
 });
 
 /**
@@ -81,7 +102,7 @@ const userOrIpKey = (req) => {
 
   if (token && process.env.JWT_SECRET) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
       if (decoded?.id) return `u:${decoded.id}`;
     } catch (err) {
       // Fall through to the IP key — an invalid token is an anonymous caller.
@@ -120,18 +141,6 @@ const uploadLimiter = rateLimit({
 });
 
 /**
- * The L1 SQL console. Legitimate use is a human typing queries; anything faster
- * than a few a minute is a script, and a script here is either an exfiltration
- * sweep or an attempt to find a hole in the read-only parser.
- */
-const sqlConsoleLimiter = rateLimit({
-  ...shared,
-  windowMs: 5 * 60 * 1000,
-  limit: 20,
-  keyGenerator: userOrIpKey,
-});
-
-/**
  * Reporting and analytics: unindexed aggregates over timesheets, projects and
  * audit logs. Cheap to ask for, expensive to answer, so they are the easiest
  * lever for someone who wants to flatten the database. Still generous enough
@@ -147,9 +156,9 @@ const reportLimiter = rateLimit({
 module.exports = {
   loginLimiter,
   accountLimiter,
+  perEmailLimiter,
   authLimiter,
   apiLimiter,
   uploadLimiter,
-  sqlConsoleLimiter,
   reportLimiter,
 };

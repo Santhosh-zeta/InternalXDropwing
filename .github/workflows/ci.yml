@@ -86,6 +86,16 @@ jobs:
             -f deployment/postgres/init/02_indexes.sql \
             -f deployment/postgres/init/03_seed.sql
 
+      - name: Init SQL must not seed any user account
+        env:
+          PGPASSWORD: postgres
+        run: |
+          n=$(psql -h localhost -U postgres -d internalx -tAc "SELECT count(*) FROM users")
+          if [ "$n" != "0" ]; then
+            echo "::error::init SQL created $n user(s); accounts come from the bootstrap admin only"
+            exit 1
+          fi
+
       - name: Tables referenced by controllers must exist in the schema
         env:
           PGPASSWORD: postgres
@@ -116,11 +126,57 @@ jobs:
           DB_PASSWORD: postgres
           JWT_SECRET: ci-only-not-a-real-secret
           FRONTEND_URL: http://localhost:3000
+          BOOTSTRAP_ADMIN_EMAIL: ci-admin@dropwinggroups.com
+          BOOTSTRAP_ADMIN_PASSWORD: Ci-Boot-9xQ!vT4mLz2
         run: |
           node src/server.js &
           curl -sSf --retry 20 --retry-all-errors --retry-delay 1 \
             http://localhost:5000/api/health
           echo
+          # the bootstrap admin must have been created on first boot
+          sleep 2
+          n=$(PGPASSWORD=postgres psql -h localhost -U postgres -d internalx -tAc \
+                "SELECT count(*) FROM users WHERE access_level = 1")
+          [ "$n" = "1" ] || { echo "::error::bootstrap admin was not created"; exit 1; }
+
+  backend-tests:
+    name: API · jest + supertest
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: internalx_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install
+        working-directory: backend
+        run: npm ci
+
+      - name: Test
+        working-directory: backend
+        env:
+          # The suite DROPs and recreates the public schema, then applies
+          # deployment/postgres/init/*.sql. Never point this at real data.
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/internalx_test
+        run: npm test
 
   mobile:
     name: Mobile · analyze
