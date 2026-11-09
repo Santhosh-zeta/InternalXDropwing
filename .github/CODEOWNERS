@@ -1,0 +1,8 @@
+# Security-critical code needs an owner's review.
+*                                   @Santhosh-zeta
+/backend/src/utils/scope.js         @Santhosh-zeta
+/backend/src/utils/canManageUser.js @Santhosh-zeta
+/backend/src/middleware/            @Santhosh-zeta
+/backend/migrations/                @Santhosh-zeta
+/.github/                           @Santhosh-zeta
+/SECURITY.md                        @Santhosh-zeta

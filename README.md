@@ -11,6 +11,7 @@ project membership entitles them to; the Managing Director sees everything.
 
 [What it does](#what-it-does) · [Access model](#access-model) · [Accounts and invites](#accounts-and-invites) · [Quick start](#quick-start) · [Configuration](#configuration) · [Production](#production) · [API](#api-overview) · [Security](#security)
 
+[![CI](https://github.com/Santhosh-zeta/InternalXDropwing/actions/workflows/ci.yml/badge.svg)](https://github.com/Santhosh-zeta/InternalXDropwing/actions/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=nextdotjs)
 ![React](https://img.shields.io/badge/React-19-149ECA?style=flat-square&logo=react)
 ![Node.js](https://img.shields.io/badge/Node.js-20-5FA04E?style=flat-square&logo=nodedotjs)

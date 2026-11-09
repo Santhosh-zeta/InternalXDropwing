@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +6,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../../../../core/theme/nebula_spacing.dart';
 import '../../../../core/theme/nebula_typography.dart';
 import '../../../../core/theme/theme_context.dart';
-import '../../../../core/widgets/motion.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_state.dart';
@@ -50,12 +48,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   void initState() {
     super.initState();
-    _emailController = TextEditingController(
-      text: kDebugMode ? 'admin@internalx.com' : '',
-    );
-    _passwordController = TextEditingController(
-      text: kDebugMode ? 'password123' : '',
-    );
+    _emailController = TextEditingController();
+    _passwordController = TextEditingController();
   }
 
   @override
@@ -199,17 +193,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         fontSize: 9,
                       ),
                     ),
-
-                    if (kDebugMode) ...[
-                      const SizedBox(height: NebulaSpacing.xl),
-                      _QuickAccess(
-                        onPick: (email) {
-                          _emailController.text = email;
-                          _passwordController.text = 'Test@1234';
-                          _submit();
-                        },
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -329,67 +312,5 @@ class _SignInProblem extends StatelessWidget {
     }
     return 'Sign-in did not go through. Try again, or ask an administrator '
         'if it keeps failing.';
-  }
-}
-
-/// Debug-only seeded accounts. Compiled out of release builds entirely — it
-/// sits behind `kDebugMode` at the call site.
-class _QuickAccess extends StatelessWidget {
-  const _QuickAccess({required this.onPick});
-
-  final ValueChanged<String> onPick;
-
-  static const _accounts = <(String, String)>[
-    ('Super Admin', 'sa@dropwinggroups.com'),
-    ('MD', 'md@dropwinggroups.com'),
-    ('Dropwing Admin', 'ad@dropwing.in'),
-    ('Fenixa Admin', 'ad@fenixa.com'),
-    ('PerSyniX Admin', 'ad@persynix.com'),
-    ('Grovia Admin', 'ad@grovia.in'),
-    ('Dropwing Staff', 'st@dropwing.in'),
-    ('Fenixa Staff', 'st@fenixa.com'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final dl = context.dl;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'QUICK ACCESS · DEBUG BUILD',
-          style: NebulaTypography.monoLabel(color: dl.textTertiary, fontSize: 9),
-        ),
-        const SizedBox(height: NebulaSpacing.sm),
-        SizedBox(
-          height: 30,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: _accounts.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 6),
-            itemBuilder: (context, i) {
-              final (label, email) = _accounts[i];
-              return PressScale(
-                onTap: () => onPick(email),
-                child: Container(
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: context.scheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(NebulaSpacing.radiusSm),
-                    border: Border.all(color: dl.border),
-                  ),
-                  child: Text(
-                    label,
-                    style: context.text.bodySmall?.copyWith(fontSize: 11.5),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
   }
 }

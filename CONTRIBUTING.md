@@ -17,22 +17,24 @@ Thanks for taking the time. Whether it's a bug fix, a new feature, or just bette
 ```bash
 git clone https://github.com/Santhosh-zeta/InternalXDropwing.git
 cd InternalXDropwing
-docker compose up -d          # PostgreSQL 16 on :5432
-
-# API
-cd backend && cp .env.example .env   # fill in your values
-npm install && npm run seed && npm run seed:dev && npm run dev
-
-# Web
-cd frontend && cp .env.example .env.local
-npm install && npm run dev
-
-# Mobile (optional)
-cd mobile && flutter pub get
-flutter run --dart-define=API_URL=http://10.0.2.2:5000/api
+./scripts/dev.sh --demo       # database, config, migrations, demo data, API + web app on http://localhost:5000
 ```
 
-Full setup details are in [README.md](README.md#-quick-start).
+Prerequisites, sign-in (the one-time code is printed in the terminal), tests, and troubleshooting are in
+[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md). Before opening a pull request, run:
+
+```bash
+cd backend && TEST_DATABASE_URL=postgres://user:pass@localhost:5432/internalx_test npm test   # disposable DB!
+cd frontend && npx tsc --noEmit && npm run lint && npm run build
+cd mobile && flutter analyze            # only if you touched the mobile app
+```
+
+CI runs the same checks and must be green. Any endpoint that returns business data must use
+`backend/src/utils/scope.js` and be covered in `backend/tests/idor.test.js`
+(see [docs/data-isolation.md](docs/data-isolation.md)). Schema changes need a numbered file in
+`backend/migrations/` **and** the matching change in `deployment/postgres/init/01_schema.sql`.
+
+
 
 ---
 
