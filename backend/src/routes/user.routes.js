@@ -4,6 +4,8 @@ const { pool } = require('../config/database');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const { canManageUser } = require('../utils/canManageUser');
 const { avatarUpload, handleUploadErrors } = require('../middleware/upload.middleware');
 const { uploadLimiter } = require('../middleware/rateLimit.middleware');
 const { revokeAllSessionsForUser, createSession } = require('../services/session.service');
@@ -30,12 +32,26 @@ router.get('/', authenticate, async (req, res) => {
     `;
     const params = [];
 
-    if (req.user.accessLevel > 3) {
+    // Clients never see the staff directory.
+    if (req.user.accessLevel >= 9) return res.json({ success: true, data: [] });
+
+    // Levels 1-2 see everyone; everybody else only their own venture.
+    if (req.user.accessLevel > 2) {
       query += ` AND u.venture_id = ?`;
       params.push(req.user.ventureId);
     }
 
+    if (req.query.search) {
+      query += ` AND (u.full_name ILIKE ? OR u.email ILIKE ?)`;
+      const like = `%${String(req.query.search).slice(0, 100).replace(/[\\%_]/g, '\\$&')}%`;
+      params.push(like, like);
+    }
+
     query += ` ORDER BY u.access_level ASC, u.full_name ASC`;
+    const limit = parseInt(req.query.limit, 10);
+    if (Number.isInteger(limit) && limit > 0) {
+      query += ` LIMIT ${Math.min(limit, 500)}`;
+    }
 
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
@@ -45,20 +61,20 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/users/ventures — Public list of ventures
-router.get('/ventures', async (req, res) => {
+// GET /api/team-members/ventures — ventures for pickers (signed-in users only)
+router.get('/ventures', authenticate, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM ventures WHERE is_active = TRUE');
+    const [rows] = await pool.query('SELECT id, name, slug, logo_url, primary_color, description FROM ventures WHERE is_active = TRUE ORDER BY id');
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// GET /api/users/access-levels — Public list of levels
-router.get('/access-levels', async (req, res) => {
+// GET /api/team-members/access-levels — level names for pickers (signed-in users only)
+router.get('/access-levels', authenticate, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT * FROM access_levels ORDER BY level_number ASC');
+    const [rows] = await pool.query('SELECT level_number, level_name, description FROM access_levels ORDER BY level_number ASC');
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
@@ -171,11 +187,15 @@ router.post('/me/avatar', authenticate, uploadLimiter, avatarUpload.single('avat
 router.get('/:id', authenticate, userIdRules, async (req, res) => {
   try {
     const userId = req.params.id;
-    // Check permission - can view if L1-L3 or same venture or self
-    if (req.user.accessLevel > 3 && req.user.id !== parseInt(userId)) {
+    const isSelf = req.user.id === parseInt(userId, 10);
+    // L1-L2 see everyone; others only themselves and their own venture. Clients: only themselves.
+    if (req.user.accessLevel > 2 && !isSelf) {
+      if (req.user.accessLevel >= 9) {
+        return res.status(403).json({ success: false, message: 'Not allowed' });
+      }
       const [targetUser] = await pool.query('SELECT venture_id FROM users WHERE id = ?', [userId]);
       if (!targetUser.length) return res.status(404).json({ success: false, message: 'User not found' });
-      if (targetUser[0].venture_id !== req.user.ventureId) {
+      if (targetUser[0].venture_id === null || targetUser[0].venture_id !== req.user.ventureId) {
         return res.status(403).json({ success: false, message: 'Cannot view users outside your venture' });
       }
     }
@@ -193,6 +213,11 @@ router.get('/:id', authenticate, userIdRules, async (req, res) => {
     if (!userRows.length) return res.status(404).json({ success: false, message: 'User not found' });
     const user = userRows[0];
 
+    // Recent task activity is only shown to the person themselves and to managers (L1-L5).
+    if (!isSelf && req.user.accessLevel > 5) {
+      return res.json({ success: true, data: { user, activity: [] } });
+    }
+
     // Get recent activity (tasks assigned TO or BY this user)
     const [activityRows] = await pool.query(`
       SELECT id, title, status, priority, created_at, updated_at
@@ -209,50 +234,105 @@ router.get('/:id', authenticate, userIdRules, async (req, res) => {
   }
 });
 
-// PUT /api/users/:id — Update a user
-router.put('/:id', authenticate, requireLevel(4), updateUserRules, async (req, res) => {
+/**
+ * Every mutation below runs in a transaction that locks the target row (and,
+ * for an L1 target, all active L1 rows), then asks canManageUser() for the
+ * verdict, so "last Super Admin" can't be raced past by two concurrent requests.
+ */
+const toBool = (v) => v === true || v === 'true' || v === 1 || v === '1';
+
+const deniedAudit = (req, action, targetId, verdict, patch) =>
+  logAudit(req.user.id, 'USER_MANAGE_DENIED', 'user', targetId || 0,
+    { action, reason: verdict.message, requested: patch }, req.ip);
+
+const sendDb = (res, err) => {
+  if (err.code === '23505') return res.status(409).json({ success: false, message: 'Email already registered' });
+  if (err.code === '23503') return res.status(400).json({ success: false, message: 'Unknown venture' });
+  console.error(err);
+  return res.status(500).json({ success: false, message: 'Server error' });
+};
+
+const USER_MUTATION_LOCK = 7001;
+
+/**
+ * The actor's level and venture come from the database, not the JWT: the token
+ * may predate a demotion, and privilege checks must use current facts.
+ */
+const freshActor = async (q, reqUser) => {
+  const [rows] = await q.query('SELECT id, access_level, venture_id FROM users WHERE id = ? AND is_active = TRUE', [reqUser.id]);
+  if (!rows.length) return null;
+  return { id: rows[0].id, accessLevel: rows[0].access_level, ventureId: rows[0].venture_id };
+};
+
+const lockTarget = async (conn, userId) => {
+  // One lock for all user mutations (they are rare): serialises the
+  // "count the L1s, then change one" sequence and rules out deadlocks.
+  await conn.query('SELECT pg_advisory_xact_lock(?)', [USER_MUTATION_LOCK]);
+  const [rows] = await conn.query(
+    'SELECT id, access_level, venture_id, is_active FROM users WHERE id = ? FOR UPDATE', [userId]);
+  const target = rows[0] || null;
+  const ctx = {};
+  if (target && target.access_level === 1) {
+    const [l1] = await conn.query('SELECT id FROM users WHERE access_level = 1 AND is_active = TRUE FOR UPDATE');
+    ctx.activeL1Count = l1.length;
+  }
+  return { target, ctx };
+};
+
+// PUT /api/team-members/:id — Update a user
+router.put('/:id', authenticate, requireLevel(3), updateUserRules, async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const { access_level, venture_id, is_active, full_name, department, designation, phone } = req.body;
+  const patch = {
+    action: 'update',
+    access_level,
+    venture_id,
+    is_active: is_active === undefined || is_active === null ? undefined : toBool(is_active),
+  };
+  // Global levels have no venture: make "promote to MD" a one-field change.
+  if (patch.access_level !== undefined && patch.access_level !== null && Number(patch.access_level) <= 2 && patch.venture_id === undefined) {
+    patch.venture_id = null;
+  }
+
+  const conn = await pool.getConnection();
   try {
-    const userId = req.params.id;
-    const { access_level, venture_id, is_active, full_name, department, designation, phone } = req.body;
-    
-    // Only L1/L2 can modify everyone. Others can only modify lower levels
-    if (req.user.accessLevel > 2) {
-      // Need to check target user level
-      const [targetUser] = await pool.query('SELECT access_level, venture_id FROM users WHERE id = ?', [userId]);
-      if (!targetUser.length) return res.status(404).json({ success: false, message: 'User not found' });
-      if (targetUser[0].access_level <= req.user.accessLevel) {
-         return res.status(403).json({ success: false, message: 'Cannot modify users at or above your level' });
-      }
-      if (req.user.accessLevel > 3 && targetUser[0].venture_id !== req.user.ventureId) {
-         return res.status(403).json({ success: false, message: 'Cannot modify users outside your venture' });
-      }
+    await conn.beginTransaction();
+    const { target, ctx } = await lockTarget(conn, userId);
+    const actor = await freshActor(conn, req.user);
+    const verdict = actor ? canManageUser(actor, target, patch, ctx) : { ok: false, status: 401, message: 'Authentication required' };
+    if (!verdict.ok) {
+      await conn.rollback();
+      await deniedAudit(req, 'update', userId, verdict, patch);
+      return res.status(verdict.status).json({ success: false, message: verdict.message });
     }
 
     const updates = [];
     const params = [];
-    if (access_level !== undefined) { updates.push('access_level = ?'); params.push(access_level); }
-    if (venture_id !== undefined) { 
-      updates.push('venture_id = ?'); 
-      params.push(venture_id === 0 ? null : venture_id); 
-    }
-    if (is_active !== undefined) { updates.push('is_active = ?'); params.push(is_active); }
-    if (full_name !== undefined) { updates.push('full_name = ?'); params.push(full_name); }
-    if (department !== undefined) { updates.push('department = ?'); params.push(department); }
-    if (designation !== undefined) { updates.push('designation = ?'); params.push(designation); }
-    if (phone !== undefined) { updates.push('phone = ?'); params.push(phone); }
+    const changes = {};
+    const set = (col, val) => { updates.push(`${col} = ?`); params.push(val); changes[col] = val; };
+    if (patch.access_level !== undefined && patch.access_level !== null) set('access_level', Number(patch.access_level));
+    if (patch.venture_id !== undefined) set('venture_id', patch.venture_id === null || Number(patch.venture_id) === 0 ? null : Number(patch.venture_id));
+    if (patch.is_active !== undefined) set('is_active', patch.is_active);
+    if (full_name !== undefined) set('full_name', full_name);
+    if (department !== undefined) set('department', department);
+    if (designation !== undefined) set('designation', designation);
+    if (phone !== undefined) set('phone', phone);
 
-    if (updates.length === 0) return res.json({ success: true, message: 'No changes provided' });
+    if (updates.length === 0) {
+      await conn.rollback();
+      return res.json({ success: true, message: 'No changes provided' });
+    }
 
     params.push(userId);
-    await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    await conn.query(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`, params);
+    await conn.commit();
 
     /**
-     * Deactivating a user or demoting them has to reach the tokens they are
-     * already holding — the access level is baked into the JWT, so without this
-     * a demoted admin keeps their old level until the token expires and a
-     * deactivated account keeps working entirely.
+     * Level, venture and active flag are baked into the JWT, so any change to
+     * them must reach the tokens the user already holds: drop every session so
+     * they re-authenticate and pick up their new scope (or lose access).
      */
-    if (is_active === false || access_level !== undefined) {
+    if ('access_level' in changes || 'venture_id' in changes || changes.is_active === false) {
       try {
         await revokeAllSessionsForUser(userId);
       } catch (revokeErr) {
@@ -260,28 +340,40 @@ router.put('/:id', authenticate, requireLevel(4), updateUserRules, async (req, r
       }
     }
 
-    await logAudit(req.user.id, 'UPDATE_USER', 'user', userId, { targetId: userId, changedFields: updates });
+    await logAudit(req.user.id, 'UPDATE_USER', 'user', userId, {
+      targetId: userId,
+      before: { access_level: target.access_level, venture_id: target.venture_id, is_active: target.is_active },
+      changes,
+    }, req.ip);
 
     res.json({ success: true, message: 'User updated successfully' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    try { await conn.rollback(); } catch (_) { /* already finished */ }
+    sendDb(res, err);
+  } finally {
+    conn.release();
   }
 });
 
-// DELETE /api/users/:id — Delete a user (or deactivate)
+// DELETE /api/team-members/:id — Delete a user
 router.delete('/:id', authenticate, requireLevel(3), userIdRules, async (req, res) => {
+  const userId = parseInt(req.params.id, 10);
+  const patch = { action: 'delete' };
+
+  const conn = await pool.getConnection();
   try {
-    const userId = req.params.id;
-    
-    // Only L1/L2 can modify everyone. Others can only modify lower levels
-    if (req.user.accessLevel > 2) {
-      const [targetUser] = await pool.query('SELECT access_level FROM users WHERE id = ?', [userId]);
-      if (!targetUser.length) return res.status(404).json({ success: false, message: 'User not found' });
-      if (targetUser[0].access_level <= req.user.accessLevel) {
-         return res.status(403).json({ success: false, message: 'Cannot delete users at or above your level' });
-      }
+    await conn.beginTransaction();
+    const { target, ctx } = await lockTarget(conn, userId);
+    const actor = await freshActor(conn, req.user);
+    const verdict = actor ? canManageUser(actor, target, patch, ctx) : { ok: false, status: 401, message: 'Authentication required' };
+    if (!verdict.ok) {
+      await conn.rollback();
+      await deniedAudit(req, 'delete', userId, verdict, patch);
+      return res.status(verdict.status).json({ success: false, message: verdict.message });
     }
+
+    await conn.query('DELETE FROM users WHERE id = ?', [userId]);
+    await conn.commit();
 
     // sessions.user_id cascades on delete, but the in-process session cache
     // does not know that — revoke explicitly so the tokens stop working now.
@@ -291,44 +383,59 @@ router.delete('/:id', authenticate, requireLevel(3), userIdRules, async (req, re
       console.error('Failed to revoke sessions for deleted user:', revokeErr.message);
     }
 
-    await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+    await logAudit(req.user.id, 'DELETE_USER', 'user', userId,
+      { targetId: userId, access_level: target.access_level, venture_id: target.venture_id }, req.ip);
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    try { await conn.rollback(); } catch (_) { /* already finished */ }
+    if (err.code === '23503') {
+      return res.status(409).json({ success: false, message: 'This user has related records. Deactivate the account instead of deleting it.' });
+    }
+    sendDb(res, err);
+  } finally {
+    conn.release();
   }
 });
 
-// POST /api/users — Create a new user (Admin and above)
+// POST /api/team-members — Create a new user
 router.post('/', authenticate, requireLevel(3), createUserRules, async (req, res) => {
   try {
-    const { full_name, email, password, access_level, venture_id, department, designation } = req.body;
-    
-    if (!full_name || !email || !password || !access_level) {
-      return res.status(400).json({ success: false, message: 'Required fields missing' });
+    const { full_name, password, department, designation } = req.body;
+    const email = String(req.body.email || '').toLowerCase().trim();
+    const access_level = Number(req.body.access_level);
+    let venture_id = req.body.venture_id ? Number(req.body.venture_id) : null;
+
+    const actor = await freshActor(pool, req.user);
+    if (!actor) return res.status(401).json({ success: false, message: 'Authentication required' });
+    // An L3 admin always creates into their own venture, whatever was sent.
+    if (actor.accessLevel === 3) venture_id = actor.ventureId ?? null;
+    if (access_level <= 2) venture_id = null;
+    const verdict = canManageUser(actor, null, { action: 'create', access_level, venture_id });
+    if (!verdict.ok) {
+      await deniedAudit(req, 'create', 0, verdict, { access_level, venture_id, email });
+      return res.status(verdict.status).json({ success: false, message: verdict.message });
     }
 
-    // Check if user exists
     const [existing] = await pool.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length) {
-      return res.status(400).json({ success: false, message: 'Email already registered' });
+      return res.status(409).json({ success: false, message: 'Email already registered' });
     }
 
     const hash = await bcrypt.hash(password, 12);
-    const employeeId = 'EMP' + Date.now().toString().slice(-6);
+    const employeeId = 'EMP-' + crypto.randomBytes(4).toString('hex').toUpperCase();
 
     const [result] = await pool.query(
       `INSERT INTO users (employee_id, full_name, email, password_hash, access_level, venture_id, department, designation)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
-      [employeeId, full_name, email, hash, access_level, venture_id || null, department || null, designation || null]
+      [employeeId, full_name, email, hash, access_level, venture_id, department || null, designation || null]
     );
 
-    await logAudit(req.user.id, 'CREATE_USER', 'user', result.insertId, { full_name, email });
+    await logAudit(req.user.id, 'CREATE_USER', 'user', result.insertId,
+      { full_name, email, access_level, venture_id }, req.ip);
 
-    res.json({ success: true, message: 'User created successfully', userId: result.insertId });
+    res.status(201).json({ success: true, message: 'User created successfully', userId: result.insertId });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    sendDb(res, err);
   }
 });
 

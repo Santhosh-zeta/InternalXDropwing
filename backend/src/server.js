@@ -345,15 +345,17 @@ io.on('connection', (socket) => {
  * supervising the process (systemd, Docker, pm2) knows to restart it and
  * an operator has something to grep for.
  */
-process.on('unhandledRejection', (reason) => {
-  console.error('Unhandled promise rejection — exiting:', reason);
-  process.exit(1);
-});
+if (require.main === module) {
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled promise rejection — exiting:', reason);
+    process.exit(1);
+  });
 
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught exception — exiting:', err);
-  process.exit(1);
-});
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught exception — exiting:', err);
+    process.exit(1);
+  });
+}
 
 /**
  * Graceful shutdown on SIGTERM/SIGINT (the signals a container orchestrator,
@@ -389,8 +391,10 @@ const shutdown = (signal) => {
   }, 10_000).unref();
 };
 
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+if (require.main === module) {
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+}
 
 const startServer = async () => {
   await testConnection();
@@ -413,4 +417,9 @@ const startServer = async () => {
   });
 };
 
-startServer();
+// Tests import { app } and drive it with supertest; only a direct `node` run listens.
+if (require.main === module) {
+  startServer();
+}
+
+module.exports = { app, server, io, startServer };
