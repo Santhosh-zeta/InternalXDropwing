@@ -88,13 +88,17 @@ const append = async (conversationId, rows) => {
   }
 };
 
+// Stored blocks are provider-neutral: text, tool_use { id, name, input, meta? }, tool_result.
+// Older rows may hold vendor-only blocks (thinking); anything else is ignored.
+const isNeutralBlock = (b) => !!b && (b.type === 'text' || b.type === 'tool_use' || b.type === 'tool_result');
+
 const isUserText = (row) =>
   row.role === 'user' && Array.isArray(row.content) && row.content.some((b) => b && b.type === 'text');
 
 /**
  * Model-ready history: the last `limit` rows, starting at a user text turn,
- * without thinking blocks from earlier turns (only the turn in flight replays
- * its own), and without a dangling trailing tool_use.
+ * keeping only neutral blocks (vendor reasoning blocks are dropped), and
+ * without a dangling trailing tool_use.
  */
 const loadHistory = async (conversationId, limit) => {
   const [rows] = await pool.query(
@@ -108,8 +112,8 @@ const loadHistory = async (conversationId, limit) => {
   let out = rows.slice(start).map((r) => ({
     role: r.role,
     content: r.role === 'assistant'
-      ? r.content.filter((b) => b && b.type !== 'thinking' && b.type !== 'redacted_thinking')
-      : r.content,
+      ? r.content.filter(isNeutralBlock)
+      : r.content.filter(isNeutralBlock),
   })).filter((m) => m.content.length > 0);
   // A tool_use must be answered by the next message; drop an unanswered tail.
   const last = out[out.length - 1];

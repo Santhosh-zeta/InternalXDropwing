@@ -156,7 +156,7 @@ The ones you will touch first:
 | `ALLOW_SELF_REGISTRATION` | `false` by default |
 | `ALLOWED_EMAIL_DOMAINS` | Self-registration and Google sign-in allowlist |
 | `SMTP_*` | Needed for sign-in codes, invites and resets (in development the code is printed in the server log) |
-| `ANTHROPIC_API_KEY` | Optional: enables Ask InternalX, AI digest summaries, notes-to-tasks |
+| `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` or `GEMINI_API_KEY` | Any one enables the AI assistant (`AI_PROVIDER`, `AI_MODEL`, `OPENAI_BASE_URL` optional; see [docs/ai-features.md](docs/ai-features.md)) |
 | `ENABLE_SCHEDULER` `APP_TIMEZONE` | Monday digest + daily alerts: on by default in production |
 | `TRUST_PROXY` `COOKIE_SECURE` `CORS_ORIGINS` `LOG_LEVEL` | Behind-a-proxy and logging behaviour |
 

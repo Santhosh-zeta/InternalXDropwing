@@ -84,7 +84,7 @@ describe('propose', () => {
     expect(sent.messages[0].content).toContain('<notes>');
     expect(sent.tool_choice).toEqual({ type: 'auto' });
     expect(sent.tools[0]).toMatchObject({ name: 'propose_tasks', strict: true });
-    expect(sent.system).toMatch(/untrusted/);
+    expect(JSON.stringify(sent.system)).toMatch(/untrusted/);
     const audit = await t.pool.query("SELECT 1 FROM audit_logs WHERE action_type = 'ASSISTANT_NOTES_PROPOSE' AND user_id = $1", [c.users['dd.l5']]);
     expect(audit.rowCount).toBe(1);
   });
@@ -124,7 +124,7 @@ describe('propose', () => {
   });
 
   test('a model failure is a 502 without details', async () => {
-    setClientForTests({ messages: { create: async () => { throw new Error('upstream secret'); } } });
+    setClientForTests({ messages: { stream: () => { throw new Error('upstream secret'); } } });
     const res = await propose('dd.l5', { notes: NOTES });
     expect(res.status).toBe(502);
     expect(JSON.stringify(res.body)).not.toMatch(/secret/);

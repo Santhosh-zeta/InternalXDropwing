@@ -7,9 +7,9 @@
  * model calls), output-size cap on every tool result, abort when the client
  * disconnects. Every tool call is written to audit_logs.
  *
- * `client` is anything with `messages.stream(params, { signal })` returning
- * `.on('text', fn)` and `.finalMessage()` - the Anthropic SDK client, or a fake
- * in tests.
+ * `provider` is a services/ai provider: one `chat()` call is one model turn.
+ * Messages are provider-neutral blocks (text / tool_use / tool_result), the same
+ * shape that is stored in assistant_messages.
  */
 const { scopeFor } = require('../../utils/scope');
 const { logAudit } = require('../audit.service');
@@ -18,19 +18,18 @@ const { ToolError } = require('./queries');
 const { SYSTEM_PROMPT } = require('./prompt');
 const store = require('./store');
 const usage = require('./usage');
+const { isAbort } = require('../ai/errors');
+const { assistantContent } = require('../ai/structured');
 
 class AgentAbort extends Error {}
 
-const textOf = (content) => content.filter((b) => b.type === 'text').map((b) => b.text).join('');
-const isAbort = (err, signal) =>
-  (signal && signal.aborted) || (err && (err.name === 'APIUserAbortError' || err.name === 'AbortError'));
 
 /**
  * Run one user turn. `history` is the model-ready prior conversation. Returns
  * { text, inputTokens, outputTokens, stopReason }.
  */
 const runTurn = async ({
-  client, cfg, user, conversationId, history, userText, contextLine, emit, signal, remainingTokens, ip,
+  provider, cfg, user, conversationId, history, userText, contextLine, emit, signal, remainingTokens, ip,
 }) => {
   const userContent = [{ type: 'text', text: `${contextLine}\n\n${userText}` }];
   await store.append(conversationId, [{ role: 'user', content: userContent, text: userText }]);
@@ -40,7 +39,6 @@ const runTurn = async ({
   if (!first) throw new ToolError('Account not found or deactivated');
   const tools = toolsFor(first);
   const defs = toolDefs(tools);
-  const system = [{ type: 'text', text: SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }];
 
   let inputTokens = 0;
   let outputTokens = 0;
@@ -55,36 +53,33 @@ const runTurn = async ({
       break;
     }
 
-    const stream = client.messages.stream({
-      model: cfg.model,
-      max_tokens: cfg.maxOutputTokens,
-      system,
-      tools: defs,
-      // Lowest thinking setting on Sonnet 5.5; keeps replayed history simple (no reasoning blocks to bind).
-      thinking: { type: 'between_tools' },
-      output_config: { effort: cfg.effort },
-      messages,
-    }, { signal });
-    stream.on('text', (delta) => emit({ type: 'text', delta }));
-
-    let message;
+    let res;
     try {
-      message = await stream.finalMessage();
+      res = await provider.chat({
+        system: SYSTEM_PROMPT,
+        messages,
+        tools: defs,
+        signal,
+        onText: (delta) => emit({ type: 'text', delta }),
+        maxTokens: cfg.maxOutputTokens,
+        effort: cfg.effort,
+        thinking: true,
+      });
     } catch (err) {
       if (isAbort(err, signal)) throw new AgentAbort();
       throw err;
     }
 
-    const u = message.usage || {};
-    const inTok = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
-    const outTok = u.output_tokens || 0;
+    const inTok = res.usage.input;
+    const outTok = res.usage.output;
     inputTokens += inTok;
     outputTokens += outTok;
     await usage.record(user.id, { input: inTok, output: outTok });
 
-    stopReason = message.stop_reason;
-    const toolUses = message.content.filter((b) => b.type === 'tool_use');
-    const text = textOf(message.content);
+    stopReason = res.stopReason;
+    const toolUses = res.toolCalls;
+    const text = res.text;
+    const content = assistantContent(res);
 
     if (stopReason === 'refusal') {
       emit({ type: 'notice', message: 'I cannot help with that request.' });
@@ -95,8 +90,8 @@ const runTurn = async ({
     if (stopReason !== 'tool_use' || toolUses.length === 0) {
       if (stopReason === 'max_tokens') emit({ type: 'notice', message: 'The answer was cut short. Ask me to continue or narrow the question.' });
       finalText = text;
-      // A tool_use cut off by max_tokens is never run or stored.
-      const keep = message.content.filter((b) => b.type !== 'tool_use');
+      // A tool call cut off by max_tokens is never run or stored.
+      const keep = content.filter((b) => b.type !== 'tool_use');
       if (keep.length > 0) {
         await store.append(conversationId, [{ role: 'assistant', content: keep, text, inputTokens: inTok, outputTokens: outTok }]);
       }
@@ -129,10 +124,11 @@ const runTurn = async ({
       emit({ type: 'tool', id: block.id, name: block.name, label: labelFor(block.name), state: ok ? 'done' : 'error' });
     }
 
-    const assistantTurn = { role: 'assistant', content: message.content };
+    // `raw` (provider-specific blocks such as reasoning) is replayed within this turn only, never stored.
+    const assistantTurn = { role: 'assistant', content, raw: res.raw };
     const resultTurn = { role: 'user', content: results };
     await store.append(conversationId, [
-      { ...assistantTurn, text, inputTokens: inTok, outputTokens: outTok },
+      { role: 'assistant', content, text, inputTokens: inTok, outputTokens: outTok },
       { ...resultTurn, text: null },
     ]);
     messages.push(assistantTurn, resultTurn);
