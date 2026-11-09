@@ -1,7 +1,7 @@
 # Handoff: production-hardening effort (session state)
 
 Branch of record: `claude/explore-management-website-d9v4hr` (everything merged so far is here).
-Backend: 245 tests passing (`cd backend && npm ci && TEST_DATABASE_URL=... JWT_SECRET=... npm test`), 0 prod vulnerabilities.
+Backend: 329 tests passing (B2 merged) (`cd backend && npm ci && TEST_DATABASE_URL=... JWT_SECRET=... npm test`), 0 prod vulnerabilities.
 
 ## Done and merged
 - Phase 0: safe fixes, dead scripts removed.
@@ -14,7 +14,8 @@ Backend: 245 tests passing (`cd backend && npm ci && TEST_DATABASE_URL=... JWT_S
   team-list scoping, pino logging, /api/ready, Dockerfile + prod compose + backups, docs/production-checklist.md,
   README rewrite, secret-field sweep test.
 
-## In flight when this was written (backup branches pushed, NOT yet merged)
+## B2 MERGED (migrations renumbered 0007-0009). B3 NOT merged (agent hit the usage limit mid-run).
+## Original notes on the two branches:
 - `claude/wip-b2-assistant-search`: B2. Scoped full-text search + Ctrl/Cmd-K palette, "Ask InternalX" Claude
   assistant (read-only scoped tools, SSE, caps, audit), weekly digest + alert rules + scheduler,
   meeting-notes -> draft tasks. Last commit: notes-to-tasks backend; the NotesToTasksModal UI and api.ts edits were uncommitted.
@@ -22,7 +23,7 @@ Backend: 245 tests passing (`cd backend && npm ci && TEST_DATABASE_URL=... JWT_S
   Today home, split big views, Playwright walk of every view per role. Mostly uncommitted when snapshotted.
 
 ## Remaining plan
-1. Merge B2 and B3 into the main branch (expect conflicts in dashboard/page.tsx, lib/api.ts, server.js mounts,
+1. Resume B3's work (branch `claude/wip-b3-frontend`, last WIP snapshot; it was in the middle of the lint/typing cleanup and removing fake monthly-performance fallbacks) and merge it. B2 is already merged. Merge (expect conflicts in dashboard/page.tsx, lib/api.ts, server.js mounts,
    backend/migrations numbering, deployment init schema). Run backend tests + `frontend: tsc, lint, build`.
 2. Make lint blocking in CI (remove continue-on-error) once lint is 0.
 3. Frontend default API URL: `lib/api.ts`, SocketProvider, DocumentsView, SettingsView fall back to a hard-coded
