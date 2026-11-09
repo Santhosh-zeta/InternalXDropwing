@@ -1,33 +1,9 @@
 /**
- * Anthropic client + feature configuration. Everything is read from the
- * environment lazily so the feature is simply "not configured" without a key
- * and nothing crashes at import time.
+ * Assistant feature configuration (limits). The model vendor lives in
+ * services/ai; this file only keeps the limits and the test hook that
+ * injects a fake Anthropic SDK client.
  */
-const Anthropic = require('@anthropic-ai/sdk');
-
-let override = null;
-let cached = null;
-let cachedKey = null;
-
-/** The configured SDK client, or null when ANTHROPIC_API_KEY is absent. */
-const getClient = () => {
-  if (override) return override;
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return null;
-  if (!cached || cachedKey !== key) {
-    cached = new Anthropic({
-      apiKey: key,
-      baseURL: process.env.ANTHROPIC_BASE_URL || undefined,
-      maxRetries: 2,
-      timeout: 120000,
-    });
-    cachedKey = key;
-  }
-  return cached;
-};
-
-/** Tests inject a fake client (or null to clear). */
-const setClientForTests = (client) => { override = client; };
+const ai = require('../ai');
 
 const int = (name, def) => {
   const v = parseInt(process.env[name], 10);
@@ -35,7 +11,6 @@ const int = (name, def) => {
 };
 
 const config = () => ({
-  model: process.env.ASSISTANT_MODEL || 'claude-sonnet-5-5',
   effort: process.env.ASSISTANT_EFFORT || 'medium',
   maxOutputTokens: int('ASSISTANT_MAX_OUTPUT_TOKENS', 4096),
   maxIterations: int('ASSISTANT_MAX_TOOL_ITERATIONS', 6),
@@ -44,6 +19,7 @@ const config = () => ({
   historyRows: int('ASSISTANT_HISTORY_ROWS', 40),
 });
 
-const isConfigured = () => !!getClient();
+/** Tests inject a fake Anthropic SDK client (or null to clear). */
+const setClientForTests = (client) => ai.setAnthropicClientForTests(client);
 
-module.exports = { getClient, setClientForTests, config, isConfigured };
+module.exports = { config, setClientForTests, isConfigured: ai.isConfigured };

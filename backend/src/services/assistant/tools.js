@@ -125,9 +125,9 @@ const toolsFor = (scope) => {
   ];
 };
 
-/** What the API sees: name, description, schema (strict so arguments are schema-valid). */
+/** Provider-neutral definitions: name, description, JSON schema. Each provider translates them. */
 const toolDefs = (tools) => tools.map((t) => ({
-  name: t.name, description: t.description, input_schema: t.input_schema, strict: true,
+  name: t.name, description: t.description, input_schema: t.input_schema,
 }));
 
 const labelFor = (name) => {

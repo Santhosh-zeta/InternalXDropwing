@@ -34,7 +34,6 @@ const SYSTEM = `You turn meeting notes or a stand-up transcript into DRAFT tasks
 const PROPOSE_TOOL = {
   name: 'propose_tasks',
   description: 'Return the draft tasks extracted from the notes.',
-  strict: true,
   input_schema: {
     type: 'object',
     additionalProperties: false,
@@ -133,10 +132,10 @@ const toDrafts = (raw, { people, projects }, today) => {
 };
 
 /**
- * Ask the model for drafts. `client` is the SDK client (or a fake). Returns
+ * Ask the model for drafts through the configured provider's structured output. Returns
  * { drafts, people, projects, usage }. Throws ToolError for user-facing problems.
  */
-const propose = async ({ client, cfg, scope, user, notes, ip }) => {
+const propose = async ({ provider, scope, user, notes, ip }) => {
   const text = typeof notes === 'string' ? notes.trim() : '';
   if (text.length < 10) throw new ToolError('Paste some meeting notes first.');
   if (text.length > MAX_NOTES) throw new ToolError(`Notes are too long (max ${MAX_NOTES} characters). Split them up.`);
@@ -151,36 +150,20 @@ const propose = async ({ client, cfg, scope, user, notes, ip }) => {
     `<notes>\n${safeNotes}\n</notes>`,
   ].join('\n');
 
-  const messages = [{ role: 'user', content: prompt }];
-  let inTok = 0;
-  let outTok = 0;
-  let proposed = null;
-  for (let attempt = 0; attempt < 2 && !proposed; attempt += 1) {
-    const res = await client.messages.create({
-      model: cfg.model,
-      max_tokens: 4096,
-      system: SYSTEM,
-      tools: [PROPOSE_TOOL],
-      // Forced tool_choice is rejected by current models; the prompt asks for the call and we check for it.
-      tool_choice: { type: 'auto' },
-      output_config: { effort: 'low' },
-      messages,
-    });
-    const u = res.usage || {};
-    const i = (u.input_tokens || 0) + (u.cache_creation_input_tokens || 0) + (u.cache_read_input_tokens || 0);
-    const o = u.output_tokens || 0;
-    inTok += i;
-    outTok += o;
-    await usage.record(user.id, { input: i, output: o });
-    if (res.stop_reason === 'refusal') throw new ToolError('The assistant cannot process these notes.');
-    const call = (res.content || []).find((b) => b.type === 'tool_use' && b.name === 'propose_tasks');
-    if (call && res.stop_reason !== 'max_tokens') proposed = call.input;
-    else if (res.stop_reason === 'max_tokens') throw new ToolError('The notes produced too many tasks to list. Split the notes and try again.');
-    else {
-      messages.push({ role: 'assistant', content: res.content }, { role: 'user', content: 'Call propose_tasks now with the action items (an empty list if there are none).' });
-    }
-  }
+  const { data: proposed, usage: used, stopReason } = await provider.structured({
+    system: SYSTEM,
+    user: prompt,
+    schema: PROPOSE_TOOL.input_schema,
+    name: PROPOSE_TOOL.name,
+    description: PROPOSE_TOOL.description,
+    retryPrompt: 'Call propose_tasks now with the action items (an empty list if there are none).',
+    onUsage: (u) => usage.record(user.id, { input: u.input, output: u.output }),
+  });
+  if (stopReason === 'refusal') throw new ToolError('The assistant cannot process these notes.');
+  if (stopReason === 'max_tokens') throw new ToolError('The notes produced too many tasks to list. Split the notes and try again.');
   if (!proposed) throw new ToolError('The assistant did not return a task list. Please try again.');
+  const inTok = used.input;
+  const outTok = used.output;
 
   const drafts = toDrafts(proposed, cands, today);
   return {
