@@ -154,7 +154,7 @@ function Dashboard() {
           </div>
         )}
 
-        <main id="main" className="min-w-0 flex-1 p-4 sm:p-6 lg:p-10">
+        <main id="main" className="relative min-w-0 flex-1 overflow-x-clip p-4 sm:p-6 lg:p-10">
           <header className="mb-6 flex flex-col justify-between gap-4 border-b border-[var(--color-border)] pb-5 sm:mb-8 sm:pb-6 md:flex-row md:items-center md:gap-6">
             <div className="flex min-w-0 items-center gap-3">
               <button

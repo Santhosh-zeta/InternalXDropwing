@@ -86,7 +86,7 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
         <div
           role="group"
           aria-label="Report section"
-          className="flex gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-1.5"
+          className="flex max-w-full flex-wrap gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-1.5"
         >
           {TABS.map(t => (
             <button
