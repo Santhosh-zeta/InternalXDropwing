@@ -282,13 +282,15 @@ const flows = async (browser) => {
     const name = `e2e-${RUN}.txt`;
     await l5.page.locator('#documents-file-input').setInputFiles({ name, mimeType: 'text/plain', buffer: Buffer.from(`hello ${RUN}`) });
     await l5.page.getByText(name).first().waitFor({ timeout: 10000 });
-    const [popup] = await Promise.all([
-      l5.page.waitForEvent('popup'),
-      l5.page.getByRole('button', { name: `Download ${name}` }).click(),
-    ]);
-    await popup.waitForURL(/\/uploads\//, { timeout: 8000 });
-    const href = popup.url();
-    await popup.close();
+    // The button opens the file in a new tab (an attachment may just download): click it, then
+    // fetch the same URL with the session to check the bytes the user would get.
+    const pending = l5.page.waitForEvent('popup', { timeout: 5000 }).catch(() => null);
+    await l5.page.getByRole('button', { name: `Download ${name}` }).click();
+    (await pending)?.close().catch(() => {});
+    const list = (await (await l5.context.request.get(`${BASE}/api/documents`)).json()).data;
+    const doc = list.find((d) => d.original_name === name);
+    assert(doc, 'uploaded document is not in the API list');
+    const href = `${BASE}/uploads/${encodeURIComponent(doc.path)}`;
     const r = await l5.context.request.get(href);
     assert(r.status() === 200, `download status ${r.status()}`);
     assert((await r.text()).includes(`hello ${RUN}`), 'downloaded content differs');

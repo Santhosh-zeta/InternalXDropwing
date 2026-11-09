@@ -62,7 +62,7 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
         <div
           role="group"
           aria-label="HR report section"
-          className="flex gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-1.5"
+          className="flex max-w-full flex-wrap gap-2 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-1.5"
         >
           {TABS.map(t => (
             <button

@@ -45,7 +45,7 @@ export default function SettingsView({ currentUser }: { currentUser: User }) {
         <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">Manage your profile, password and notifications.</p>
       </div>
 
-      <div role="tablist" aria-label="Settings sections" className="flex gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-1.5">
+      <div role="tablist" aria-label="Settings sections" className="flex flex-wrap gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-1.5">
         {TABS.map((tab, i) => {
           const selected = activeTab === tab.id;
           return (
@@ -60,7 +60,7 @@ export default function SettingsView({ currentUser }: { currentUser: User }) {
               tabIndex={selected ? 0 : -1}
               onKeyDown={(e) => handleTabKeyDown(e, i)}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-5 py-2.5 text-[13px] font-bold transition-all ${
+              className={`flex min-w-[8rem] flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 sm:px-5 text-[13px] font-bold transition-all ${
                 selected
                   ? 'border-[var(--color-border)] bg-[var(--color-bg-card)] text-[var(--color-purple-glow)] shadow-sm'
                   : 'border-transparent text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]'

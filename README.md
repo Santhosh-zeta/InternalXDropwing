@@ -135,7 +135,8 @@ BASE_URL=http://localhost:5000 SERVER_LOG=/tmp/internalx.log DEMO_PASSWORD=... n
 It signs in (password + the code read from the server log) as L1, L3, L5, L7 and L9, opens every menu view at 1440 px
 and 390 px (no console errors, failed requests or horizontal overflow), and exercises tasks, hours, approval, chat
 isolation between ventures, documents, invite + accept, search, the assistant, notifications and logout.
-Screenshots go to `./e2e-shots`. Exit code 0 only if every check passed.
+Screenshots go to `./e2e-shots`. Exit code 0 only if every check passed. Sign-in is limited to 8 attempts per account per
+15 minutes, so restart the server before running it a second time within that window.
 
 **Mobile:** `cd mobile && flutter pub get && flutter run --dart-define=API_URL=http://10.0.2.2:5000/api`
 
