@@ -79,7 +79,7 @@ router.get('/hr', async (req, res) => {
       perfQuery += ` AND u.venture_id = $1`;
       perfParams.push(ventureId);
     }
-    perfQuery += ` GROUP BY u.id ORDER BY completed_tasks DESC LIMIT 15`;
+    perfQuery += ` GROUP BY u.id, v.id ORDER BY completed_tasks DESC LIMIT 15`;
     const [perfRows] = await pool.query(perfQuery, perfParams);
 
     // Timesheets summary — avg hours per week
@@ -152,7 +152,7 @@ router.get('/department', async (req, res) => {
       query += ` AND u.venture_id = $1`;
       params.push(ventureId);
     }
-    query += ` GROUP BY u.department, u.venture_id ORDER BY kpi_score DESC LIMIT 30`;
+    query += ` GROUP BY u.department, u.venture_id, v.id ORDER BY kpi_score DESC LIMIT 30`;
 
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });
