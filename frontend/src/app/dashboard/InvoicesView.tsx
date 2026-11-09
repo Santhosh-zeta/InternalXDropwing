@@ -44,7 +44,9 @@ interface InvoiceDetails {
   items: InvoiceItem[];
   total_hours: number;
   total_amount: number;
-  billing_rate: number;
+  billing_rate: number | null;
+  unrated_hours?: number;
+  rate_missing?: boolean;
   issue_date: string;
   due_date: string;
 }
@@ -232,7 +234,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
           <div className="flex justify-end">
             <div className="w-full max-w-[300px]">
               <div className="flex justify-between gap-4 border-b border-gray-100 py-3">
-                <span className="text-base text-gray-500">Subtotal ({selectedInvoice.total_hours} hrs @ ${selectedInvoice.billing_rate}/hr)</span>
+                <span className="text-base text-gray-500">Subtotal ({selectedInvoice.total_hours} hrs{selectedInvoice.billing_rate != null ? ` @ $${selectedInvoice.billing_rate}/hr` : ''}{selectedInvoice.rate_missing ? `, ${selectedInvoice.unrated_hours} hrs have no rate set` : ''})</span>
                 <span className="text-base font-semibold text-gray-900">{formatCurrency(selectedInvoice.total_amount)}</span>
               </div>
               <div className="flex items-center justify-between gap-4 border-b-2 border-gray-200 py-4">
