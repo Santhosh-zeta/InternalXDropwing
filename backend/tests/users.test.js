@@ -103,7 +103,7 @@ describe('ceilings (HTTP)', () => {
     await createUser({ level: 7, ventureId: 2 });
     const md = await as(2);
     const own = await api().get('/api/team-members').set(staff.headers);
-    expect(own.body.data.every((u) => u.venture_id === 1)).toBe(true);
+    expect(own.body.data.every((u) => u.venture_id === 1 || u.access_level <= 2)).toBe(true); // own venture + global leadership
     const all = await api().get('/api/team-members').set(md.headers);
     expect(all.body.data.length).toBeGreaterThanOrEqual(3);
   });
