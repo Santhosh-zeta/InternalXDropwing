@@ -27,6 +27,7 @@ import StrategyView from './StrategyView';
 import CalendarView from './CalendarView';
 import ApprovalsView from './ApprovalsView';
 import { SocketProvider } from '@/components/SocketProvider';
+import SearchPalette from '@/components/search/SearchPalette';
 
 import {
   Hexagon, LayoutDashboard, FolderKanban, CheckSquare, Users,
@@ -356,6 +357,7 @@ export default function DashboardPage() {
   return (
     <SocketProvider user={user}>
       <div className="min-h-screen flex bg-[var(--color-bg-primary)] font-sans text-[var(--color-text-primary)]">
+        <SearchPalette menus={menus} onNavigate={selectMenu} />
 
         {/* Sidebar — persistent rail from `lg` up */}
         <aside className="hidden lg:flex w-[260px] shrink-0 flex-col border-r border-[var(--color-border)] sticky top-0 h-screen bg-[var(--color-bg-secondary)] overflow-y-auto">
