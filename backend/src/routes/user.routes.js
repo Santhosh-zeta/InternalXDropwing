@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { authenticate, requireLevel } = require('../middleware/auth.middleware');
+const { authenticate } = require('../middleware/auth.middleware');
 const { logAudit } = require('../services/audit.service');
 const bcrypt = require('bcryptjs');
 const { issueInvite } = require('../services/invite.service');
 const crypto = require('crypto');
 const { canManageUser } = require('../utils/canManageUser');
-const { withScope, internalOnly, taskWhere } = require('../utils/scope');
+const { withScope, atLeast, internalOnly, taskWhere } = require('../utils/scope');
 const { avatarUpload, handleUploadErrors, verifyUploadContent } = require('../middleware/upload.middleware');
 const { uploadLimiter } = require('../middleware/rateLimit.middleware');
 const { revokeAllSessionsForUser, createSession } = require('../services/session.service');
@@ -21,11 +21,11 @@ const {
 } = require('../middleware/validate.middleware');
 
 // GET /api/users — List users based on access level
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, withScope, async (req, res) => {
   try {
     // ?pending=true: self-registered accounts waiting for approval (L1/L2 only; they have no venture yet).
     const wantPending = req.query.pending === 'true';
-    if (wantPending && req.user.accessLevel > 2) return res.json({ success: true, data: [] });
+    if (wantPending && req.scope.level > 2) return res.json({ success: true, data: [] });
     let query = `
       SELECT u.id, u.employee_id, u.full_name, u.email, u.phone, u.access_level, u.department,
              u.designation, u.is_active, u.pending_approval, u.last_login, u.created_at,
@@ -38,15 +38,15 @@ router.get('/', authenticate, async (req, res) => {
     const params = [];
 
     // Clients never see the staff directory.
-    if (req.user.accessLevel >= 9) return res.json({ success: true, data: [] });
+    if (req.scope.isClient) return res.json({ success: true, data: [] });
 
     // Levels 1-2 see everyone. Everyone else sees their own venture plus the global
     // leadership (L1/L2, the same people they may DM); never another venture's people.
     // Venture staff (L6-L8) also never see clients (L9): only L3-L5 manage those.
-    if (req.user.accessLevel > 2) {
+    if (!req.scope.global) {
       query += ` AND (u.venture_id = ? OR u.access_level <= 2)`;
-      params.push(req.user.ventureId);
-      if (req.user.accessLevel > 5) query += ` AND u.access_level < 9`;
+      params.push(req.scope.ventureId);
+      if (req.scope.level > 5) query += ` AND u.access_level < 9`;
     }
 
     if (req.query.search) {
@@ -303,7 +303,7 @@ const lockTarget = async (conn, userId) => {
 };
 
 // PUT /api/team-members/:id — Update a user
-router.put('/:id', authenticate, requireLevel(3), updateUserRules, async (req, res) => {
+router.put('/:id', authenticate, withScope, atLeast(3), updateUserRules, async (req, res) => {
   const userId = parseInt(req.params.id, 10);
   const { access_level, venture_id, is_active, full_name, department, designation, phone } = req.body;
   const patch = {
@@ -392,7 +392,7 @@ router.put('/:id', authenticate, requireLevel(3), updateUserRules, async (req, r
 });
 
 // DELETE /api/team-members/:id — Delete a user
-router.delete('/:id', authenticate, requireLevel(3), userIdRules, async (req, res) => {
+router.delete('/:id', authenticate, withScope, atLeast(3), userIdRules, async (req, res) => {
   const userId = parseInt(req.params.id, 10);
   const patch = { action: 'delete' };
 
@@ -436,7 +436,7 @@ router.delete('/:id', authenticate, requireLevel(3), userIdRules, async (req, re
 // POST /api/team-members — Invite a new user.
 // No password is chosen or shown: the user gets a 72 h set-password link by email.
 // Without SMTP the one-time link is returned here for the admin to pass on.
-router.post('/', authenticate, requireLevel(3), createUserRules, async (req, res) => {
+router.post('/', authenticate, withScope, atLeast(3), createUserRules, async (req, res) => {
   try {
     const { full_name, department, designation } = req.body;
     const email = String(req.body.email || '').toLowerCase().trim();
@@ -489,7 +489,7 @@ router.post('/', authenticate, requireLevel(3), createUserRules, async (req, res
 
 // POST /api/team-members/:id/invite — issue a fresh invite link (lost email / expired link).
 // Only for accounts that never signed in: this must not become a way to take over a live account.
-router.post('/:id/invite', authenticate, requireLevel(3), userIdRules, async (req, res) => {
+router.post('/:id/invite', authenticate, withScope, atLeast(3), userIdRules, async (req, res) => {
   try {
     const userId = parseInt(req.params.id, 10);
     const actor = await freshActor(pool, req.user);
