@@ -260,5 +260,109 @@ export const getStrategyData = async () => {
   return res.data;
 };
 
+// Search (Ctrl/Cmd+K palette) — scoped server-side
+export type SearchHitType = 'project' | 'task' | 'document' | 'announcement' | 'user' | 'message';
+export interface SearchHit { type: SearchHitType; id: number; title: string; subtitle: string; link: string }
+
+export const searchAll = async (q: string): Promise<SearchHit[]> => {
+  const res = await api.get('/search', { params: { q } });
+  const groups: Record<string, SearchHit[]> = res.data?.data?.groups || {};
+  return Object.values(groups).flat();
+};
+
+// Ask InternalX (assistant)
+export interface AssistantStatus {
+  configured: boolean;
+  setupHint: string | null;
+  suggestions: string[];
+  limits: { dailyMessages: number; dailyTokens: number };
+}
+export interface AssistantConversation { id: number; title: string; updated_at: string }
+export interface AssistantStoredMessage { id: number; role: 'user' | 'assistant'; text: string; tools: string[]; created_at: string }
+export type AssistantEvent =
+  | { type: 'conversation'; id: number; title: string }
+  | { type: 'text'; delta: string }
+  | { type: 'tool'; id: string; name: string; label: string; state: 'running' | 'done' | 'error' }
+  | { type: 'notice'; message: string }
+  | { type: 'error'; message: string }
+  | { type: 'done'; usage: { input_tokens: number; output_tokens: number }; stop_reason: string | null };
+
+export const getAssistantStatus = async (): Promise<AssistantStatus> => (await api.get('/assistant/status')).data.data;
+export const getAssistantConversations = async (): Promise<AssistantConversation[]> => (await api.get('/assistant/conversations')).data.data;
+export const getAssistantConversation = async (id: number): Promise<AssistantConversation & { messages: AssistantStoredMessage[] }> =>
+  (await api.get(`/assistant/conversations/${id}`)).data.data;
+export const deleteAssistantConversation = async (id: number) => (await api.delete(`/assistant/conversations/${id}`)).data;
+
+/**
+ * POST /assistant/chat answers with Server-Sent Events. axios cannot stream in the
+ * browser, so this uses fetch with the same cookie credentials. Resolves when the
+ * stream ends; throws an Error (with `.code`) when the request is refused up front.
+ */
+export const streamAssistantChat = async (
+  body: { message: string; conversationId?: number | null },
+  onEvent: (e: AssistantEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> => {
+  const res = await fetch(`${api.defaults.baseURL}/assistant/chat`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    let info: { message?: string; code?: string } = {};
+    try { info = await res.json(); } catch { /* not JSON */ }
+    if (res.status === 401 && typeof window !== 'undefined') window.location.href = '/login';
+    throw Object.assign(new Error(info.message || 'The assistant is unavailable right now.'), { code: info.code });
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let cut = buffer.indexOf('\n\n');
+    while (cut !== -1) {
+      const chunk = buffer.slice(0, cut);
+      buffer = buffer.slice(cut + 2);
+      if (chunk.startsWith('data: ')) {
+        try { onEvent(JSON.parse(chunk.slice(6)) as AssistantEvent); } catch { /* ignore a malformed frame */ }
+      }
+      cut = buffer.indexOf('\n\n');
+    }
+  }
+};
+
+// Meeting notes -> draft tasks (managers). Nothing is created until the second call.
+export interface NoteDraft {
+  title: string;
+  description: string | null;
+  assignee: { id: number; name: string } | null;
+  assignee_candidates: { id: number; name: string }[];
+  project: { id: number; name: string } | null;
+  due_date: string | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent' | null;
+  warnings: string[];
+}
+export interface NotesProposal {
+  drafts: NoteDraft[];
+  people: { id: number; name: string }[];
+  projects: { id: number; name: string }[];
+}
+export interface ConfirmedTask {
+  title: string;
+  assigned_to: number;
+  project_id?: number | null;
+  due_date?: string | null;
+  priority?: string | null;
+  description?: string | null;
+}
+export const proposeTasksFromNotes = async (notes: string): Promise<NotesProposal> =>
+  (await api.post('/assistant/notes/propose', { notes })).data.data;
+export const createTasksFromNotes = async (tasks: ConfirmedTask[]): Promise<{ created: number; failed: number; results: { index: number; ok: boolean; id?: number; error?: string }[] }> =>
+  (await api.post('/assistant/notes/create', { tasks })).data.data;
+
 export default api;
 

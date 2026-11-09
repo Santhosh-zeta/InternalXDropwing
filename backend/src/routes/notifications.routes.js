@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { authenticate } = require('../middleware/auth.middleware');
 const { toId } = require('../utils/scope');
+const { normalizePrefs } = require('../services/digest');
 
 // GET /api/notifications — Fetch all notifications for current user
 router.get('/', authenticate, async (req, res) => {
@@ -17,6 +18,51 @@ router.get('/', authenticate, async (req, res) => {
     );
     const unreadCount = rows.filter(r => !r.is_read).length;
     res.json({ success: true, data: rows, unreadCount });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// GET /api/notifications/preferences — weekly digest / alert / email opt-outs
+router.get('/preferences', authenticate, async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT notification_preferences, access_level FROM users WHERE id = ?', [req.user.id]);
+    if (!rows[0]) return res.status(401).json({ success: false, message: 'Account not found' });
+    const level = rows[0].access_level;
+    res.json({
+      success: true,
+      data: {
+        ...normalizePrefs(rows[0].notification_preferences),
+        // What applies to this account: clients get no digest, only levels 1-5 get alerts.
+        digestAvailable: level < 9,
+        alertsAvailable: level <= 5,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// PUT /api/notifications/preferences — body: any of { digest, alerts, email } as booleans (merged, other keys untouched)
+router.put('/preferences', authenticate, async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const changes = {};
+    for (const key of ['digest', 'alerts', 'email']) {
+      if (body[key] === undefined) continue;
+      if (typeof body[key] !== 'boolean') return res.status(400).json({ success: false, message: `${key} must be true or false` });
+      changes[key] = body[key];
+    }
+    if (Object.keys(changes).length === 0) return res.status(400).json({ success: false, message: 'Nothing to update' });
+    const [rows] = await pool.query('SELECT notification_preferences FROM users WHERE id = ?', [req.user.id]);
+    if (!rows[0]) return res.status(401).json({ success: false, message: 'Account not found' });
+    let stored = rows[0].notification_preferences;
+    if (typeof stored === 'string') { try { stored = JSON.parse(stored); } catch { stored = {}; } }
+    const merged = { ...(stored && typeof stored === 'object' ? stored : {}), ...changes };
+    await pool.query('UPDATE users SET notification_preferences = ?::jsonb WHERE id = ?', [JSON.stringify(merged), req.user.id]);
+    res.json({ success: true, data: normalizePrefs(merged) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });

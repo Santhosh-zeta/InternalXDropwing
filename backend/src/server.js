@@ -175,6 +175,8 @@ app.use('/api/kpis', require('./routes/kpis.routes'));
 app.use('/api/client-portal', require('./routes/client_portal.routes'));
 app.use('/api/learning', require('./routes/learning.routes'));
 app.use('/api/strategy', require('./routes/strategy.routes'));
+app.use('/api/search', require('./routes/search.routes'));
+app.use('/api/assistant', require('./routes/assistant.routes'));
 app.use('/api/team-members', require('./routes/team_rate.routes')); // PUT /:id/rate
 
 // Serve uploads directory
@@ -413,6 +415,7 @@ const startServer = async () => {
   // Sweeps rows past their expires_at hourly — see session.service.js. Timer
   // is unref()'d there so it never blocks process shutdown.
   startSessionCleanup();
+  require('./services/scheduler').startScheduler(); // no-op unless ENABLE_SCHEDULER=true
 
   // Proxies (and Cloudflare) idle out at 60s; keep ours longer so they never reuse a closed socket.
   server.keepAliveTimeout = 65_000;

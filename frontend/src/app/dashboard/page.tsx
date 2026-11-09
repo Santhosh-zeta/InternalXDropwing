@@ -27,6 +27,9 @@ import StrategyView from './StrategyView';
 import CalendarView from './CalendarView';
 import ApprovalsView from './ApprovalsView';
 import { SocketProvider } from '@/components/SocketProvider';
+import SearchPalette from '@/components/search/SearchPalette';
+import AssistantLauncher from '@/components/assistant/AssistantLauncher';
+import AssistantView from './AssistantView';
 
 import {
   Hexagon, LayoutDashboard, FolderKanban, CheckSquare, Users,
@@ -34,7 +37,7 @@ import {
   FileText, BarChart3, TrendingUp, DollarSign,
   PieChart, Briefcase, FileSignature, LogOut, Search,
   User as UserIcon, Building2, Crown, Lock, Menu, X,
-  CalendarDays, ClipboardCheck
+  CalendarDays, ClipboardCheck, Sparkles
 } from 'lucide-react';
 
 const LEVEL_COLORS: Record<number, string> = {
@@ -44,14 +47,14 @@ const LEVEL_COLORS: Record<number, string> = {
 };
 
 const ACCESS_MENUS: Record<number, string[]> = {
-  1: ['System Overview', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'User Management', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Reports'],
-  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Strategy', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
-  3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
-  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
-  5: ['Team Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Members', 'Team Chat', 'Learning Hub', 'Settings', 'Reports'],
-  6: ['My Projects', 'Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
-  7: ['My Dashboard', 'My Projects', 'My Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
-  8: ['My Dashboard', 'My Projects', 'My Tasks', 'Calendar', 'Documents', 'Learning Hub', 'Team Chat', 'Settings'],
+  1: ['System Overview', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'User Management', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Ask InternalX', 'Settings', 'Invoices', 'Reports'],
+  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Strategy', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Ask InternalX', 'Settings', 'Reports'],
+  3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Chat', 'Learning Hub', 'Invoices', 'Ask InternalX', 'Settings', 'Reports'],
+  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Management', 'Team Chat', 'Learning Hub', 'Ask InternalX', 'Settings', 'Budget', 'Reports'],
+  5: ['Team Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Members', 'Team Chat', 'Learning Hub', 'Ask InternalX', 'Settings', 'Reports'],
+  6: ['My Projects', 'Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Ask InternalX', 'Settings'],
+  7: ['My Dashboard', 'My Projects', 'My Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Ask InternalX', 'Settings'],
+  8: ['My Dashboard', 'My Projects', 'My Tasks', 'Calendar', 'Documents', 'Learning Hub', 'Team Chat', 'Ask InternalX', 'Settings'],
   9: ['Project Status', 'My Tasks', 'Documents', 'Deliverables', 'Invoices', 'Messages', 'Settings'],
 };
 
@@ -95,7 +98,8 @@ const MENU_ICONS: Record<string, React.ElementType> = {
   'Department KPIs': PieChart,
   'Timesheets': Briefcase,
   'Calendar': CalendarDays,
-  'Approvals': ClipboardCheck
+  'Approvals': ClipboardCheck,
+  'Ask InternalX': Sparkles,
 };
 
 export default function DashboardPage() {
@@ -356,6 +360,12 @@ export default function DashboardPage() {
   return (
     <SocketProvider user={user}>
       <div className="min-h-screen flex bg-[var(--color-bg-primary)] font-sans text-[var(--color-text-primary)]">
+        <SearchPalette menus={menus} onNavigate={selectMenu} />
+        <AssistantLauncher
+          accessLevel={user.accessLevel}
+          hidden={currentMenu === 'Ask InternalX'}
+          onOpenFull={menus.includes('Ask InternalX') ? () => selectMenu(menus.indexOf('Ask InternalX')) : undefined}
+        />
 
         {/* Sidebar — persistent rail from `lg` up */}
         <aside className="hidden lg:flex w-[260px] shrink-0 flex-col border-r border-[var(--color-border)] sticky top-0 h-screen bg-[var(--color-bg-secondary)] overflow-y-auto">
@@ -608,6 +618,8 @@ export default function DashboardPage() {
               <DepartmentKPIsView currentUser={user} />
             ) : currentMenu === 'Invoices' ? (
               <InvoicesView currentUser={user} />
+            ) : currentMenu === 'Ask InternalX' ? (
+              <AssistantView currentUser={user} />
             ) : currentMenu === 'Settings' ? (
               <SettingsView currentUser={user} />
             ) : currentMenu === 'Reports' ? (
