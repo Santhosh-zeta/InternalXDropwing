@@ -1,3 +1,5 @@
+import 'package:mobile/core/config/app_config.dart';
+
 class DocumentModel {
   final int id;
   final String originalName;
@@ -42,7 +44,7 @@ class DocumentModel {
   }
 
   String get fileUrl =>
-      'https://internalx.dropwinggroups.com${filePath.startsWith('/') ? filePath : '/$filePath'}';
+      '${AppConfig.originUrl}${filePath.startsWith('/') ? filePath : '/$filePath'}';
 
   String get extension {
     final parts = originalName.split('.');

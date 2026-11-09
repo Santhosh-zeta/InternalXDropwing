@@ -98,10 +98,20 @@ Stated plainly, because a security policy that only lists wins isn't useful:
   `script-src`.
 - **Validation is hand-written per route**, not schema-driven — thorough where it exists, but a
   new endpoint has to remember to add its own rules; nothing enforces that structurally.
-- **No automated security testing** in CI yet — see the roadmap in the README.
+- **Security testing is test-suite based.** CI runs the cross-venture access matrix, a sweep that fails if any GET
+  route returns password hashes or tokens, `npm audit --omit=dev`, and a credential-shaped-string scan. There is no
+  dynamic scanner (DAST) or fuzzing yet.
 - **Session revocation fails open** if the `sessions` table itself becomes unreachable (logged
   loudly rather than taking the app down for an operator's migration gap) — see
   `session.service.js` for the reasoning.
+
+## If you ran an older version
+
+Versions before the hardening release seeded two privileged accounts (`sa@` and `md@dropwinggroups.com`) that shared
+one bcrypt hash which is still visible in this repository's git history, and the web app's test accounts used
+`Test@1234`. If you ever deployed one of those versions, **deactivate those accounts and rotate every password and
+`JWT_SECRET`**. Current versions seed no users: the first Super Admin is created from `BOOTSTRAP_ADMIN_EMAIL` /
+`BOOTSTRAP_ADMIN_PASSWORD` or `npm run create-admin`.
 
 ## Secret hygiene in this repository
 

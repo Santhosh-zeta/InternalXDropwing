@@ -1,3 +1,4 @@
+import 'package:mobile/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -642,7 +643,7 @@ class _ClientPortalScreenState extends ConsumerState<ClientPortalScreen> with Si
                   onPressed: () async {
                     final url = invoice.pdfUrl!.startsWith('http')
                         ? invoice.pdfUrl!
-                        : 'https://internalx.dropwinggroups.com${invoice.pdfUrl}';
+                        : '${AppConfig.originUrl}${invoice.pdfUrl}';
                     if (await canLaunchUrl(Uri.parse(url))) {
                       await launchUrl(Uri.parse(url));
                     }

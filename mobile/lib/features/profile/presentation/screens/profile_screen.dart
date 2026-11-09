@@ -1,3 +1,4 @@
+import 'package:mobile/core/config/app_config.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
@@ -44,7 +45,7 @@ class ProfileScreen extends ConsumerWidget {
                             backgroundImage: user.avatarUrl != null && user.avatarUrl!.isNotEmpty
                                 ? NetworkImage(user.avatarUrl!.startsWith('http')
                                     ? user.avatarUrl!
-                                    : 'https://internalx.dropwinggroups.com${user.avatarUrl ?? ''}')
+                                    : '${AppConfig.originUrl}${user.avatarUrl ?? ''}')
                                 : null,
                             child: user.avatarUrl == null || user.avatarUrl!.isEmpty
                                 ? Text(
