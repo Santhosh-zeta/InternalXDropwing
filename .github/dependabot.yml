@@ -25,6 +25,17 @@ updates:
     ignore:
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
+      # These need a newer Flutter SDK than the pinned 3.35.5 or code migrations
+      # (Riverpod 3, Freezed 4). Tracked in the "Upgrade Flutter" issue.
+      - dependency-name: url_launcher
+      - dependency-name: flutter_riverpod
+      - dependency-name: riverpod_annotation
+      - dependency-name: riverpod_generator
+      - dependency-name: freezed
+      - dependency-name: freezed_annotation
+      - dependency-name: json_serializable
+      - dependency-name: json_annotation
+      - dependency-name: build_runner
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }
