@@ -85,7 +85,7 @@ const makeClientWrapper = (client) => {
           return [resultSetHeader, result.fields];
         }
       } catch (err) {
-        console.error('Query execution error:', err.message, 'Query:', pgText, 'Values:', pgValues);
+        console.error('Query execution error:', err.message, 'Query:', pgText);
         throw err;
       }
     },
@@ -121,7 +121,7 @@ const poolWrapper = {
         return [resultSetHeader, result.fields];
       }
     } catch (err) {
-      console.error('Query execution error:', err.message, 'Query:', pgText, 'Values:', pgValues);
+      console.error('Query execution error:', err.message, 'Query:', pgText);
       throw err;
     }
   },
