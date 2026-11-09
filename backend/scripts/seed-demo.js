@@ -42,7 +42,7 @@ const seedDemo = async (pool, { password, quiet = true } = {}) => {
 
   // ── clean up a previous run (children cascade from users / projects) ──
   await q("DELETE FROM tasks WHERE title LIKE $1", [`${TAG}%`]);
-  await q("DELETE FROM projects WHERE name LIKE $1", [`${TAG}%`]);
+  await q("DELETE FROM projects WHERE name LIKE $1 OR created_by IN (SELECT id FROM users WHERE email LIKE $2)", [`${TAG}%`, `%@${DOMAIN}`]);
   await q("DELETE FROM documents WHERE original_name LIKE $1", [`${TAG}%`]);
   await q("DELETE FROM users WHERE email LIKE $1", [`%@${DOMAIN}`]);
   await q("DELETE FROM okrs WHERE objective LIKE $1", [`${TAG}%`]);
