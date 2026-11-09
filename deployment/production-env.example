@@ -1,0 +1,53 @@
+# Production environment for docker-compose.yml.  Copy to ./.env (git-ignored) and fill in.
+# Every CHANGE_ME must be replaced; compose refuses to start with the required ones empty.
+# Full reference: docs/production-checklist.md
+
+# ── Required ────────────────────────────────────────────────
+# Public https origin of the app (no trailing slash). Used in invite/reset emails, CORS and the web bundle.
+PUBLIC_URL=https://internalx.example.com
+
+# Database password. Generate: openssl rand -base64 24 | tr -d '/+='
+POSTGRES_PASSWORD=CHANGE_ME_db_password
+
+# Signing key for sessions. Generate: openssl rand -base64 48 | tr -d '/+='
+JWT_SECRET=CHANGE_ME_long_random_jwt_secret
+
+# ── First boot only ─────────────────────────────────────────
+# Creates the first Super Admin when none exists. Password: 12+ chars, mixed classes.
+# REMOVE BOOTSTRAP_ADMIN_PASSWORD from this file after the first successful sign-in.
+BOOTSTRAP_ADMIN_EMAIL=
+BOOTSTRAP_ADMIN_PASSWORD=
+
+# ── Behind your reverse proxy ───────────────────────────────
+# Number of proxies in front of the app (Caddy/nginx/Cloudflare Tunnel = 1). Wrong values break
+# client IPs and rate limiting: 0 only if the app is exposed directly.
+TRUST_PROXY=1
+# Set false ONLY for a plain-http LAN install (production cookies are Secure by default).
+# COOKIE_SECURE=false
+
+# ── Accounts ────────────────────────────────────────────────
+# Invite-only by default. true = /api/auth/register creates PENDING accounts an admin must approve.
+ALLOW_SELF_REGISTRATION=false
+# Email domains allowed for self-registration and Google sign-in.
+ALLOWED_EMAIL_DOMAINS=example.com
+
+# ── Email (invites, OTP codes, password resets) ─────────────
+# Without SMTP, sign-in codes and invite emails cannot be delivered. Configure it before launch.
+SMTP_HOST=
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_USER=
+SMTP_PASS=
+
+# ── Optional ────────────────────────────────────────────────
+# Google sign-in (client id also baked into the web bundle at build time)
+GOOGLE_CLIENT_ID=
+# Extra browser origins for CORS (comma list). Not needed when app and API share PUBLIC_URL.
+# CORS_ORIGINS=
+# Log verbosity: trace|debug|info|warn|error
+LOG_LEVEL=info
+# Apply pending SQL migrations at boot (recommended). false = run `npm run migrate` yourself.
+AUTO_MIGRATE=true
+# Host port the app is published on (127.0.0.1 only)
+APP_PORT=5000
+JWT_EXPIRES_IN=8h

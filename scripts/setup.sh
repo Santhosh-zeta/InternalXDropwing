@@ -104,7 +104,7 @@ step "Starting PostgreSQL"
 # ─────────────────────────────────────────────────────────────
   case "$DB_MODE" in
     compose|compose-legacy)
-      DC="docker compose"; [ "$DB_MODE" = "compose-legacy" ] && DC="docker-compose"
+      DC="docker compose -f docker-compose.dev.yml"; [ "$DB_MODE" = "compose-legacy" ] && DC="docker-compose -f docker-compose.dev.yml"
 
       if [ "$RESET_DB" -eq 1 ]; then
         warn "--reset given: destroying the existing database volume"
@@ -197,8 +197,8 @@ cat <<'EOF'
     cd mobile && flutter run --dart-define=API_URL=http://10.0.2.2:5000/api
 
   Useful:
-    docker compose logs -f postgres      database logs
-    docker compose down                  stop the database (data is kept)
+    docker compose -f docker-compose.dev.yml logs -f postgres      database logs
+    docker compose -f docker-compose.dev.yml down                  stop the database (data is kept)
     ./scripts/setup.sh --reset           wipe the database and start over
 
 EOF

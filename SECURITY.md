@@ -46,15 +46,20 @@ Before you expose an instance to a network:
    Super Admin comes from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (first boot only —
    remove the password afterwards) or `npm run create-admin`.
 
-4. **Set `NODE_ENV=production`.** It switches cookies to `secure`, enables the HTTPS redirect, and
-   strips the demo quick-login accounts out of the web bundle.
+4. **Set `NODE_ENV=production`.** It makes the session cookie `Secure`, enables the HTTPS redirect, turns on
+   the startup configuration checks, and strips the demo quick-login accounts out of the web bundle.
 
 5. **Terminate TLS in front of the app** and keep the database off the public internet. The
-   Cloudflare Tunnel setup in [`deployment/cloudflare/`](deployment/cloudflare/) does both without
-   opening an inbound port.
+   production compose file publishes the app on loopback only and does not publish the database at
+   all; put Caddy/nginx or a Cloudflare Tunnel ([`deployment/cloudflare/`](deployment/cloudflare/))
+   in front and set `TRUST_PROXY=1`.
 
-6. **Back up `backend/uploads/`** — user-uploaded documents live on disk, not in the database, and
-   are not covered by a database dump.
+6. **Back up the `uploads` volume** as well as the database: user-uploaded documents live on disk, not
+   in the database, and are not covered by a database dump. See
+   [`docs/production-checklist.md`](docs/production-checklist.md).
+
+7. **Registration is invite-only by default.** Leave `ALLOW_SELF_REGISTRATION` unset or `false`; if you
+   enable it, new accounts are created inactive and need admin approval.
 
 ## What's implemented
 
@@ -68,12 +73,12 @@ Before you expose an instance to a network:
 | Venture scoping applied in SQL, not in the UI | every controller |
 | **The session token is never held in client-side JavaScript.** The web app relies solely on the `httpOnly` cookie the server sets — nothing in `localStorage`, nothing in a JS-writable cookie — so an XSS bug has nothing to exfiltrate. The current, server-verified user (not a client-cached copy) is what every view in the dashboard reads its own access level from. | `frontend/src/lib/api.ts`, `frontend/src/components/{RequireAuth,AuthUserContext}.tsx` |
 | Socket.IO handshake authentication — accepts `auth.token` (mobile), an `Authorization` header, or the `httpOnly` cookie parsed off the raw handshake (web); revocation-checked the same way as REST | `backend/src/server.js` |
-| Upload MIME/extension allowlist (blocks a disguised executable) plus authenticated, venture-scoped document downloads in place of a fully public `/uploads` | `backend/src/middleware/upload.middleware.js`, `backend/src/routes/uploads.routes.js` |
+| Upload allowlist checked by extension, declared type and magic bytes (HTML, SVG and executables refused even when renamed) plus authenticated, venture-scoped document downloads in place of a fully public `/uploads` | `backend/src/middleware/upload.middleware.js`, `backend/src/routes/uploads.routes.js` |
 | Parameterised queries throughout — no ORM, no string-built SQL | `backend/src/config/database.pg.js` |
 | Rate limiting across the whole API, with tighter limits on uploads and reporting endpoints, and a per-mailbox limit on OTP/reset email, keyed on the verified user id where available | `backend/src/middleware/rateLimit.middleware.js` |
 | Request validation on every mutating endpoint (not just auth) | `backend/src/middleware/validate.middleware.js` |
 | A real Content-Security-Policy (documented exceptions below) | `helmet` config in `server.js` |
-| CORS allowlist — single origin, credentials on | `server.js` |
+| CORS allowlist from `CORS_ORIGINS` / `FRONTEND_URL`, credentials on; `TRUST_PROXY`, `COOKIE_SECURE` configurable | `server.js`, `config/env.js` |
 | Forced HTTPS in production | `server.js` |
 | Audit logging of privileged mutations | `backend/src/services/audit.service.js` |
 | Demo credentials excluded from production builds | `frontend/src/lib/constants.ts` |

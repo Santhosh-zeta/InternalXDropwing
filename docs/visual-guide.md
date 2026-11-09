@@ -1,5 +1,7 @@
 # 📸 InternalX — Visual Documentation & UI Wireframes
 
+> **Status note.** The screenshots below predate the Dayline theme and the current access model; layouts and colours have changed. For who can see what today, read [data-isolation.md](data-isolation.md).
+
 Welcome to the definitive visual guide for **InternalX**. This document serves as the official product manual, detailing the role-specific dashboards, workflows, and the underlying React components that power them.
 
 Our design philosophy embraces **Glassmorphism**, a **Premium Dark Theme**, and **Venture-Aware Accents** to provide an enterprise-grade experience.
