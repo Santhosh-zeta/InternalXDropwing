@@ -46,11 +46,19 @@ their own venture).
 
 ## Migrations
 
-`npm run migrate` applies `backend/migrations/NNNN_*.sql` once each
-(`schema_migrations` table). `deployment/postgres/init/01_schema.sql` is the
-0001 baseline and already contains the 0002 columns, so migrations are
-idempotent on fresh and existing databases. Existing deployments: run
-`npm run migrate` after pulling.
+One place: `backend/migrations/NNNN_name.sql` (numbered, idempotent). The runner
+(`src/migrate.js`) applies pending files in order, one transaction per file,
+under a Postgres advisory lock, and records name + SHA-256 checksum in
+`schema_migrations`. Editing an already-applied file is refused; add a new one.
+
+- The server applies pending migrations at boot. `AUTO_MIGRATE=false` opts out
+  (then run `npm run migrate`). A failed migration aborts the boot.
+- `0001_baseline.sql` builds the whole schema from an empty database, so an empty
+  DB + the server is a complete install. `deployment/postgres/init/*.sql` is the
+  same schema at head (used by Docker's first start and by the tests);
+  `tests/schema-equivalence.test.js` fails if the two ever diverge, so every
+  schema change must touch both: a new migration AND `init/01_schema.sql`.
+- `GET /api/ready` reports pending migrations; `GET /api/health` is liveness.
 
 ## Tests and demo data
 

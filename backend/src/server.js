@@ -204,6 +204,17 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Readiness: database reachable AND no pending migrations.
+app.get('/api/ready', async (req, res) => {
+  try {
+    await pgPool.query('SELECT 1');
+    const m = await require('./migrate').migrationStatus();
+    res.status(m.ok ? 200 : 503).json({ status: m.ok ? 'ready' : 'not_ready', database: 'connected', migrations: m.ok ? 'up_to_date' : 'pending', pending: m.pending });
+  } catch (err) {
+    res.status(503).json({ status: 'not_ready', database: 'disconnected' });
+  }
+});
+
 // SPA Fallback for frontend
 app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/uploads/')) {
@@ -335,6 +346,20 @@ const startServer = async () => {
   }
 
   await testConnection();
+
+  // Apply pending migrations before serving traffic. Opt out with AUTO_MIGRATE=false
+  // (then run `npm run migrate` yourself). A failed migration stops the boot: serving
+  // against a half-migrated schema is worse than not serving.
+  if (process.env.AUTO_MIGRATE !== 'false') {
+    try {
+      await require('./migrate').migrate();
+    } catch (err) {
+      console.error(`[migrate] ${err.message}`);
+      process.exit(1);
+    }
+  } else {
+    console.warn('[migrate] AUTO_MIGRATE=false: not applying migrations at boot');
+  }
 
   // Creates the first Super Admin from BOOTSTRAP_ADMIN_* if none exists. Logs
   // instead of throwing on misconfiguration so the server still comes up.

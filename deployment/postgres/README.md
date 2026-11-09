@@ -37,6 +37,12 @@ Check the logs to ensure initialization was successful:
 docker compose logs -f
 ```
 
+### Schema changes
+The `init/` scripts only run on an empty data directory. After that the schema is
+managed by the numbered SQL files in `backend/migrations/`, which the backend applies
+automatically at boot (`AUTO_MIGRATE=false` to opt out, then `npm run migrate`).
+See `docs/production-checklist.md`.
+
 ## Backups & Restores
 
 Scripts are provided in the `backup/` directory to manage logical backups.
