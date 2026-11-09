@@ -19,14 +19,14 @@ describe('health and readiness', () => {
     await require('../src/migrate').migrate({ log: { info: () => {} } });
     const res = await request(app).get('/api/ready');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: 'ready', database: 'connected', migrations: 'up_to_date' });
+    expect(res.body).toEqual({ status: 'ready' });
   });
 
   test('/api/ready is 503 with a pending migration', async () => {
     await pgPool.query("DELETE FROM schema_migrations WHERE version = '0006'");
     const res = await request(app).get('/api/ready');
     expect(res.status).toBe(503);
-    expect(res.body.pending).toEqual(['0006_users_pending_approval.sql']);
+    expect(res.body).toEqual({ status: 'not_ready' }); // no migration names for anonymous callers
     await require('../src/migrate').migrate({ log: { info: () => {} } });
   });
 });

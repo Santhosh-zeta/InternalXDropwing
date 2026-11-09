@@ -7,7 +7,7 @@ const bcrypt = require('bcryptjs');
 const { issueInvite } = require('../services/invite.service');
 const crypto = require('crypto');
 const { canManageUser } = require('../utils/canManageUser');
-const { withScope, taskWhere } = require('../utils/scope');
+const { withScope, internalOnly, taskWhere } = require('../utils/scope');
 const { avatarUpload, handleUploadErrors, verifyUploadContent } = require('../middleware/upload.middleware');
 const { uploadLimiter } = require('../middleware/rateLimit.middleware');
 const { revokeAllSessionsForUser, createSession } = require('../services/session.service');
@@ -69,18 +69,25 @@ router.get('/', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/team-members/ventures — ventures for pickers (signed-in users only)
-router.get('/ventures', authenticate, async (req, res) => {
+// GET /api/team-members/ventures — ventures for pickers. Internal users: all active
+// ventures; clients: only the ventures of projects they belong to.
+router.get('/ventures', authenticate, withScope, async (req, res) => {
   try {
-    const [rows] = await pool.query('SELECT id, name, slug, logo_url, primary_color, description FROM ventures WHERE is_active = TRUE ORDER BY id');
+    const cols = 'v.id, v.name, v.slug, v.logo_url, v.primary_color, v.description';
+    const [rows] = req.scope.isClient
+      ? await pool.query(
+        `SELECT ${cols} FROM ventures v WHERE v.is_active = TRUE
+           AND v.id IN (SELECT venture_id FROM projects WHERE id = ANY($1::int[])) ORDER BY v.id`,
+        [req.scope.projectIds])
+      : await pool.query(`SELECT ${cols} FROM ventures v WHERE v.is_active = TRUE ORDER BY v.id`);
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// GET /api/team-members/access-levels — level names for pickers (signed-in users only)
-router.get('/access-levels', authenticate, async (req, res) => {
+// GET /api/team-members/access-levels — level names for pickers (internal users only)
+router.get('/access-levels', authenticate, withScope, internalOnly, async (req, res) => {
   try {
     const [rows] = await pool.query('SELECT level_number, level_name, description FROM access_levels ORDER BY level_number ASC');
     res.json({ success: true, data: rows });

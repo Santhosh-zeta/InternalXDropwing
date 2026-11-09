@@ -44,7 +44,7 @@ cp deployment/production-env.example .env && chmod 600 .env
 # BOOTSTRAP_ADMIN_EMAIL + BOOTSTRAP_ADMIN_PASSWORD
 docker compose up -d --build
 docker compose logs -f app       # look for: "applied 0001_baseline.sql ... InternalX API listening"
-curl -s http://127.0.0.1:5000/api/ready          # {"status":"ready",...}
+curl -s http://127.0.0.1:5000/api/ready          # {"status":"ready"}
 ```
 
 1. **Bootstrap admin.** On first boot the Super Admin (L1) is created from the two `BOOTSTRAP_ADMIN_*`
@@ -85,7 +85,7 @@ curl -s http://127.0.0.1:5000/api/ready
 - Migrations are numbered, idempotent SQL files in `backend/migrations/`, applied once each in a
   transaction under an advisory lock; their checksums are stored. A failing migration **stops the boot**
   (the previous container keeps serving only if you start the new one alongside; otherwise restore the
-  backup). `/api/ready` returns 503 listing pending migrations when `AUTO_MIGRATE=false`.
+  backup). `/api/ready` returns 503 when `AUTO_MIGRATE=false` and migrations are pending (the names are in the app log, not the response).
 - Never edit an applied migration (the runner refuses); add a new one, and mirror the change in
   `deployment/postgres/init/01_schema.sql` (a test fails if the two drift).
 - Rollback = restore the pre-upgrade backup and the previous image tag; migrations are forward-only.

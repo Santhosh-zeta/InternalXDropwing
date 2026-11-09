@@ -52,9 +52,9 @@ router.get('/', authenticate, withScope, internalOnly, reportLimiter, async (req
     }));
 
     // 4. Recent activity: the actions of people in the caller's venture. Global
-    // users' (L1/L2) actions are only shown to other global users.
+    // users' (L1/L2) actions are only shown to other global users. L6-L8 get none.
     const auditParams = [];
-    const [auditRows] = await pool.query(`
+    const [auditRows] = scope.level > 5 ? [[]] : await pool.query(`
       SELECT a.action_type as action, a.created_at, u.full_name as user_name
       FROM audit_logs a
       LEFT JOIN users u ON a.user_id = u.id
