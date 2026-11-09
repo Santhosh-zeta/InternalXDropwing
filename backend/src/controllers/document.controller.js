@@ -13,7 +13,10 @@ const discard = (file) => { if (file) fs.unlink(file.path, () => {}); };
 /**
  * Upload. The venture is derived: from the project (which must be visible to
  * the caller) or from the caller's own venture. Only global users may name a
- * venture, and only for a project-less document. Clients cannot upload.
+ * venture, and only for a project-less document. A global user must say where
+ * a project-less file goes: an existing `ventureId`, or an explicit
+ * `companyWide: true` (venture_id NULL = visible to every internal user).
+ * Clients cannot upload.
  */
 exports.uploadDocument = async (req, res, next) => {
   try {
@@ -21,7 +24,7 @@ exports.uploadDocument = async (req, res, next) => {
     if (!req.file) return fail(res, 400, 'No file provided');
     if (scope.isClient) { discard(req.file); return fail(res, 403, 'Clients cannot upload documents'); }
 
-    const { projectId, clientVisible } = req.body;
+    const { projectId, clientVisible, companyWide } = req.body;
     let ventureId = scope.global ? toId(req.body.ventureId) : scope.ventureId;
     let project = null;
 
@@ -29,6 +32,16 @@ exports.uploadDocument = async (req, res, next) => {
       project = await getAccessibleProject(scope, projectId);
       if (!project) { discard(req.file); return fail(res, 404, 'Project not found'); }
       ventureId = project.venture_id;
+    } else if (scope.global) {
+      if (['true', '1', true].includes(companyWide)) {
+        ventureId = null;
+      } else {
+        const [v] = ventureId ? await pool.query('SELECT id FROM ventures WHERE id = ?', [ventureId]) : [[]];
+        if (!v.length) {
+          discard(req.file);
+          return fail(res, 400, 'Choose a venture (ventureId) or set companyWide=true for a document every internal user can see');
+        }
+      }
     }
     if (ventureId != null && !scope.global && ventureId !== scope.ventureId) {
       discard(req.file);
