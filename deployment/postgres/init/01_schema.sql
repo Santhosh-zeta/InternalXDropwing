@@ -436,3 +436,18 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
   output_tokens BIGINT NOT NULL DEFAULT 0,
   PRIMARY KEY (user_id, day)
 );
+
+-- B2: scheduler tables (same as backend/migrations/0005_b2_scheduler.sql)
+CREATE TABLE IF NOT EXISTS scheduler_runs (
+  job VARCHAR(40) NOT NULL,
+  run_key VARCHAR(40) NOT NULL,
+  ran_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (job, run_key)
+);
+
+CREATE TABLE IF NOT EXISTS scheduler_alerts (
+  user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  finding_key VARCHAR(80) NOT NULL,
+  sent_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, finding_key)
+);

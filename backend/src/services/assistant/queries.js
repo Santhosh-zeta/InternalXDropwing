@@ -351,6 +351,7 @@ const projectFinance = async (scope, { projectId } = {}) => {
 };
 
 module.exports = {
+  builder, overdueExpr, q,
   ToolError, todayIn, TASK_STATUSES, PROJECT_STATUSES,
   myTasks, overdueTasks, upcomingDeadlines, listProjects, projectSummary,
   teamWorkload, timesheetSummary, listAnnouncements, searchTool, financeSummary, projectFinance,

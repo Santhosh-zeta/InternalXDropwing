@@ -349,6 +349,7 @@ const startServer = async () => {
   // Sweeps rows past their expires_at hourly — see session.service.js. Timer
   // is unref()'d there so it never blocks process shutdown.
   startSessionCleanup();
+  require('./services/scheduler').startScheduler(); // no-op unless ENABLE_SCHEDULER=true
 
   server.listen(PORT, () => {
     console.log(`\n🚀 InternalX Backend running on http://localhost:${PORT}`);
