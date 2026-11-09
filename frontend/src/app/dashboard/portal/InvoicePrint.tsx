@@ -73,7 +73,7 @@ export default function InvoicePrint({ invoice, venture, user, vc, printing, onB
             </caption>
             <thead>
               <tr className="border-b-2" style={{ borderColor: tint(vc, 25) }}>
-                {['Description', 'Hours', 'Rate', 'Amount'].map(h => (
+                {['Description', 'Hours', 'Amount'].map(h => (
                   <th
                     key={h}
                     scope="col"
@@ -91,10 +91,9 @@ export default function InvoicePrint({ invoice, venture, user, vc, printing, onB
               <tr className="border-b border-gray-100">
                 <td className="py-5">
                   <div className="text-md font-bold text-gray-900">Professional Services — {invoice.month}</div>
-                  <div className="mt-1 text-sm font-medium text-gray-500">Development, design &amp; consulting hours</div>
+                  <div className="mt-1 text-sm font-medium text-gray-500">Approved hours on your projects</div>
                 </td>
                 <td className="py-5 text-right text-sm font-bold text-gray-700">{invoice.total_hours}h</td>
-                <td className="py-5 text-right text-sm font-bold text-gray-700">$50/hr</td>
                 <td className="py-5 text-right text-base font-black text-gray-900">{fmt(invoice.total_amount)}</td>
               </tr>
             </tbody>
