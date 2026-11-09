@@ -34,7 +34,7 @@ Backend: 329 tests passing (B2 merged) (`cd backend && npm ci && TEST_DATABASE_U
 6. Independent Opus security review of the merged result; fix findings.
 7. Build the Docker image and run the prod compose stack once on a machine with Docker (never done here).
 8. Flutter app: edits (removed screens, demo mode off) were never compiled (no Flutter in the sandbox). Run `flutter analyze`.
-9. Needs the owner's env: ANTHROPIC_API_KEY (assistant), SMTP (invites, digests), GOOGLE_CLIENT_ID, bootstrap admin env.
+9. Needs the owner's env: one of ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY (assistant), SMTP (invites, digests), GOOGLE_CLIENT_ID, bootstrap admin env.
 
 ## Gotchas learned
 - `.gitignore` has `env.*`; it hid `src/config/env.js` (now un-ignored). Don't name source files env.*.
