@@ -25,8 +25,6 @@ const AXIS_TICK = { fontSize: 11, fill: 'var(--color-text-muted)' };
 const AXIS_TICK_LG = { fontSize: 12, fill: 'var(--color-text-muted)' };
 const AXIS_TICK_CATEGORY = { fontSize: 12, fill: 'var(--color-text-secondary)' };
 
-const FALLBACK_VEL = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(n => ({ name: n, completed: 0 }));
-const FALLBACK_MONTHLY = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map(n => ({ name: n, tasks: 0, projects: 0 }));
 
 const TABS = [
   { id: 'overview' as const, label: 'Overview', icon: <BarChart3 size={15} aria-hidden="true" /> },
@@ -71,10 +69,10 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
     return res.data as Analytics;
   });
 
-  const vel = data?.taskVelocity?.length ? data.taskVelocity : FALLBACK_VEL;
-  const hasVel = Boolean(data?.taskVelocity?.length);
-  const monthly = data?.monthlyPerformance?.length ? data.monthlyPerformance : FALLBACK_MONTHLY;
-  const hasMonthly = Boolean(data?.monthlyPerformance?.length);
+  const vel = data?.taskVelocity ?? [];
+  const hasVel = vel.length > 0;
+  const monthly = data?.monthlyPerformance ?? [];
+  const hasMonthly = monthly.length > 0;
   const totalVel = vel.reduce((s, d) => s + d.completed, 0);
   const users = data?.userDistribution || [];
   const totalUsers = users.reduce((s, d) => s + d.value, 0);
@@ -300,7 +298,7 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
               <div className="mt-6 grid grid-cols-3 gap-4">
                 {[
                   { label: 'Avg / Day', value: (totalVel / rangeInDays).toFixed(1), c: 'var(--color-emerald)' },
-                  { label: 'Peak Day', value: Math.max(...vel.map(d => d.completed)), c: color },
+                  { label: 'Peak Day', value: vel.length ? Math.max(...vel.map(d => d.completed)) : 0, c: color },
                   { label: 'Status', value: totalVel > 0 ? '↑ Active' : '— Idle', c: totalVel > 0 ? 'var(--color-emerald)' : 'var(--color-text-muted)' },
                 ].map(s => (
                   <div key={s.label} className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4 text-center">
