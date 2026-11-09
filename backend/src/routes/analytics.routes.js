@@ -3,133 +3,111 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
+const { withScope, internalOnly, taskWhere, projectWhere, ventureWhere } = require('../utils/scope');
 
-// GET /api/analytics
-router.get('/', authenticate, reportLimiter, async (req, res) => {
+// GET /api/platform-metrics — internal staff only; every number is scoped
+// (global: everything, L3-5: own venture, L6-8: what they are on).
+router.get('/', authenticate, withScope, internalOnly, reportLimiter, async (req, res) => {
   try {
-    const accessLevel = req.user.accessLevel;
-    const userVentureId = req.user.ventureId;
-    
-    // 1. Budget/Revenue Distribution by Venture (Only for L1-L4)
+    const { scope } = req;
+
+    // 1. Budget distribution by venture (L<=4; budgets are hidden from lower levels)
     let budgetDistribution = [];
-    if (accessLevel <= 4) {
-      let budgetQuery = `
+    if (scope.level <= 4) {
+      const params = [];
+      const [budgetRows] = await pool.query(`
         SELECT v.name as venture, v.primary_color as color, SUM(p.budget) as total_budget
         FROM projects p
         JOIN ventures v ON p.venture_id = v.id
-      `;
-      const budgetParams = [];
-      if (accessLevel > 2) {
-        budgetQuery += ` WHERE p.venture_id = $1`;
-        budgetParams.push(userVentureId);
-      }
-      budgetQuery += ` GROUP BY v.id`;
-      
-      const [budgetRows] = await pool.query(budgetQuery, budgetParams);
+        WHERE ${projectWhere(scope, 'p', params)}
+        GROUP BY v.id
+      `, params);
       budgetDistribution = budgetRows;
     }
 
-    // 2. Task Completion Velocity (Last 7 Days)
-    let velocityQuery = `
-      SELECT DATE(updated_at) as date, COUNT(*) as completed_tasks
-      FROM tasks
-      WHERE status = 'completed' AND updated_at >= CURRENT_DATE - INTERVAL '7 days'
-    `;
-    const velocityParams = [];
-    if (accessLevel > 2) {
-      if (accessLevel <= 5) {
-        velocityQuery += ` AND venture_id = $1`;
-        velocityParams.push(userVentureId);
-      } else {
-        velocityQuery += ` AND (EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = tasks.id AND ta.user_id = $1) OR assigned_by = $2)`;
-        velocityParams.push(req.user.id, req.user.id);
-      }
-    }
-    velocityQuery += ` GROUP BY DATE(updated_at) ORDER BY date ASC`;
-    const [velocityRows] = await pool.query(velocityQuery, velocityParams);
+    // 2. Task completion velocity (last 7 days)
+    const velParams = [];
+    const [velocityRows] = await pool.query(`
+      SELECT DATE(t.updated_at) as date, COUNT(*)::int as completed_tasks
+      FROM tasks t
+      WHERE t.status = 'completed' AND t.updated_at >= CURRENT_DATE - INTERVAL '7 days'
+        AND ${taskWhere(scope, 't', velParams)}
+      GROUP BY DATE(t.updated_at) ORDER BY date ASC
+    `, velParams);
 
-    // 3. Active User Distribution (Only L1-L2 sees all, others see their venture)
-    let userDistQuery = `
-      SELECT v.name as name, v.primary_color as color, COUNT(u.id) as value
+    // 3. Active users per venture (global: all ventures, others: own venture)
+    const userParams = [];
+    const [userDistRows] = await pool.query(`
+      SELECT v.name as name, v.primary_color as color, COUNT(u.id)::int as value
       FROM users u
       LEFT JOIN ventures v ON u.venture_id = v.id
-      WHERE u.is_active = TRUE AND u.venture_id IS NOT NULL
-    `;
-    const userDistParams = [];
-    if (accessLevel > 2) {
-      userDistQuery += ` AND u.venture_id = $1`;
-      userDistParams.push(userVentureId);
-    }
-    userDistQuery += ` GROUP BY v.id`;
-    const [userDistRows] = await pool.query(userDistQuery, userDistParams);
+      WHERE u.is_active = TRUE AND u.venture_id IS NOT NULL AND u.access_level <= 8
+        AND ${ventureWhere(scope, 'u.venture_id', userParams)}
+      GROUP BY v.id
+    `, userParams);
 
-    // Format dates for velocity
-    const velocityFormatted = velocityRows.map(row => {
-      const d = new Date(row.date);
-      const formattedDate = d.toLocaleDateString('en-US', { weekday: 'short' });
-      return {
-        name: formattedDate,
-        completed: row.completed_tasks
-      }
-    });
+    const velocityFormatted = velocityRows.map(row => ({
+      name: new Date(row.date).toLocaleDateString('en-US', { weekday: 'short' }),
+      completed: row.completed_tasks,
+    }));
 
-    // 4. Recent Activity (Audit Logs)
-    let auditQuery = `
+    // 4. Recent activity: the actions of people in the caller's venture. Global
+    // users' (L1/L2) actions are only shown to other global users.
+    const auditParams = [];
+    const [auditRows] = await pool.query(`
       SELECT a.action_type as action, a.created_at, u.full_name as user_name
       FROM audit_logs a
       LEFT JOIN users u ON a.user_id = u.id
-    `;
-    const auditParams = [];
-    if (accessLevel > 2) {
-      auditQuery += ` WHERE u.venture_id = $1 OR u.venture_id IS NULL`;
-      auditParams.push(userVentureId);
-    }
-    auditQuery += ` ORDER BY a.created_at DESC LIMIT 10`;
-    const [auditRows] = await pool.query(auditQuery, auditParams);
+      WHERE ${scope.global ? 'TRUE' : ventureWhere(scope, 'u.venture_id', auditParams)}
+      ORDER BY a.created_at DESC LIMIT 10
+    `, auditParams);
 
-    // 5. Monthly Performance (Last 6 Months)
+    // 5. Monthly performance (last 6 months)
+    const mtParams = [];
     const [monthlyTasks] = await pool.query(`
-      SELECT TO_CHAR(updated_at, 'Mon') as name, COUNT(*) as tasks, EXTRACT(MONTH FROM updated_at) as m
-      FROM tasks
-      WHERE status = 'completed' AND updated_at >= CURRENT_DATE - INTERVAL '6 months'
-      GROUP BY TO_CHAR(updated_at, 'Mon'), EXTRACT(MONTH FROM updated_at)
+      SELECT TO_CHAR(t.updated_at, 'Mon') as name, COUNT(*)::int as tasks, EXTRACT(MONTH FROM t.updated_at)::int as m
+      FROM tasks t
+      WHERE t.status = 'completed' AND t.updated_at >= CURRENT_DATE - INTERVAL '6 months'
+        AND ${taskWhere(scope, 't', mtParams)}
+      GROUP BY TO_CHAR(t.updated_at, 'Mon'), EXTRACT(MONTH FROM t.updated_at)
       ORDER BY m ASC
-    `);
+    `, mtParams);
 
+    const mpParams = [];
     const [monthlyProjects] = await pool.query(`
-      SELECT TO_CHAR(updated_at, 'Mon') as name, COUNT(*) as projects, EXTRACT(MONTH FROM updated_at) as m
-      FROM projects
-      WHERE status = 'completed' AND updated_at >= CURRENT_DATE - INTERVAL '6 months'
-      GROUP BY TO_CHAR(updated_at, 'Mon'), EXTRACT(MONTH FROM updated_at)
+      SELECT TO_CHAR(p.updated_at, 'Mon') as name, COUNT(*)::int as projects, EXTRACT(MONTH FROM p.updated_at)::int as m
+      FROM projects p
+      WHERE p.status = 'completed' AND p.updated_at >= CURRENT_DATE - INTERVAL '6 months'
+        AND ${projectWhere(scope, 'p', mpParams)}
+      GROUP BY TO_CHAR(p.updated_at, 'Mon'), EXTRACT(MONTH FROM p.updated_at)
       ORDER BY m ASC
-    `);
+    `, mpParams);
 
-    // Merge monthly data robustly
     const allMonths = [...new Set([...monthlyTasks.map(t => t.name), ...monthlyProjects.map(p => p.name)])];
     const monthlyPerformance = allMonths.map(month => {
       const t = monthlyTasks.find(mt => mt.name === month);
       const p = monthlyProjects.find(mp => mp.name === month);
-      return {
-        name: month,
-        tasks: t ? t.tasks : 0,
-        projects: p ? p.projects : 0,
-        m: t ? t.m : (p ? p.m : 0)
-      };
+      return { name: month, tasks: t ? t.tasks : 0, projects: p ? p.projects : 0, m: t ? t.m : (p ? p.m : 0) };
     }).sort((a, b) => a.m - b.m);
 
-    // 6. Announcements
-    const [announcements] = await pool.query('SELECT * FROM announcements ORDER BY created_at DESC LIMIT 5');
+    // 6. Announcements: company-wide ones plus the caller's venture's
+    const annParams = [];
+    const annWhere = scope.global
+      ? 'TRUE'
+      : (scope.ventureId == null ? 'venture_id IS NULL' : `(venture_id IS NULL OR venture_id = $${annParams.push(scope.ventureId)})`);
+    const [announcements] = await pool.query(
+      `SELECT * FROM announcements WHERE ${annWhere} ORDER BY created_at DESC LIMIT 5`, annParams);
 
     res.json({
       success: true,
       data: {
         budgetDistribution,
         taskVelocity: velocityFormatted,
-        userDistribution: userDistRows.map(row => ({ name: row.name, value: row.value, color: row.color })),
+        userDistribution: userDistRows,
         recentActivity: auditRows,
         monthlyPerformance,
-        announcements
-      }
+        announcements,
+      },
     });
   } catch (err) {
     console.error(err);

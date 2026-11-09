@@ -27,48 +27,51 @@ const invoiceScope = (scope, params) => {
 
 const allowed = (scope) => scope.isClient || scope.canSeeCost;
 
+/** Invoice summaries visible to `scope` (shared with the client portal). */
+const listInvoices = async (scope) => {
+  const params = [];
+  const where = invoiceScope(scope, params);
+  const [results] = await pool.query(`
+    SELECT
+      t.venture_id,
+      v.name as venture_name,
+      TO_CHAR(t.date, 'YYYY-MM') as invoice_month,
+      COUNT(t.id) as timesheet_count,
+      ${sumColumns('t', 'u', 'pmr')}
+    FROM timesheets t
+    JOIN users u ON t.user_id = u.id
+    ${rateJoin('t', 'pmr')}
+    JOIN ventures v ON t.venture_id = v.id
+    WHERE t.status = 'approved' AND ${where}
+    GROUP BY t.venture_id, v.name, invoice_month
+    ORDER BY invoice_month DESC
+  `, params);
+
+  return results.map((row) => {
+    const m = money(row);
+    return {
+      id: `INV-${row.venture_id}-${row.invoice_month}`,
+      invoice_number: `INV-${row.venture_id}-${row.invoice_month.replace('-', '')}`,
+      venture_id: row.venture_id,
+      venture_name: row.venture_name,
+      month: row.invoice_month,
+      total_hours: m.hours,
+      total_amount: m.cost,
+      unrated_hours: m.unrated_hours,
+      rate_missing: m.rate_missing,
+      timesheet_count: parseInt(row.timesheet_count, 10),
+      status: 'Unpaid', // payment tracking is not modelled yet
+      issue_date: `${row.invoice_month}-28`,
+    };
+  });
+};
+
+exports.listInvoices = listInvoices;
+
 exports.getInvoices = async (req, res, next) => {
   try {
-    const { scope } = req;
-    if (!allowed(scope)) return fail(res, 403, 'Not authorized to view invoices');
-
-    const params = [];
-    const where = invoiceScope(scope, params);
-    const [results] = await pool.query(`
-      SELECT
-        t.venture_id,
-        v.name as venture_name,
-        TO_CHAR(t.date, 'YYYY-MM') as invoice_month,
-        COUNT(t.id) as timesheet_count,
-        ${sumColumns('t', 'u', 'pmr')}
-      FROM timesheets t
-      JOIN users u ON t.user_id = u.id
-      ${rateJoin('t', 'pmr')}
-      JOIN ventures v ON t.venture_id = v.id
-      WHERE t.status = 'approved' AND ${where}
-      GROUP BY t.venture_id, v.name, invoice_month
-      ORDER BY invoice_month DESC
-    `, params);
-
-    const invoices = results.map((row) => {
-      const m = money(row);
-      return {
-        id: `INV-${row.venture_id}-${row.invoice_month}`,
-        invoice_number: `INV-${row.venture_id}-${row.invoice_month.replace('-', '')}`,
-        venture_id: row.venture_id,
-        venture_name: row.venture_name,
-        month: row.invoice_month,
-        total_hours: m.hours,
-        total_amount: m.cost,
-        unrated_hours: m.unrated_hours,
-        rate_missing: m.rate_missing,
-        timesheet_count: parseInt(row.timesheet_count, 10),
-        status: 'Unpaid', // payment tracking is not modelled yet
-        issue_date: `${row.invoice_month}-28`,
-      };
-    });
-
-    res.json({ success: true, data: invoices });
+    if (!allowed(req.scope)) return fail(res, 403, 'Not authorized to view invoices');
+    res.json({ success: true, data: await listInvoices(req.scope) });
   } catch (err) {
     next(err);
   }
