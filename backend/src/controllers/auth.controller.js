@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { generateOTP, generateResetToken, hashOTP, verifyOTP } = require('../utils/otp');
 const { sendOTPEmail, sendPasswordResetEmail } = require('../services/email.service');
-const { createSession, revokeSession } = require('../services/session.service');
+const { createSession, revokeSession, revokeAllSessionsForUser } = require('../services/session.service');
 
 const generateAuthResponse = async (user, res, message, req) => {
   const token = jwt.sign(
@@ -264,6 +264,8 @@ const resetPassword = async (req, res) => {
       'UPDATE users SET password_hash = ?, reset_password_token = NULL, reset_password_expires_at = NULL WHERE id = ?',
       [newPasswordHash, user.id]
     );
+
+    await revokeAllSessionsForUser(user.id);
 
     return res.json({ success: true, message: 'Password successfully reset' });
   } catch (err) {
