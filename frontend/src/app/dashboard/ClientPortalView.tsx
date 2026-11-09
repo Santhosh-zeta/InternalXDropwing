@@ -1,7 +1,9 @@
 'use client';
-import { useEffect, useState, useCallback, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useState, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { User } from '@/lib/constants';
-import api from '@/lib/api';
+import { apiGet } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
+import type { Envelope } from '@/lib/types';
 import {
   Printer, ArrowLeft, Briefcase, FileCheck,
   Receipt, FileText, CheckCircle2, CircleDashed, Clock,
@@ -70,23 +72,16 @@ const TH = 'px-5 py-4 text-label font-bold uppercase tracking-[0.08em] text-[var
 const MICRO_LABEL = 'text-label font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)]';
 
 export default function ClientPortalView({ currentUser }: { currentUser: User }) {
-  const [data, setData] = useState<PortalData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const portal = useApi('client-portal', async (signal) => {
+    const res = await apiGet<Envelope<PortalData>>('/client-portal/overview', signal);
+    if (!res.success) throw new Error(res.message || 'Could not load the portal');
+    return res.data;
+  });
+  const { data, loading, refetch: fetchData } = portal;
   const [tab, setTab] = useState<TabId>('overview');
   const [printInvoice, setPrintInvoice] = useState<Invoice | null>(null);
   const [printing, setPrinting] = useState(false);
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await api.get('/client-portal/overview');
-      if (res.data.success) setData(res.data.data);
-    } catch {}
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
 
   const vc = data?.venture?.primary_color || 'var(--color-purple-glow)';
 

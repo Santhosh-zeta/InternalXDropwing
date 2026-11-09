@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import Link from 'next/link';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui';
 
@@ -49,9 +50,9 @@ export default function Error({
           <Button variant="primary" onClick={reset} leadingIcon={<RotateCcw size={15} />}>
             Try again
           </Button>
-          <Button variant="ghost" onClick={() => window.location.assign('/dashboard')}>
+          <Link href="/dashboard" className="inline-flex items-center rounded-lg px-4 py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]">
             Back to dashboard
-          </Button>
+          </Link>
         </div>
       </div>
     </div>

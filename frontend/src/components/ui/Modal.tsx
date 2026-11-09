@@ -5,7 +5,7 @@ import {
   useEffect,
   useId,
   useRef,
-  useState,
+  useSyncExternalStore,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react';
@@ -13,6 +13,8 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from './cn';
 import { Button } from './Button';
+
+const subscribeNoop = () => () => {};
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -69,14 +71,13 @@ export function Modal({
 }: ModalProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false);
 
   const titleId = useId();
   const descriptionId = useId();
 
   // The app builds with `output: "export"`, so components prerender without
   // a DOM. Portals must wait for mount.
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open || !mounted) return;

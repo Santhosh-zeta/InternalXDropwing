@@ -4,9 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { loginUser, verifyOtp, googleLogin } from '@/lib/api';
-import { GoogleLogin } from '@react-oauth/google';
-import { TEST_ACCOUNTS, VENTURES } from '@/lib/constants';
+import { loginUser, verifyOtp, googleLogin, getAuthConfig } from '@/lib/api';
+import GoogleSignIn from '@/components/GoogleSignIn';
+import { VENTURES } from '@/lib/constants';
 import {
   Mail,
   Lock,
@@ -16,7 +16,7 @@ import {
   ArrowRight,
   KeyRound
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Button, Field, Input, tint } from '@/components/ui';
 
 /** Keeps the original violet focus ring; `Input` alone only shifts its border. */
@@ -63,14 +63,17 @@ const RESEND_COOLDOWN_SECONDS = 30;
 
 export default function LoginPage() {
   const router = useRouter();
-  const hasGoogleClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
+  // What this server offers (Google sign-in, self-registration). Nothing extra is shown until it answers.
+  const [authConfig, setAuthConfig] = useState({ googleLogin: false, selfRegistration: false });
+  useEffect(() => {
+    getAuthConfig().then(setAuthConfig).catch(() => { /* keep password sign-in only */ });
+  }, []);
   const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [selectedVenture, setSelectedVenture] = useState<string>('');
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -104,7 +107,7 @@ export default function LoginPage() {
           // Nothing to store: the backend already set the session as an
           // httpOnly cookie in this same response (see auth.controller.js),
           // which is the only copy of it that ever needs to exist client-side.
-          toast.success(`Welcome back, ${data.data.user.fullName}`);
+          toast.success(`Welcome back, ${data.data?.user.fullName}`);
           router.push('/dashboard');
         } else {
           toast.success(data.message || 'OTP sent to your email.');
@@ -137,7 +140,7 @@ export default function LoginPage() {
     try {
       const data = await verifyOtp(email, otp);
       if (data.success) {
-        toast.success(`Welcome back, ${data.data.user.fullName}`);
+        toast.success(`Welcome back, ${data.data?.user.fullName}`);
         router.push('/dashboard');
       }
     } catch (err: unknown) {
@@ -176,12 +179,12 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSuccess = async (response: any) => {
+  const handleGoogleSuccess = async (credential: string) => {
     setLoading(true);
     try {
-      const data = await googleLogin(response.credential);
+      const data = await googleLogin(credential);
       if (data.success) {
-        toast.success(`Welcome back, ${data.data.user.fullName}`);
+        toast.success(`Welcome back, ${data.data?.user.fullName}`);
         router.push('/dashboard');
       }
     } catch (err: unknown) {
@@ -417,35 +420,20 @@ export default function LoginPage() {
                 </Button>
               </form>
 
-              {hasGoogleClientId && (
-                <>
-                  <div className="relative my-6">
-                    <div aria-hidden="true" className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-[var(--color-border)]"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-[var(--color-bg-primary)] px-2 text-[var(--color-text-muted)]">Or continue with</span>
-                    </div>
-                  </div>
+              {authConfig.googleLogin && <GoogleSignIn onCredential={handleGoogleSuccess} />}
 
-                  <div className="flex justify-center w-full">
-                    <GoogleLogin
-                      onSuccess={handleGoogleSuccess}
-                      onError={() => toast.error('Google login failed')}
-                      theme="filled_black"
-                      shape="pill"
-                      width="350"
-                    />
-                  </div>
-                </>
+              {authConfig.selfRegistration ? (
+                <div className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  Don&apos;t have an account?{' '}
+                  <Link href="/register" className="font-medium hover:underline inline-flex items-center gap-1" style={{ color: 'var(--color-purple-glow)' }}>
+                    Request access <ArrowRight size={14} aria-hidden="true" />
+                  </Link>
+                </div>
+              ) : (
+                <p className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+                  Accounts are by invitation. Ask your administrator.
+                </p>
               )}
-
-              <div className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                Don't have an account?{' '}
-                <Link href="/register" className="font-medium hover:underline inline-flex items-center gap-1" style={{ color: 'var(--color-purple-glow)' }}>
-                  Sign up <ArrowRight size={14} aria-hidden="true" />
-                </Link>
-              </div>
             </motion.div>
           )}
 
@@ -461,7 +449,7 @@ export default function LoginPage() {
                 Two-Factor Authentication
               </h2>
               <p className="text-sm mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-                We've sent a 6-digit code to <strong>{email}</strong>. Enter it below to verify your identity.
+                We&apos;ve sent a 6-digit code to <strong>{email}</strong>. Enter it below to verify your identity.
               </p>
 
               <FormAlert message={formError} />
@@ -557,65 +545,6 @@ export default function LoginPage() {
                   </Button>
                 </div>
               </form>
-            </motion.div>
-          )}
-
-          {step === 1 && process.env.NODE_ENV === 'development' && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="mt-10 pt-8 border-t border-[var(--color-border)]"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <p className="text-[10px] font-bold tracking-widest uppercase text-[var(--color-text-muted)]">Quick Access Logins</p>
-                <div className="flex gap-1.5">
-                  {['all', 'dropwing', 'fenixa', 'persynix', 'grovia'].map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setSelectedVenture(v === 'all' ? '' : v)}
-                      className={`w-2 h-2 rounded-full transition-all ${
-                        (v === 'all' && !selectedVenture) || selectedVenture === v
-                          ? 'scale-125 ring-2 ring-offset-2 ring-[var(--color-purple-glow)]'
-                          : 'opacity-40 hover:opacity-100'
-                      }`}
-                      style={{
-                        background: v === 'all' ? 'var(--color-text-muted)' : VENTURES.find(ven => ven.slug === v)?.color,
-                        '--tw-ring-offset-color': 'var(--color-bg-primary)'
-                      } as React.CSSProperties}
-                      title={v === 'all' ? 'All Roles' : VENTURES.find(ven => ven.slug === v)?.name}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto pr-2 custom-scrollbar">
-                {(selectedVenture ? TEST_ACCOUNTS.filter(a => a.ventureSlug === selectedVenture || a.ventureSlug === 'all') : TEST_ACCOUNTS.slice(0, 6)).map((acc, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => {
-                      setEmail(acc.email);
-                      setPassword(acc.password);
-                      toast.success(`Loaded credentials for ${acc.label}`);
-                    }}
-                    className="flex flex-col items-start p-3 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)] hover:border-[var(--color-purple-glow)] hover:bg-[var(--color-bg-card)] transition-all group text-left"
-                  >
-                    <div className="flex items-center gap-2 mb-1.5 w-full">
-                      <span className="text-base leading-none">{acc.icon}</span>
-                      <span className="text-[11px] font-bold truncate text-[var(--color-text-primary)]">{acc.label}</span>
-                    </div>
-                    <div className="text-[9px] font-medium text-[var(--color-text-muted)] uppercase tracking-wider truncate w-full">
-                      {acc.ventureSlug === 'all' ? 'Global' : acc.ventureSlug} • L{acc.level}
-                    </div>
-                  </button>
-                ))}
-              </div>
-              {!selectedVenture && (
-                <p className="text-[10px] text-[var(--color-text-muted)] text-center mt-4 italic">
-                  Showing top roles. Select a venture above for more.
-                </p>
-              )}
             </motion.div>
           )}
 

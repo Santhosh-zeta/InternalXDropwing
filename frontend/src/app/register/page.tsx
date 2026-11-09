@@ -4,8 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { register, googleLogin, getAuthConfig } from '@/lib/api';
-import { GoogleLogin } from '@react-oauth/google';
+import { register, getAuthConfig } from '@/lib/api';
 import { Mail, Lock, User, Hexagon, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button, Field, Input, tint } from '@/components/ui';
@@ -42,7 +41,6 @@ function FormAlert({ message }: { message: string }) {
 
 export default function RegisterPage() {
   const router = useRouter();
-  const hasGoogleClientId = Boolean(process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID);
 
   // null = still asking the server. Registration is invite-only unless the server enables it.
   const [selfRegistration, setSelfRegistration] = useState<boolean | null>(null);
@@ -90,27 +88,6 @@ export default function RegisterPage() {
       const msg =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         'Failed to register. Please try again.';
-      setFormError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleSuccess = async (response: any) => {
-    setLoading(true);
-    try {
-      const data = await googleLogin(response.credential);
-      if (data.success) {
-        // Nothing to store: the backend already set the session as an
-        // httpOnly cookie in this same response.
-        toast.success(`Welcome back, ${data.data.user.fullName}`);
-        router.push('/dashboard');
-      }
-    } catch (err: unknown) {
-      const msg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Google authentication failed.';
       setFormError(msg);
       toast.error(msg);
     } finally {
@@ -296,29 +273,6 @@ export default function RegisterPage() {
               {loading ? 'Creating account...' : 'Sign Up'}
             </Button>
           </form>
-
-          {hasGoogleClientId && (
-            <>
-              <div className="relative my-6">
-                <div aria-hidden="true" className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-[var(--color-border)]"></div>
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-[var(--color-bg-secondary)] px-2 text-[var(--color-text-muted)]">Or continue with</span>
-                </div>
-              </div>
-
-              <div className="flex justify-center w-full">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={() => toast.error('Google login failed')}
-                  theme="filled_black"
-                  shape="pill"
-                  width="350"
-                />
-              </div>
-            </>
-          )}
 
           <div className="text-center mt-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             Already have an account?{' '}

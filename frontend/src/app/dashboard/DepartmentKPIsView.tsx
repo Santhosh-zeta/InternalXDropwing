@@ -1,14 +1,16 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { User } from '@/lib/constants';
-import api from '@/lib/api';
+import { apiGet } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
+import { describeSeries } from '@/lib/format';
+import type { Envelope } from '@/lib/types';
 import {
   Users, BarChart3, Trophy, Clock, RefreshCw,
   ShieldCheck, Briefcase, GraduationCap,
 } from 'lucide-react';
 import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell,
 } from 'recharts';
@@ -60,18 +62,6 @@ function kpiColor(score: number) {
   return score >= 70 ? 'var(--color-emerald)' : score >= 40 ? 'var(--color-amber)' : 'var(--color-rose)';
 }
 
-/** Renders a chart series as a sentence for screen readers. */
-function describeSeries(
-  rows: any[],
-  labelKey: string,
-  valueKey: string,
-  format?: (value: any) => string,
-): string {
-  return rows
-    .map((row) => `${row?.[labelKey] ?? 'Unknown'} ${format ? format(row?.[valueKey]) : row?.[valueKey] ?? 0}`)
-    .join(', ');
-}
-
 /** Skeleton shaped like the tile row plus the two headcount panels. */
 function KPISkeleton() {
   return (
@@ -117,26 +107,18 @@ const RANK_STYLES = [
 
 export default function DepartmentKPIsView({ currentUser }: { currentUser: User }) {
   const [tab, setTab] = useState<'headcount' | 'kpis' | 'performance' | 'timesheets'>('headcount');
-  const [hrData, setHrData] = useState<HRData | null>(null);
-  const [kpiData, setKpiData] = useState<DeptKPI[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const color = currentUser.accessLevel === 2 ? 'var(--color-purple-light)' : 'var(--color-cyan)';
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [hrRes, kpiRes] = await Promise.all([api.get('/kpis/hr'), api.get('/kpis/department')]);
-      if (hrRes.data.success) setHrData(hrRes.data.data);
-      if (kpiRes.data.success) setKpiData(kpiRes.data.data);
-      setError(null);
-    } catch {
-      setError('Could not load department data. Check your connection and try again.');
-    }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchData(); }, [fetchData]);
+  const { data, loading, error, refetch: fetchData } = useApi('kpis', async (signal) => {
+    const [hr, kpi] = await Promise.all([
+      apiGet<Envelope<HRData>>('/kpis/hr', signal),
+      apiGet<Envelope<DeptKPI[]>>('/kpis/department', signal),
+    ]);
+    if (!hr.success) throw new Error(hr.message || 'Could not load department data');
+    return { hr: hr.data, kpis: kpi.success ? kpi.data : [] };
+  });
+  const hrData = data?.hr ?? null;
+  const kpiData = data?.kpis ?? [];
 
   const totals = hrData?.totals;
   const headcount = hrData?.headcount || [];

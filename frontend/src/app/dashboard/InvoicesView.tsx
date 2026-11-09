@@ -1,11 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { User } from '@/lib/constants';
+import { useState } from 'react';
+import type { User } from '@/lib/constants';
 import toast from 'react-hot-toast';
-import api from '@/lib/api';
+import { apiGet, errMsg } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
+import type { Envelope } from '@/lib/types';
 import { ArrowLeft, Printer, Receipt, Sparkles } from 'lucide-react';
 import {
+  AsyncState,
   Badge,
   Button,
   Card,
@@ -63,8 +66,9 @@ const TH_CLASS =
   'px-4 py-4 text-label font-bold uppercase tracking-[0.08em] text-[var(--color-text-muted)] whitespace-nowrap';
 
 export default function InvoicesView({ currentUser }: { currentUser: User }) {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loading, setLoading] = useState(true);
+  const list = useApi('invoices', async (signal) => (await apiGet<Envelope<Invoice[]>>('/invoices', signal)).data ?? [], { toastOnError: 'Failed to load invoices' });
+  const invoices = list.data ?? [];
+  const loading = list.loading;
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetails | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   // Which row is being fetched, so the spinner sits on the button that was
@@ -72,34 +76,16 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [printing, setPrinting] = useState(false);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
-
-  const fetchInvoices = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get('/invoices');
-      if (res.data.success) {
-        setInvoices(res.data.data);
-      }
-    } catch (err) {
-      toast.error('Failed to load invoices');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const viewInvoice = async (id: string) => {
     try {
       setLoadingDetails(true);
       setLoadingId(id);
-      const res = await api.get(`/invoices/${id}`);
-      if (res.data.success) {
-        setSelectedInvoice(res.data.data);
+      const res = await apiGet<Envelope<InvoiceDetails>>(`/invoices/${id}`);
+      if (res.success) {
+        setSelectedInvoice(res.data);
       }
     } catch (err) {
-      toast.error('Failed to load invoice details');
+      toast.error(errMsg(err, 'Failed to load invoice details'));
     } finally {
       setLoadingDetails(false);
       setLoadingId(null);
@@ -276,9 +262,8 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
         </p>
       </div>
 
-      {loading ? (
-        <SkeletonTable rows={5} columns={currentUser.accessLevel === 9 ? 6 : 7} />
-      ) : invoices.length === 0 ? (
+      <AsyncState loading={loading} error={list.error} onRetry={list.refetch} what="invoices" skeleton={<SkeletonTable rows={5} columns={currentUser.accessLevel === 9 ? 6 : 7} />}>
+      {invoices.length === 0 ? (
         <EmptyState
           icon={<Receipt size={24} />}
           title="No invoices yet"
@@ -354,6 +339,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
           </div>
         </Card>
       )}
+      </AsyncState>
     </div>
   );
 }
