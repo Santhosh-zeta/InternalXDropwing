@@ -165,27 +165,6 @@ export const getAuditLogs = async () => {
   return res.data;
 };
 
-// Access Control
-export const getAccessLevels = async () => {
-  const res = await api.get('/access-control');
-  return res.data;
-};
-
-export const updateLevelPermissions = async (level: number, permissions: Record<string, boolean>) => {
-  const res = await api.put(`/access-control/${level}`, { permissions });
-  return res.data;
-};
-
-export const get2FAConfig = async () => {
-  const res = await api.get('/access-control/2fa-config');
-  return res.data;
-};
-
-export const update2FAConfig = async (enable2FA: boolean) => {
-  const res = await api.put('/access-control/2fa-config', { enable2FA });
-  return res.data;
-};
-
 // Notifications
 export const getNotifications = async () => {
   const res = await api.get('/notifications');
@@ -267,76 +246,6 @@ export const deleteLearningFeedback = async (id: number) => {
 // Strategy
 export const getStrategyData = async () => {
   const res = await api.get('/strategy');
-  return res.data;
-};
-
-// ── Role Management ──────────────────────────────────────────────────────────
-export const getRoles = async () => {
-  const res = await api.get('/role-management');
-  return res.data;
-};
-
-export const getRoleVentures = async () => {
-  const res = await api.get('/role-management/ventures');
-  return res.data;
-};
-
-export const getRoleById = async (id: number) => {
-  const res = await api.get(`/role-management/${id}`);
-  return res.data;
-};
-
-export const getRoleAssignableUsers = async () => {
-  const res = await api.get('/role-management/assign-team-members');
-  return res.data;
-};
-
-export const createRole = async (data: {
-  role_name: string;
-  role_key: string;
-  description?: string;
-  color?: string;
-  icon?: string;
-  base_level?: number;
-  permissions?: Record<string, boolean>;
-  venture_id?: number | null;
-  sort_order?: number;
-}) => {
-  const res = await api.post('/role-management', data);
-  return res.data;
-};
-
-export const updateRole = async (id: number, data: Partial<{
-  role_name: string;
-  role_key: string;
-  description: string;
-  color: string;
-  icon: string;
-  base_level: number;
-  permissions: Record<string, boolean>;
-  sort_order: number;
-}>) => {
-  const res = await api.put(`/role-management/${id}`, data);
-  return res.data;
-};
-
-export const deleteRole = async (id: number) => {
-  const res = await api.delete(`/role-management/${id}`);
-  return res.data;
-};
-
-export const duplicateRole = async (id: number) => {
-  const res = await api.post(`/role-management/${id}/duplicate`);
-  return res.data;
-};
-
-export const assignRoleToUser = async (user_id: number, role_id: number) => {
-  const res = await api.post('/role-management/assign', { user_id, role_id });
-  return res.data;
-};
-
-export const removeRoleFromUser = async (user_id: number, role_id: number) => {
-  const res = await api.delete('/role-management/assign', { data: { user_id, role_id } });
   return res.data;
 };
 

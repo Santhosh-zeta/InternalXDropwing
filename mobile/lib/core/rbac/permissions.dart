@@ -31,14 +31,7 @@ enum Permission {
   updateUser,
   deleteUser,
 
-  // ── Roles — role_management.routes.js (inline `accessLevel > 4` → 403) ─
-  viewRoles,
-  manageRoles,
-
   // ── Platform administration ────────────────────────────────────────────
-  viewAccessControl, // access_control.routes.js — requireLevel(1)
-  manageAccessControl, // access_control.routes.js — requireLevel(1)
-  databaseConsole, // database.routes.js — requireLevel(1)
   viewAudit, // audit.routes.js — requireLevel(1)
 
   // ── Finance ────────────────────────────────────────────────────────────
@@ -107,17 +100,10 @@ class Rbac {
     // People
     Permission.viewUsers: _Rule.atOrAbove(AccessLevels.manager),
     Permission.createUser: _Rule.atOrAbove(AccessLevels.admin), // requireLevel(3)
-    Permission.updateUser: _Rule.atOrAbove(AccessLevels.cxo), // requireLevel(4)
+    Permission.updateUser: _Rule.atOrAbove(AccessLevels.admin), // requireLevel(3), see canManageUser
     Permission.deleteUser: _Rule.atOrAbove(AccessLevels.admin), // requireLevel(3)
 
-    // Roles
-    Permission.viewRoles: _Rule.atOrAbove(AccessLevels.cxo),
-    Permission.manageRoles: _Rule.atOrAbove(AccessLevels.cxo),
-
     // Platform administration
-    Permission.viewAccessControl: _Rule.atOrAbove(AccessLevels.superAdmin),
-    Permission.manageAccessControl: _Rule.atOrAbove(AccessLevels.superAdmin),
-    Permission.databaseConsole: _Rule.atOrAbove(AccessLevels.superAdmin),
     Permission.viewAudit: _Rule.atOrAbove(AccessLevels.superAdmin),
 
     // Finance
