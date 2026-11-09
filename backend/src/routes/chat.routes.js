@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const { authenticate } = require('../middleware/auth.middleware');
-const { withScope } = require('../utils/scope');
+const { withScope, internalOnly } = require('../utils/scope');
 const chat = require('../services/chat.service');
 
-router.use(authenticate, withScope);
+router.use(authenticate, withScope, internalOnly); // clients have no internal chat
 
 const handle = (fn) => async (req, res) => {
   try {
