@@ -105,9 +105,14 @@ const checkSmtp = async (env, transporter, verify) => {
     : check('smtp', label, 'missing', `Configured, but the connection test failed (${r.reason}).`, 'Check SMTP_HOST, SMTP_PORT, SMTP_SECURE (true for 465, false for 587) and the credentials.');
 };
 
-const checkAnthropic = (env) => (set(env.ANTHROPIC_API_KEY)
-  ? check('anthropic', 'Ask InternalX assistant (ANTHROPIC_API_KEY)', 'ok', 'Key set: the assistant, AI digest summaries and notes-to-tasks are enabled.')
-  : check('anthropic', 'Ask InternalX assistant (ANTHROPIC_API_KEY)', 'warn', 'Not set: the assistant is disabled; digests use their built-in summary.', 'Add ANTHROPIC_API_KEY to the backend environment and restart.'));
+const checkAi = (env) => {
+  const { selectProvider } = require('../services/ai');
+  const sel = selectProvider(env);
+  const label = 'AI assistant (ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY)';
+  return sel
+    ? check('ai', label, 'ok', `Provider "${sel.name}" is active: the assistant, AI digest summaries and notes-to-tasks are enabled.`)
+    : check('ai', label, 'warn', 'No provider key set: the assistant is disabled; digests use their built-in summary.', 'Add any one of ANTHROPIC_API_KEY, OPENAI_API_KEY or GEMINI_API_KEY to the backend environment and restart.');
+};
 
 const checkGoogle = (env) => (set(env.GOOGLE_CLIENT_ID)
   ? check('google', 'Google sign-in (GOOGLE_CLIENT_ID)', 'ok', 'Enabled for accounts that already exist.')
@@ -182,7 +187,7 @@ const runSelfCheck = async ({
     ...(await checkDatabase(pool, migrationStatus)),
     await checkBootstrap(pool, env),
     await checkSmtp(env, transporter, verify),
-    checkAnthropic(env),
+    checkAi(env),
     checkGoogle(env),
     checkDomains(env),
     checkOrigin(env),

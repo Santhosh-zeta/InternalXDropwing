@@ -47,7 +47,7 @@ describe('runSelfCheck', () => {
     expect(c.migrations.status).toBe('ok');
     expect(c.bootstrap_admin.status).toBe('ok'); // demo data has an L1
     expect(c.smtp.status).toBe('ok');
-    expect(c.anthropic.status).toBe('ok');
+    expect(c.ai.status).toBe('ok');
     expect(c.uploads.status).toBe('ok');
     expect(c.google.status).toBe('warn');
     expect(c.google.fix).toMatch(/GOOGLE_CLIENT_ID/);
@@ -63,8 +63,8 @@ describe('runSelfCheck', () => {
     expect(c.smtp.status).toBe('missing');
     expect(c.frontend_url.status).toBe('missing');
     expect(c.trust_proxy.status).toBe('warn');
-    expect(c.anthropic.status).toBe('warn');
-    expect(c.anthropic.fix).toMatch(/ANTHROPIC_API_KEY/);
+    expect(c.ai.status).toBe('warn');
+    expect(c.ai.fix).toMatch(/ANTHROPIC_API_KEY/);
     for (const x of r.checks.filter((k) => k.status !== 'ok')) expect(x.fix.length).toBeGreaterThan(0);
   });
 
