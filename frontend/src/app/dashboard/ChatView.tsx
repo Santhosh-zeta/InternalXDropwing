@@ -1,124 +1,79 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useId } from 'react';
-import { User } from '@/lib/constants';
-import { getChatMessages, sendChatMessage, getUsers, getChatChannels, ChatChannels } from '@/lib/api';
+import { useState, useEffect, useRef, useCallback, useId, useMemo } from 'react';
+import type { User } from '@/lib/constants';
+import { getChatMessages, sendChatMessage, getUsers, getChatChannels } from '@/lib/api';
+import { useApi, unwrapList } from '@/lib/useApi';
+import type { ChatMessage, TeamMember } from '@/lib/types';
 import toast from 'react-hot-toast';
 import { useSocket } from '@/components/SocketProvider';
 import { Send, Hash, MessageSquare, AtSign, Globe, Sparkles } from 'lucide-react';
 import { Button, EmptyState, Skeleton, SkeletonText, cn, tint } from '@/components/ui';
+import { Avatar, formatTime, formatDateLabel, isSameDay, SidebarBtn } from './chat/parts';
 
 interface ChatViewProps { currentUser: User; }
 interface Channel { type: 'venture' | 'dm'; id: string | number; name: string; color: string; }
-interface Msg { id: number; sender_id: number; sender_name: string; content: string; created_at: string; ventureId?: any; venture_id?: any; receiver_id?: number; receiverId?: number; }
-
-const AVATAR_GRADIENTS = [
-  'linear-gradient(135deg,var(--color-purple-glow),var(--color-purple-dark))',
-  'linear-gradient(135deg,var(--color-cyan),color-mix(in srgb,var(--color-cyan) 70%,black))',
-  'linear-gradient(135deg,var(--color-emerald),color-mix(in srgb,var(--color-emerald) 70%,black))',
-  'linear-gradient(135deg,var(--color-amber),color-mix(in srgb,var(--color-amber) 70%,black))',
-  'linear-gradient(135deg,var(--color-rose),color-mix(in srgb,var(--color-rose) 70%,black))',
-  'linear-gradient(135deg,var(--color-purple-light),var(--color-purple-glow))',
-];
-
-function getGradient(name: string) {
-  const code = name ? name.charCodeAt(0) % AVATAR_GRADIENTS.length : 0;
-  return AVATAR_GRADIENTS[code];
-}
-
-/**
- * Initial-tile avatar.
- *
- * The person's name is always rendered as text next to this tile, so by
- * default the tile is decorative and hidden from assistive tech — otherwise
- * every name would be announced twice. Pass `decorative={false}` where the
- * tile stands alone and must carry the name itself.
- */
-function Avatar({ name, size = 32, decorative = true }: { name: string; size?: number; decorative?: boolean }) {
-  return (
-    <div
-      role={decorative ? undefined : 'img'}
-      aria-hidden={decorative || undefined}
-      aria-label={decorative ? undefined : name}
-      className="rounded-xl flex items-center justify-center font-black text-white shrink-0 shadow-sm"
-      style={{ width: size, height: size, background: getGradient(name || '?'), fontSize: size * 0.38 }}>
-      {(name || '?').charAt(0).toUpperCase()}
-    </div>
-  );
-}
-
-function formatTime(dt: string) {
-  return new Date(dt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-function formatDateLabel(dt: string) {
-  const d = new Date(dt);
-  const today = new Date();
-  const yesterday = new Date(); yesterday.setDate(today.getDate() - 1);
-  if (d.toDateString() === today.toDateString()) return 'Today';
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
-  return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-}
-
-function isSameDay(a: string, b: string) {
-  return new Date(a).toDateString() === new Date(b).toDateString();
-}
+type Msg = ChatMessage;
 
 export default function ChatView({ currentUser }: ChatViewProps) {
   const { socket, latestMessages } = useSocket();
-  const [allUsers, setAllUsers] = useState<any[]>([]);
   // The server decides which channels this account may open (and joins its socket to them).
-  const [channels, setChannels] = useState<ChatChannels>({ global: false, ventures: [] });
+  const channelsState = useApi('chat-channels', async () => {
+    const r = await getChatChannels();
+    return r.success ? r.data : { global: false, ventures: [] };
+  });
+  const channels = channelsState.data ?? { global: false, ventures: [] };
+  const usersState = useApi('chat-users', (s) => unwrapList(getUsers(s)));
+  const allUsers = useMemo<TeamMember[]>(
+    () => (usersState.data ?? []).filter((u) => u.id !== currentUser.id && u.access_level < 9),
+    [usersState.data, currentUser.id],
+  );
   const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'venture', id: 'global', name: 'Global HQ', color: 'var(--color-purple-glow)' });
-  const [messages, setMessages] = useState<Msg[]>([]);
+  const channelKey = `${activeChannel.type}-${activeChannel.id}`;
+  const history = useApi(channelKey, async () => {
+    const params = activeChannel.type === 'venture' ? { ventureId: activeChannel.id } : { receiverId: activeChannel.id as number };
+    const res = await getChatMessages(params);
+    return res.success ? res.data : [];
+  });
+  const { setData: setHistory } = history;
+  // Switching channel shows the loading state instead of the previous channel's log.
+  const messages: Msg[] = history.fetching ? [] : (history.data ?? []);
+  const loading = history.fetching;
   const [inputMsg, setInputMsg] = useState('');
-  const [loading, setLoading] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const [sending, setSending] = useState(false);
   const [dmSearch, setDmSearch] = useState('');
+  // Coarse clock for the "recent activity" highlight; ticks in a timer, never during render.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
   // Gates the message log's live region. It stays off while a conversation's
   // history is being painted, so switching channels does not make a screen
   // reader read the entire backlog; it flips on afterwards so genuinely new
   // messages are announced.
-  const [announceNew, setAnnounceNew] = useState(false);
+  const [announced, setAnnounced] = useState('');
+  const announceNew = announced === channelKey;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const typingTimer = useRef<any>(null);
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const inputId = useId();
   const inputHintId = `${inputId}-hint`;
   const searchId = `${inputId}-search`;
 
-  // Init users
-  useEffect(() => {
-    getUsers().then(r => { if (r.success) setAllUsers(r.data.filter((u: any) => u.id !== currentUser.id && u.access_level < 9)); });
-    getChatChannels().then(r => { if (r.success) setChannels(r.data); }).catch(() => { /* sidebar just stays empty */ });
-  }, []);
-
-  // Join channel + listen
+  // Live messages for the open conversation.
   useEffect(() => {
     if (!socket) return;
-    fetchMessages();
 
     const handler = (msg: Msg) => {
-      setMessages(prev => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-
-        const vId = msg.ventureId || msg.venture_id;
-        const rId = msg.receiver_id || msg.receiverId;
-
-        if (activeChannel.type === 'venture') {
-          if (vId === activeChannel.id || ((vId === null || vId === 'global') && activeChannel.id === 'global')) {
-            return [...prev, msg];
-          }
-        } else {
-          if ((msg.sender_id === activeChannel.id && rId === currentUser.id) ||
-              (msg.sender_id === currentUser.id && rId === activeChannel.id)) {
-            return [...prev, msg];
-          }
-        }
-        return prev;
-      });
+      const vId = msg.ventureId ?? msg.venture_id;
+      const rId = msg.receiver_id;
+      const belongs = activeChannel.type === 'venture'
+        ? (vId === activeChannel.id || ((vId === null || vId === undefined || vId === 'global') && activeChannel.id === 'global'))
+        : (msg.sender_id === activeChannel.id && rId === currentUser.id) || (msg.sender_id === currentUser.id && rId === activeChannel.id);
+      if (belongs) setHistory((prev) => (prev ?? []).some((m) => m.id === msg.id) ? prev : [...(prev ?? []), msg]);
       setIsTyping(false);
     };
 
@@ -135,33 +90,21 @@ export default function ChatView({ currentUser }: ChatViewProps) {
     socket.on('receive_message', handler);
     socket.on('user_typing', typingHandler);
     return () => { socket.off('receive_message', handler); socket.off('user_typing', typingHandler); };
-  }, [activeChannel, socket]);
+  }, [activeChannel, socket, currentUser.id, setHistory]);
 
   // Silence the log while the newly selected conversation loads and paints.
   useEffect(() => {
-    setAnnounceNew(false);
-    const t = setTimeout(() => setAnnounceNew(true), 1200);
+    const t = setTimeout(() => setAnnounced(channelKey), 1200);
     return () => clearTimeout(t);
-  }, [activeChannel]);
+  }, [channelKey]);
 
-  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
-
-  const fetchMessages = async () => {
-    setLoading(true);
-    setMessages([]);
-    try {
-      const params = activeChannel.type === 'venture' ? { ventureId: activeChannel.id } : { receiverId: activeChannel.id as number };
-      const res = await getChatMessages(params);
-      if (res.success) setMessages(res.data);
-    } catch { /* silent */ }
-    finally { setLoading(false); }
-  };
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
 
   const emitTyping = useCallback(() => {
     socket?.emit('typing', activeChannel.type === 'venture' ? { ventureId: activeChannel.id } : { receiverId: activeChannel.id });
   }, [socket, activeChannel]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = async (e: React.SyntheticEvent) => {
     e.preventDefault();
     if (!inputMsg.trim() || sending) return;
     const content = inputMsg.trim();
@@ -176,7 +119,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
       const res = await sendChatMessage(payload);
       if (res.success) {
         // The server persisted it once and broadcasts it to the room itself.
-        setMessages(prev => [...prev.filter(m => m.id !== res.data.id), res.data]);
+        setHistory((prev) => [...(prev ?? []).filter((m) => m.id !== res.data.id), res.data]);
       }
     } catch { toast.error('Failed to send message'); }
     finally { setSending(false); inputRef.current?.focus(); }
@@ -184,7 +127,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
 
   const switchChannel = (ch: Channel) => { setActiveChannel(ch); setDmSearch(''); };
 
-  const filteredUsers = allUsers.filter(u => u.full_name?.toLowerCase().includes(dmSearch.toLowerCase()));
+  const filteredUsers = allUsers.filter((u) => u.full_name?.toLowerCase().includes(dmSearch.toLowerCase()));
 
   // Sort channels by latest message
   const getChannelTimestamp = (chKey: string) => {
@@ -198,7 +141,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
   const sortedUsers = [...filteredUsers].sort((a, b) => getChannelTimestamp(`dm_${b.id}`) - getChannelTimestamp(`dm_${a.id}`));
 
   const globalActive = activeChannel.id === 'global';
-  const globalUnread = latestMessages['global'] && getChannelTimestamp('global') > Date.now() - 60000; // rough highlight for very recent
+  const globalUnread = latestMessages['global'] && getChannelTimestamp('global') > now - 60000; // rough highlight for very recent
 
   const channelLabel = activeChannel
     ? (activeChannel.type === 'venture' ? `#${activeChannel.name}` : activeChannel.name)
@@ -247,7 +190,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
             />}
             {VENTURE_CHANNELS.map(({ v, vId }) => {
               const chKey = `venture_${vId}`;
-              const isRecent = latestMessages[chKey] && getChannelTimestamp(chKey) > Date.now() - 60000;
+              const isRecent = latestMessages[chKey] && getChannelTimestamp(chKey) > now - 60000;
               const isActive = activeChannel.id === vId && activeChannel.type === 'venture';
               return (
                 <SidebarBtn key={v.id} active={isActive}
@@ -285,7 +228,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
             ) : sortedUsers.map(u => {
               const isActive = activeChannel.id === u.id && activeChannel.type === 'dm';
               const chKey = `dm_${u.id}`;
-              const isRecent = latestMessages[chKey] && getChannelTimestamp(chKey) > Date.now() - 60000;
+              const isRecent = latestMessages[chKey] && getChannelTimestamp(chKey) > now - 60000;
               return (
                 <button key={u.id} type="button"
                   onClick={() => switchChannel({ type: 'dm', id: u.id, name: u.full_name, color: 'var(--color-cyan)' })}
@@ -490,7 +433,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
                 type="text"
                 value={inputMsg}
                 onChange={e => { setInputMsg(e.target.value); emitTyping(); }}
-                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e as any); } }}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); } }}
                 placeholder={`Message ${activeChannel.type === 'venture' ? '#' + activeChannel.name : activeChannel.name}...`}
                 aria-describedby={inputHintId}
                 className="w-full pl-4 pr-4 py-3 rounded-2xl bg-[var(--color-bg-primary)] border border-[var(--color-border)] text-[14px] font-medium text-[var(--color-text-primary)] outline-none transition-all placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-purple-glow)] focus:shadow-[0_0_0_3px_rgba(139,92,246,0.12)]"
@@ -521,25 +464,5 @@ export default function ChatView({ currentUser }: ChatViewProps) {
       </div>
       )}
     </div>
-  );
-}
-
-function SidebarBtn({ active, color, onClick, icon, label, isRecent }: { active: boolean; color: string; onClick: () => void; icon: React.ReactNode; label: string; isRecent?: boolean; }) {
-  return (
-    <button type="button" onClick={onClick}
-      aria-current={active ? 'true' : undefined}
-      className={`flex items-center gap-2.5 w-full px-2.5 py-2 rounded-xl text-left transition-all mb-0.5 border ${active ? 'border shadow-sm font-bold' : 'border-transparent hover:bg-[var(--color-bg-primary)] font-medium'}`}
-      style={active ? { background: tint(color, 8), borderColor: tint(color, 21), color } : { color: isRecent ? 'var(--color-text-primary)' : 'var(--color-text-secondary)' }}
-    >
-      <span aria-hidden="true" style={active ? { color } : { color: 'var(--color-text-muted)' }}>{icon}</span>
-      <span className={`text-[13px] truncate ${isRecent && !active ? 'font-bold' : ''}`}>{label}</span>
-      {active && <span aria-hidden="true" className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />}
-      {isRecent && !active && (
-        <>
-          <span className="sr-only">, new messages</span>
-          <span aria-hidden="true" className="ml-auto w-2 h-2 rounded-full bg-[var(--color-purple-glow)] shrink-0" />
-        </>
-      )}
-    </button>
   );
 }

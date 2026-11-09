@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { User, VENTURES } from '@/lib/constants';
+import { useState } from 'react';
+import type { User } from '@/lib/constants';
 import { getAnalytics } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
+import { describeSeries, formatCompact, formatMoney } from '@/lib/format';
+import type { Analytics } from '@/lib/types';
 import { BarChart3, CheckCircle2, Users, Building2, DollarSign, RefreshCw, Lock } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
@@ -11,13 +14,6 @@ import {
 import {
   Button, Card, CardHeader, StatCard, EmptyState, Skeleton, SkeletonCard, cn,
 } from '@/components/ui';
-
-interface AnalyticsData {
-  budgetDistribution: { venture: string; color: string; total_budget: number }[];
-  monthlyPerformance?: { name: string; tasks: number; projects: number }[];
-  taskVelocity: { name: string; completed: number }[];
-  userDistribution: { name: string; value: number; color: string }[];
-}
 
 const CHART_STYLE = {
   contentStyle: { background: 'var(--color-bg-card)', border: '1px solid var(--color-border)', borderRadius: 12, color: 'var(--color-text-primary)', fontSize: 12 },
@@ -29,8 +25,6 @@ const AXIS_TICK = { fontSize: 11, fill: 'var(--color-text-muted)' };
 const AXIS_TICK_LG = { fontSize: 12, fill: 'var(--color-text-muted)' };
 const AXIS_TICK_CATEGORY = { fontSize: 12, fill: 'var(--color-text-secondary)' };
 
-const FALLBACK_VEL = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(n => ({ name: n, completed: 0 }));
-const FALLBACK_MONTHLY = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'].map(n => ({ name: n, tasks: 0, projects: 0 }));
 
 const TABS = [
   { id: 'overview' as const, label: 'Overview', icon: <BarChart3 size={15} aria-hidden="true" /> },
@@ -38,20 +32,6 @@ const TABS = [
   { id: 'ventures' as const, label: 'Ventures', icon: <Building2 size={15} aria-hidden="true" /> },
   { id: 'team' as const, label: 'Team', icon: <Users size={15} aria-hidden="true" /> },
 ];
-
-const rupees = (value: any) => `₹${Number(value ?? 0).toLocaleString()}`;
-
-/** Renders a chart series as a sentence for screen readers. */
-function describeSeries(
-  rows: any[],
-  labelKey: string,
-  valueKey: string,
-  format?: (value: any) => string,
-): string {
-  return rows
-    .map((row) => `${row?.[labelKey] ?? 'Unknown'} ${format ? format(row?.[valueKey]) : row?.[valueKey] ?? 0}`)
-    .join(', ');
-}
 
 /** Skeleton mirroring the KPI tile row plus the chart panels beneath it. */
 function ReportsSkeleton() {
@@ -77,35 +57,22 @@ function ReportsSkeleton() {
 }
 
 export default function ReportsView({ currentUser }: { currentUser: User }) {
-  const [data, setData] = useState<AnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<'overview' | 'tasks' | 'ventures' | 'team'>('overview');
   const [range, setRange] = useState('7 Days');
 
   const color = currentUser.venture?.primaryColor || 'var(--color-purple-glow)';
-
   const rangeInDays = range === '90 Days' ? 90 : range === '30 Days' ? 30 : 7;
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await getAnalytics(rangeInDays);
-      if (!res.success) throw new Error('Request was not successful');
-      setData(res.data);
-      setError(null);
-    } catch {
-      setError('Could not load report data. Check your connection and try again.');
-    }
-    finally { setLoading(false); }
-  }, [rangeInDays]);
+  const { data, loading, error, refetch: fetchData } = useApi(`reports-${rangeInDays}`, async (signal) => {
+    const res = await getAnalytics(rangeInDays, signal);
+    if (!res.success) throw new Error(res.message || 'Could not load report data');
+    return res.data as Analytics;
+  });
 
-  useEffect(() => { fetchData(); }, [fetchData, rangeInDays]);
-
-  const vel = data?.taskVelocity?.length ? data.taskVelocity : FALLBACK_VEL;
-  const hasVel = Boolean(data?.taskVelocity?.length);
-  const monthly = data?.monthlyPerformance?.length ? data.monthlyPerformance : FALLBACK_MONTHLY;
-  const hasMonthly = Boolean(data?.monthlyPerformance?.length);
+  const vel = data?.taskVelocity ?? [];
+  const hasVel = vel.length > 0;
+  const monthly = data?.monthlyPerformance ?? [];
+  const hasMonthly = monthly.length > 0;
   const totalVel = vel.reduce((s, d) => s + d.completed, 0);
   const users = data?.userDistribution || [];
   const totalUsers = users.reduce((s, d) => s + d.value, 0);
@@ -204,20 +171,15 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
             {currentUser.accessLevel <= 4 && (
               <StatCard
                 label="Total Budget"
-                value={`₹${(totalBudget / 100000).toFixed(1)}L`}
+                value={formatMoney(totalBudget)}
                 accent="var(--color-amber)"
                 icon={<DollarSign size={16} />}
                 delta={{ value: 'Project budgets', direction: 'flat' }}
               />
             )}
-            {/* `users` here is analytics userDistribution grouped by venture
-                — its length undercounts any venture with zero active users,
-                and the `|| 4` fallback silently showed a made-up figure
-                whenever analytics returned nothing at all. VENTURES is the
-                app's real, static list of operating units. */}
             <StatCard
               label="Ventures"
-              value={VENTURES.length}
+              value={users.length}
               accent={color}
               icon={<Building2 size={16} />}
               delta={{ value: 'Operating units', direction: 'flat' }}
@@ -335,8 +297,8 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
               )}
               <div className="mt-6 grid grid-cols-3 gap-4">
                 {[
-                  { label: 'Avg / Day', value: (totalVel / 7).toFixed(1), c: 'var(--color-emerald)' },
-                  { label: 'Peak Day', value: Math.max(...vel.map(d => d.completed)), c: color },
+                  { label: 'Avg / Day', value: (totalVel / rangeInDays).toFixed(1), c: 'var(--color-emerald)' },
+                  { label: 'Peak Day', value: vel.length ? Math.max(...vel.map(d => d.completed)) : 0, c: color },
                   { label: 'Status', value: totalVel > 0 ? '↑ Active' : '— Idle', c: totalVel > 0 ? 'var(--color-emerald)' : 'var(--color-text-muted)' },
                 ].map(s => (
                   <div key={s.label} className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-bg-secondary)] p-4 text-center">
@@ -356,14 +318,14 @@ export default function ReportsView({ currentUser }: { currentUser: User }) {
                 {budgets.length > 0 ? (
                   <div
                     role="img"
-                    aria-label={`Horizontal bar chart of project budget per venture: ${describeSeries(budgets, 'venture', 'total_budget', rupees)}.`}
+                    aria-label={`Horizontal bar chart of project budget per venture: ${describeSeries(budgets, 'venture', 'total_budget', formatMoney)}.`}
                   >
                     <ResponsiveContainer width="100%" height={240} minHeight={240} minWidth={0}>
                       <BarChart data={budgets} layout="vertical" barSize={28}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                        <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={v => `₹${(v / 1000).toFixed(0)}K`} />
+                        <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={formatCompact} />
                         <YAxis type="category" dataKey="venture" tick={AXIS_TICK_CATEGORY} axisLine={false} tickLine={false} width={130} />
-                        <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v) => [`₹${Number(v ?? 0).toLocaleString()}`, 'Budget']} />
+                        <Tooltip contentStyle={CHART_STYLE.contentStyle} formatter={(v) => [formatMoney(v), 'Budget']} />
                         <Bar dataKey="total_budget" radius={[0, 8, 8, 0]}>
                           {budgets.map((e, i) => <Cell key={i} fill={e.color || color} />)}
                         </Bar>

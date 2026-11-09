@@ -1,36 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { getAuditLogs } from '@/lib/api';
+import { unwrapList, useApi } from '@/lib/useApi';
 import {
-  ShieldCheck, Activity, Search, Server,
+  ShieldCheck, Search, Server,
   Database, UserCircle2, Briefcase, FileCode2,
 } from 'lucide-react';
-import { Badge, EmptyState, SkeletonTable, type BadgeTone } from '@/components/ui';
+import { AsyncState, Badge, EmptyState, SkeletonTable, type BadgeTone } from '@/components/ui';
 
 export default function AuditLogsView() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const logs = useApi('audit-logs', (sig) => unwrapList(getAuditLogs(sig)));
   const [search, setSearch] = useState('');
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
-    try {
-      const res = await getAuditLogs();
-      if (res.success) {
-        setLogs(res.data);
-      }
-    } catch (error) {
-      console.error('Error fetching audit logs:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredLogs = logs.filter(log => {
+  const filteredLogs = (logs.data ?? []).filter(log => {
     const s = search.toLowerCase();
     return (
       (log.user_name || '').toLowerCase().includes(s) ||
@@ -73,21 +56,18 @@ export default function AuditLogsView() {
             <div>
               <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Security & Audit Logs</h2>
               <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-                Immutable ledger of all critical system actions. Accessible only to Super Admins.
+                The latest 100 recorded actions across the system. Visible to L1 and L2 only.
               </p>
             </div>
-          </div>
-          <div className="flex items-center gap-2 px-4 py-2 bg-[var(--color-emerald)]/10 rounded-full border border-[var(--color-emerald)]/20">
-            <Activity size={16} className="text-[var(--color-emerald)]" />
-            <span className="text-[13px] font-bold text-[var(--color-emerald)]">Live Monitoring Active</span>
           </div>
         </div>
 
         <div className="relative w-full max-w-[400px]">
-          <Search size={16} className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
-          <input 
-            type="text" 
-            placeholder="Search logs by user, action, or entity..." 
+          <Search size={16} aria-hidden="true" className="absolute left-3.5 top-3 text-[var(--color-text-muted)]" />
+          <input
+            type="search"
+            aria-label="Search logs by user, action or entity"
+            placeholder="Search by user, action or entity…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[var(--color-bg-secondary)] border border-[var(--color-border)] text-[var(--color-text-primary)] text-[13px] outline-none focus:border-[var(--color-purple-glow)] transition-colors"
@@ -97,9 +77,8 @@ export default function AuditLogsView() {
 
       {/* Logs Table */}
       <div className="bg-[var(--color-bg-card)] border border-[var(--color-border)] rounded-2xl overflow-hidden flex-1 flex flex-col shadow-sm">
-        {loading ? (
-          <SkeletonTable rows={8} columns={5} />
-        ) : filteredLogs.length === 0 ? (
+        <AsyncState loading={logs.loading} error={logs.error} onRetry={logs.refetch} what="audit logs" skeleton={<SkeletonTable rows={8} columns={5} />}>
+        {filteredLogs.length === 0 ? (
           <div className="p-16">
             <EmptyState
               icon={<Database size={24} />}
@@ -160,6 +139,7 @@ export default function AuditLogsView() {
             </table>
           </div>
         )}
+        </AsyncState>
       </div>
     </div>
   );

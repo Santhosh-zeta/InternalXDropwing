@@ -10,10 +10,10 @@ import { searchAll, type SearchHit, type SearchHitType } from '@/lib/api';
 import { cn } from '@/components/ui';
 
 interface Props {
-  /** Menu labels the current user can open (same list the sidebar renders). */
-  menus: string[];
-  /** Switch the dashboard to the menu at this index. */
-  onNavigate: (index: number) => void;
+  /** Views the current user can open (same list the sidebar renders). */
+  menus: { id: string; label: string }[];
+  /** Switch the dashboard to this view id. */
+  onNavigate: (viewId: string) => void;
 }
 
 interface Item {
@@ -22,26 +22,18 @@ interface Item {
   title: string;
   subtitle?: string;
   icon: React.ElementType;
-  index: number; // menu index to open; -1 = nothing to open
+  viewId: string | null; // view to open; null = nothing to open
 }
 
-const TYPE_META: Record<SearchHitType, { label: string; icon: React.ElementType; menus: string[] }> = {
-  project: { label: 'Projects', icon: FolderKanban, menus: ['Projects', 'My Projects', 'Project Status', 'Deliverables'] },
-  task: { label: 'Tasks', icon: CheckSquare, menus: ['Tasks', 'My Tasks'] },
-  document: { label: 'Documents', icon: FileText, menus: ['Documents'] },
-  announcement: { label: 'Announcements', icon: Megaphone, menus: [] },
-  user: { label: 'People', icon: UserIcon, menus: ['User Management', 'Team Members', 'Team Management'] },
-  message: { label: 'Chat', icon: MessageSquare, menus: ['Team Chat', 'Messages'] },
+const TYPE_META: Record<SearchHitType, { label: string; icon: React.ElementType; view: string }> = {
+  project: { label: 'Projects', icon: FolderKanban, view: 'projects' },
+  task: { label: 'Tasks', icon: CheckSquare, view: 'tasks' },
+  document: { label: 'Documents', icon: FileText, view: 'documents' },
+  announcement: { label: 'Announcements', icon: Megaphone, view: 'home' },
+  user: { label: 'People', icon: UserIcon, view: 'team' },
+  message: { label: 'Chat', icon: MessageSquare, view: 'chat' },
 };
 const GROUP_ORDER: SearchHitType[] = ['project', 'task', 'document', 'user', 'announcement', 'message'];
-
-const menuIndex = (menus: string[], candidates: string[]) => {
-  for (const c of candidates) {
-    const i = menus.indexOf(c);
-    if (i !== -1) return i;
-  }
-  return -1;
-};
 
 /**
  * Ctrl/Cmd+K command palette: jump to a module, or search tasks, projects,
@@ -128,9 +120,9 @@ export default function SearchPalette({ menus, onNavigate }: Props) {
   const items = useMemo<Item[]>(() => {
     const needle = q.toLowerCase();
     const out: Item[] = [];
-    menus.forEach((m, i) => {
-      if (!needle || m.toLowerCase().includes(needle)) {
-        out.push({ key: `menu-${m}`, group: 'Go to', title: m, icon: LayoutDashboard, index: i });
+    menus.forEach((m) => {
+      if (!needle || m.label.toLowerCase().includes(needle)) {
+        out.push({ key: `menu-${m.id}`, group: 'Go to', title: m.label, icon: LayoutDashboard, viewId: m.id });
       }
     });
     const trimmedMenus = needle ? out : out.slice(0, 6);
@@ -144,7 +136,7 @@ export default function SearchPalette({ menus, onNavigate }: Props) {
           title: h.title,
           subtitle: h.subtitle,
           icon: meta.icon,
-          index: type === 'announcement' ? 0 : menuIndex(menus, meta.menus),
+          viewId: menus.some((m) => m.id === meta.view) ? meta.view : null,
         });
       }
     }
@@ -158,7 +150,7 @@ export default function SearchPalette({ menus, onNavigate }: Props) {
 
   const choose = (item: Item | undefined) => {
     if (!item) return;
-    if (item.index >= 0) onNavigate(item.index);
+    if (item.viewId) onNavigate(item.viewId);
     close();
   };
 

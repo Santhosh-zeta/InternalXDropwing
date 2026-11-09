@@ -1,8 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { User } from '@/lib/constants';
-import api from '@/lib/api';
+import { apiGet } from '@/lib/api';
+import { useApi } from '@/lib/useApi';
+import type { Envelope } from '@/lib/types';
+import { formatMoney } from '@/lib/format';
 import {
   AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
@@ -42,7 +45,7 @@ interface Expense {
 }
 interface MonthlyData { month: string; expenses: number; hours: number; }
 
-const fmt = (n: number) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(n);
+const fmt = (n: number) => formatMoney(n);
 
 const healthLabel = (utilization: number) =>
   utilization > 85 ? 'At Risk' : utilization > 60 ? 'Moderate' : 'Healthy';
@@ -52,41 +55,29 @@ const healthColor = (utilization: number) =>
 
 export default function BudgetView({ currentUser }: { currentUser: User }) {
   const [tab, setTab] = useState<'overview' | 'expenses' | 'trend'>('overview');
-  const [ventures, setVentures] = useState<VentureBudget[]>([]);
-  const [totals, setTotals] = useState<BudgetTotals | null>(null);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [monthly, setMonthly] = useState<MonthlyData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filterVenture, setFilterVenture] = useState<string>('all');
 
   const color = currentUser.accessLevel === 2 ? '#8b5cf6' : '#06b6d4';
   const colorVar = currentUser.accessLevel === 2 ? 'var(--color-purple-glow)' : '#06b6d4';
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [summaryRes, expRes, monthRes] = await Promise.all([
-        api.get('/budget/summary'),
-        api.get('/budget/expenses?limit=100'),
-        api.get('/budget/monthly'),
-      ]);
-      if (summaryRes.data.success) {
-        setVentures(summaryRes.data.data.ventures);
-        setTotals(summaryRes.data.data.totals);
-      }
-      if (expRes.data.success) setExpenses(expRes.data.data);
-      if (monthRes.data.success) setMonthly(monthRes.data.data);
-      setError(null);
-    } catch {
-      // Previously logged to the console only, leaving budget figures at
-      // zero with no indication to the viewer that the request had failed.
-      setError('Could not load budget data. Check your connection and try again.');
-    }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  const { data, loading, error, refetch: fetchAll } = useApi('budget', async (signal) => {
+    const [summary, exp, month] = await Promise.all([
+      apiGet<Envelope<{ ventures: VentureBudget[]; totals: BudgetTotals }>>('/budget/summary', signal),
+      apiGet<Envelope<Expense[]>>('/budget/expenses', signal, { limit: 100 }),
+      apiGet<Envelope<MonthlyData[]>>('/budget/monthly', signal),
+    ]);
+    if (!summary.success) throw new Error(summary.message || 'Could not load the budget');
+    return {
+      ventures: summary.data.ventures,
+      totals: summary.data.totals as BudgetTotals | null,
+      expenses: exp.success ? exp.data : [],
+      monthly: month.success ? month.data : [],
+    };
+  });
+  const ventures = data?.ventures ?? [];
+  const totals = data?.totals ?? null;
+  const expenses = data?.expenses ?? [];
+  const monthly = data?.monthly ?? [];
 
   const filteredExpenses = filterVenture === 'all'
     ? expenses
@@ -222,7 +213,7 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
               <div className="p-5 md:p-6 border-b border-[var(--color-border)] flex justify-between items-center bg-[var(--color-bg-secondary)]">
                 <div>
                   <h3 className="font-bold text-base text-[var(--color-text-primary)]">Budget vs Expenses by Venture</h3>
-                  <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">All values in INR • Expenses = payroll cost (₹50/hr)</p>
+                  <p className="text-xs text-[var(--color-text-muted)] mt-1 font-medium">Expenses are approved timesheet hours multiplied by each person&apos;s hourly rate. Hours without a rate are not counted.</p>
                 </div>
               </div>
               <div className="overflow-x-auto">
