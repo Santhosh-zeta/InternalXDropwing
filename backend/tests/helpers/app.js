@@ -48,6 +48,7 @@ const buildApp = (io = makeFakeIo()) => {
   mount('/api/learning', 'learning.routes');
   mount('/api/strategy', 'strategy.routes');
   mount('/api/team-members', 'team_rate.routes');
+  mount('/api/search', 'search.routes');
   mount('/uploads', 'uploads.routes');
   app.set('io', io);
   app.use((err, req, res, next) => { // eslint-disable-line no-unused-vars
