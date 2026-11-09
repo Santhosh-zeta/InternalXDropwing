@@ -403,6 +403,8 @@ const publicConfig = (req, res) => res.json({
   data: {
     selfRegistration: selfRegistrationEnabled(),
     googleLogin: Boolean(process.env.GOOGLE_CLIENT_ID),
+    // The OAuth client id is public by design (it is in every Google button); the web app reads it here at runtime.
+    googleClientId: process.env.GOOGLE_CLIENT_ID || null,
   },
 });
 

@@ -1,6 +1,7 @@
 /**
- * Tiny in-process scheduler (no new infrastructure). Enabled with
- * ENABLE_SCHEDULER=true; every SCHEDULER_TICK_MS (5 minutes) it checks the
+ * Tiny in-process scheduler (no new infrastructure). On by default in production,
+ * off elsewhere; ENABLE_SCHEDULER=true|false overrides either way. Several app
+ * instances are safe (see below), so the production default needs no thought. Every SCHEDULER_TICK_MS (5 minutes) it checks the
  * clock in APP_TIMEZONE (default Asia/Kolkata) and runs, at most once each:
  *
  *   weekly_digest  Mondays from DIGEST_HOUR (default 8) onwards, key = that Monday's date
@@ -65,11 +66,19 @@ const tick = async ({ now = new Date(), jobs = { digest: runWeeklyDigest, alerts
   return out;
 };
 
+/** ENABLE_SCHEDULER=true|false wins; unset means on in production, off in development and tests. */
+const schedulerEnabled = (env = process.env) => {
+  const v = (env.ENABLE_SCHEDULER || '').trim().toLowerCase();
+  if (v === 'true') return true;
+  if (v === 'false') return false;
+  return env.NODE_ENV === 'production';
+};
+
 let timer = null;
 
-/** Starts the loop when ENABLE_SCHEDULER=true; returns the timer (or null). Safe to call twice. */
+/** Starts the loop when the scheduler is enabled; returns the timer (or null). Safe to call twice. */
 const startScheduler = () => {
-  if (process.env.ENABLE_SCHEDULER !== 'true' || timer) return timer;
+  if (!schedulerEnabled() || timer) return timer;
   const every = parseInt(process.env.SCHEDULER_TICK_MS, 10) || 5 * 60 * 1000;
   const safeTick = () => tick().catch((err) => console.error('[scheduler] tick failed:', err.message));
   timer = setInterval(safeTick, every);
@@ -81,4 +90,4 @@ const startScheduler = () => {
 
 const stopScheduler = () => { if (timer) clearInterval(timer); timer = null; };
 
-module.exports = { startScheduler, stopScheduler, tick, runOnce, localParts };
+module.exports = { schedulerEnabled, startScheduler, stopScheduler, tick, runOnce, localParts };

@@ -83,7 +83,7 @@ export const verifyOtp = (email: string, otp: string) => unwrap<AuthResponse>(ap
 export const register = (fullName: string, email: string, password: string) =>
   unwrap<AuthResponse>(api.post('/auth/register', { fullName, email, password }));
 
-export const getAuthConfig = async (): Promise<{ selfRegistration: boolean; googleLogin: boolean }> => {
+export const getAuthConfig = async (): Promise<{ selfRegistration: boolean; googleLogin: boolean; googleClientId?: string | null }> => {
   const res = await api.get('/auth/config');
   return res.data.data;
 };

@@ -2,12 +2,12 @@
 #
 # One image: the Express API plus the static web app it serves.
 #
-#   docker build -t internalx \
-#     --build-arg NEXT_PUBLIC_API_URL=https://internalx.example.com .
+#   docker build -t internalx .
 #
-# NEXT_PUBLIC_* values are inlined into the web bundle at build time, so they are
-# build arguments, not runtime environment variables. Everything else (database,
-# secrets, SMTP) is runtime configuration: see docs/production-checklist.md.
+# No build arguments are needed: the web app calls the API on its own origin and gets the
+# Google client id from the API at runtime. All configuration (database, secrets, SMTP,
+# public URL) is runtime environment: see docs/production-checklist.md.
+# Optional build arg: NEXT_PUBLIC_CURRENCY (ISO code used to display money, default USD).
 
 # ── 1. Web app: Next.js static export ───────────────────────────────────────
 FROM node:20-alpine AS web
@@ -15,13 +15,9 @@ WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
-# The public origin of the app (no trailing slash, no /api). Required: there is no safe default.
-ARG NEXT_PUBLIC_API_URL
-ARG NEXT_PUBLIC_GOOGLE_CLIENT_ID=
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
-    NEXT_PUBLIC_GOOGLE_CLIENT_ID=$NEXT_PUBLIC_GOOGLE_CLIENT_ID \
+ARG NEXT_PUBLIC_CURRENCY=USD
+ENV NEXT_PUBLIC_CURRENCY=$NEXT_PUBLIC_CURRENCY \
     NEXT_TELEMETRY_DISABLED=1
-RUN test -n "$NEXT_PUBLIC_API_URL" || (echo "build arg NEXT_PUBLIC_API_URL is required, e.g. https://internalx.example.com" >&2; exit 1)
 RUN npm run build
 
 # ── 2. API dependencies: production only ────────────────────────────────────
