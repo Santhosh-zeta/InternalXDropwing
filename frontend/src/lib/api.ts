@@ -30,6 +30,13 @@ const api = axios.create({
  * close.
  */
 
+// The client defaults to JSON. A FormData body (uploads) must go out without a fixed Content-Type so the
+// browser can add the multipart boundary; with the JSON default the server receives no file at all.
+api.interceptors.request.use((config) => {
+  if (typeof FormData !== 'undefined' && config.data instanceof FormData) config.headers.delete('Content-Type');
+  return config;
+});
+
 // Response interceptor — an expired or revoked session sends the user back
 // to sign in. There's no client-side token to clear: the server already
 // cleared the cookie on logout, and a 401 here just means whatever cookie

@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Download, File, FileImage, FileSpreadsheet, FileText, FolderOpen, Package, Share2, Trash2, Upload, Video, type LucideIcon } from 'lucide-react';
-import api, { API_URL, apiGet, errMsg, getProjects, setDocumentClientVisible } from '@/lib/api';
+import api, { API_URL, apiGet, errMsg, getProjects, getVentures, setDocumentClientVisible } from '@/lib/api';
 import { unwrapList, useApi } from '@/lib/useApi';
 import type { Envelope } from '@/lib/types';
 import type { User } from '@/lib/constants';
@@ -47,11 +47,15 @@ function formatSize(bytes: number): string {
 export default function DocumentsView({ currentUser }: { currentUser: User }) {
   const docs = useApi('documents', (s) => unwrapList(apiGet<Envelope<DocItem[]>>('/documents', s)), { toastOnError: 'auto' });
   const projects = useApi('documents-projects', (s) => unwrapList(getProjects(s)));
+  const isGlobal = currentUser.accessLevel <= 2;
+  // Global users (L1/L2) have no home venture: a file without a project goes to one venture or company-wide.
+  const ventures = useApi(isGlobal ? 'documents-ventures' : null, (s) => unwrapList(getVentures(s)));
   const confirm = useConfirm();
   const fileRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState('');
   const [projectId, setProjectId] = useState('');
+  const [target, setTarget] = useState('company'); // 'company' | venture id (global users, no project)
 
   const canShare = currentUser.accessLevel <= 5;
   const canDelete = (d: DocItem) => currentUser.accessLevel <= 5 || currentUser.id === d.uploaded_by;
@@ -69,6 +73,10 @@ export default function DocumentsView({ currentUser }: { currentUser: User }) {
     form.append('file', file);
     // The server derives the venture from the project or from the caller; this only picks the project.
     if (projectId) form.append('projectId', projectId);
+    else if (isGlobal) {
+      if (target === 'company') form.append('companyWide', 'true');
+      else form.append('ventureId', target);
+    }
     setUploading(true);
     setStatus(`Uploading ${file.name}…`);
     try {
@@ -138,6 +146,12 @@ export default function DocumentsView({ currentUser }: { currentUser: User }) {
             <option value="">No project</option>
             {(projects.data ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
           </Select>
+          {isGlobal && !projectId && (
+            <Select aria-label="Upload to" value={target} onChange={(e) => setTarget(e.target.value)} className="h-10 w-auto min-w-44">
+              <option value="company">Company-wide</option>
+              {(ventures.data ?? []).map((v) => <option key={v.id} value={String(v.id)}>{v.name}</option>)}
+            </Select>
+          )}
           <label htmlFor="documents-file-input" className="sr-only">Choose a document to upload</label>
           <input id="documents-file-input" type="file" ref={fileRef} className="hidden" onChange={upload} />
           {uploadButton('Upload file')}

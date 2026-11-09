@@ -134,7 +134,7 @@ export default function BudgetView({ currentUser }: { currentUser: User }) {
         <div
           role="group"
           aria-label="Budget sections"
-          className="flex gap-2 bg-[var(--color-bg-secondary)] p-1 rounded-[var(--radius-card)] border border-[var(--color-border)]"
+          className="flex max-w-full flex-wrap gap-2 bg-[var(--color-bg-secondary)] p-1 rounded-[var(--radius-card)] border border-[var(--color-border)]"
         >
           {TABS.map(t => (
             <Button

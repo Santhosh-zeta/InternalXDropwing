@@ -85,29 +85,35 @@ InternalX is **invite-only by default**; there is no open sign-up and no shipped
 
 ## Quick start
 
-Prerequisites: Node.js 20, Docker (or a local PostgreSQL 16), Flutter 3 for the mobile app.
+Prerequisites: Node.js 20+, and either Docker (it starts PostgreSQL for you) or a PostgreSQL 16 you can
+reach. Flutter 3 only for the mobile app.
 
 ```bash
 git clone https://github.com/Santhosh-zeta/InternalXDropwing.git && cd InternalXDropwing
-./scripts/setup.sh                      # or do the steps below by hand
+./scripts/dev.sh --demo        # or: npm run dev:demo
 ```
 
-```bash
-# 1. database (loopback only, throwaway dev credentials)
-docker compose -f docker-compose.dev.yml up -d
+That one command (idempotent, safe to re-run, refuses to run with `NODE_ENV=production`):
 
-# 2. API
-cd backend && cp .env.example .env      # set JWT_SECRET, DB_*; add BOOTSTRAP_ADMIN_* for a first login
-npm ci && npm run dev                   # http://localhost:5000, applies migrations at boot
+1. starts PostgreSQL from `docker-compose.dev.yml` (no Docker: it uses `DB_HOST DB_PORT DB_NAME DB_USER DB_PASSWORD`
+   from your environment),
+2. creates `backend/.env` from `.env.example` with a freshly generated `JWT_SECRET` (never overwritten),
+3. installs dependencies and applies the database migrations,
+4. creates a **dev Super Admin** and prints its email and random password once (skipped if one exists),
+5. with `--demo`: loads 4 ventures, a user per level, projects, tasks and timesheets (`<key>@demo.internalx.test`,
+   e.g. `l1`, `dd.l5`, `dd.client`; password from `DEMO_PASSWORD` or random, printed once),
+6. builds the web app into `backend/public/frontend-build` and serves everything on **http://localhost:5000**
+   (`PORT=5400 ./scripts/dev.sh` for another port; `--rebuild` after frontend changes).
 
-# 3. web
-cd ../frontend && cp .env.example .env.local && npm ci && npm run dev   # http://localhost:3000
-```
+Sign-in is password + a one-time code. Without SMTP the code is printed in the server terminal as
+`OTP for <email>: 123456` (development only). Check what is configured under **Settings > System**.
 
-For local exploration only: `node scripts/seed-demo.js` in `backend/` creates four ventures with a
-user per level, projects, tasks and timesheets; `node scripts/dev-token.js dd.l5` prints a session
-token for curl. Both refuse to run with `NODE_ENV=production`. The dev login page shows quick-login
-buttons for demo accounts; they are compiled out of production builds.
+Manual equivalent: `docker compose -f docker-compose.dev.yml up -d`, then in `backend/`
+`cp .env.example .env` (set `JWT_SECRET`, `DB_*`, optionally `BOOTSTRAP_ADMIN_*`) and `npm ci && npm run dev`.
+The web app: `cd frontend && npm ci && npm run build`, then copy `out/` to `backend/public/frontend-build`; for hot reload
+use `npm run dev` on :3000 with `NEXT_PUBLIC_API_URL=http://localhost:5000` and `CORS_ORIGINS=http://localhost:3000`.
+Demo data and a session token for curl: `node scripts/seed-demo.js`, `node scripts/dev-token.js dd.l5` (both refuse to
+run in production).
 
 **Tests.** Jest + Supertest against a disposable database (the suite drops and recreates its `public`
 schema, so never point it at real data):
@@ -115,14 +121,28 @@ schema, so never point it at real data):
 ```bash
 createdb internalx_test
 cd backend && TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/internalx_test npm test
+cd frontend && npx tsc --noEmit && npm run lint && npm run build
 ```
+
+**End-to-end smoke test** (real browser, real build, demo data). Start the app with
+`DEMO_PASSWORD=... ./scripts/dev.sh --demo 2>&1 | tee /tmp/internalx.log`, then:
+
+```bash
+npm i --no-save playwright && npx playwright install chromium     # once
+BASE_URL=http://localhost:5000 SERVER_LOG=/tmp/internalx.log DEMO_PASSWORD=... node frontend/e2e/smoke.mjs
+```
+
+It signs in (password + the code read from the server log) as L1, L3, L5, L7 and L9, opens every menu view at 1440 px
+and 390 px (no console errors, failed requests or horizontal overflow), and exercises tasks, hours, approval, chat
+isolation between ventures, documents, invite + accept, search, the assistant, notifications and logout.
+Screenshots go to `./e2e-shots`. Exit code 0 only if every check passed.
 
 **Mobile:** `cd mobile && flutter pub get && flutter run --dart-define=API_URL=http://10.0.2.2:5000/api`
 
 ## Configuration
 
 Everything comes from environment variables; nothing secret is committed. Templates:
-`backend/.env.example` (development) and `deployment/production-env.example` (production). The full
+`backend/.env.example` (every variable, with defaults) and `deployment/production-env.example` (production). The full
 production table is in [docs/production-checklist.md](docs/production-checklist.md#1-environment-variables).
 The ones you will touch first:
 
@@ -135,17 +155,26 @@ The ones you will touch first:
 | `BOOTSTRAP_ADMIN_EMAIL` / `_PASSWORD` | First Super Admin, first boot only |
 | `ALLOW_SELF_REGISTRATION` | `false` by default |
 | `ALLOWED_EMAIL_DOMAINS` | Self-registration and Google sign-in allowlist |
-| `SMTP_*` | Needed for sign-in codes, invites and resets |
+| `SMTP_*` | Needed for sign-in codes, invites and resets (in development the code is printed in the server log) |
+| `ANTHROPIC_API_KEY` | Optional: enables Ask InternalX, AI digest summaries, notes-to-tasks |
+| `ENABLE_SCHEDULER` `APP_TIMEZONE` | Monday digest + daily alerts: on by default in production |
 | `TRUST_PROXY` `COOKIE_SECURE` `CORS_ORIGINS` `LOG_LEVEL` | Behind-a-proxy and logging behaviour |
 
-Frontend: `NEXT_PUBLIC_API_URL` (backend origin, baked into the bundle at build time) and
-`NEXT_PUBLIC_GOOGLE_CLIENT_ID`. `NEXT_PUBLIC_*` values are public; never put a secret behind that prefix.
+The frontend needs **no** configuration: it calls the API on its own origin and reads the Google client id from
+the API at runtime. The only build-time setting is the optional `NEXT_PUBLIC_CURRENCY` (display currency);
+`NEXT_PUBLIC_API_URL` is only for `next dev` on another port. `NEXT_PUBLIC_*` values are public; never put a secret behind
+that prefix.
+
+**Self-check.** At boot the server logs a `[selfcheck]` block, and Super Admins / Managing Directors see the same report
+in **Settings > System** (`GET /api/admin/system-status`): JWT secret, database + migrations, bootstrap admin, SMTP
+(with a real connection test), `ANTHROPIC_API_KEY`, Google sign-in, allowed domains, public URL / CORS, proxy,
+scheduler and the uploads directory, each `ok` / `warn` / `missing` with a one-line fix. It never shows secret values.
 
 ## Production
 
 ```bash
 cp deployment/production-env.example .env      # fill in every value
-docker compose up -d --build                   # app (API + web) + PostgreSQL 16
+docker compose up -d --build                   # app (API + web) + PostgreSQL 16; no build arguments
 curl -s http://127.0.0.1:5000/api/ready
 ```
 
@@ -162,13 +191,14 @@ keeps the two identical.
 ## Repository layout
 
 ```
-backend/            Express API (src/routes, controllers, middleware, services, utils/scope.js), migrations/, tests/, scripts/
-frontend/           Next.js 16 web app (static export served by the API)
+backend/            Express API (src/routes, controllers, middleware, services, config/selfcheck.js, utils/scope.js), migrations/, tests/, scripts/
+frontend/           Next.js 16 web app (static export served by the API), e2e/smoke.mjs (Playwright)
 mobile/             Flutter client
 deployment/         postgres/init (schema at head), backup/ (nightly dump + restore), cloudflare/ (tunnel config)
-docs/               data-isolation.md, production-checklist.md, client portal spec, visual guide
+docs/               data-isolation.md, production-checklist.md, ai-features.md, HANDOFF.md (status and roadmap)
 Dockerfile          production image
 docker-compose.yml  production stack; docker-compose.dev.yml is the local database only
+scripts/dev.sh      one-command local development (see Quick start); root package.json has `npm run dev`
 ```
 
 ## API overview
@@ -183,8 +213,9 @@ scope predicate as the single-row check.
 | People | `/team-members` (list, invite, update, delete, `:id/invite`, `?pending=true`), `/team-members/me/*`, `/team-members/ventures`, `/access-levels`, `PUT /:id/rate` (L<=3) |
 | Work | `/projects` `/tasks` `/timesheets` `/documents` `/uploads/:file` |
 | Money and insight | `/invoices` `/budget` `/kpis` `/strategy` `/platform-metrics` `/client-portal` |
-| Collaboration | `/chat/channels` `/chat/messages` `/notifications` `/learning` |
-| Governance | `/action-logs` |
+| Collaboration | `/chat/channels` `/chat/messages` `/notifications` (+ `/preferences`) `/learning` |
+| Search and AI | `/search` (scoped full-text, Ctrl+K), `/assistant/*` (Ask InternalX, SSE; staff only; needs `ANTHROPIC_API_KEY`) |
+| Governance | `/action-logs` (L1/L2), `/admin/system-status` (L1/L2, configuration self-check) |
 | Ops | `/health` (liveness), `/ready` (database + migrations) |
 
 Socket.IO: the server assigns rooms on connect (`venture_<id>`, `global`, `dm_<userId>`); clients can

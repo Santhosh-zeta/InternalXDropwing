@@ -84,8 +84,8 @@ Anthropic's API; do not enable the assistant if company data may not leave your 
 
 ## Weekly digest and daily alerts
 
-An in-process scheduler (`ENABLE_SCHEDULER=true`, `backend/src/services/scheduler.js`), no extra
-infrastructure. Times use `APP_TIMEZONE` (default `Asia/Kolkata`):
+An in-process scheduler (on by default in production, off in development; `ENABLE_SCHEDULER=true|false`
+overrides; `backend/src/services/scheduler.js`), no extra infrastructure. Times use `APP_TIMEZONE` (default `Asia/Kolkata`):
 
 - Mondays from `DIGEST_HOUR` (8): one in-app notification (plus an email when SMTP is configured)
   per internal user: their overdue and due-this-week tasks, projects at risk (open overdue tasks or
