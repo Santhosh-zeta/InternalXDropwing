@@ -292,6 +292,7 @@ router.delete('/:id', authenticate, requireLevel(3), userIdRules, async (req, re
     }
 
     await pool.query('DELETE FROM users WHERE id = ?', [userId]);
+    await logAudit(req.user.id, 'DELETE_USER', 'user', userId, { targetId: userId });
     res.json({ success: true, message: 'User deleted successfully' });
   } catch (err) {
     console.error(err);
