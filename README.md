@@ -85,6 +85,8 @@ InternalX is **invite-only by default**; there is no open sign-up and no shipped
 
 ## Quick start
 
+> New to the team? Read **[docs/GETTING-STARTED.md](docs/GETTING-STARTED.md)**: it walks you from `git clone` to a running server, explains the access rules, and lists the everyday commands and troubleshooting.
+
 Prerequisites: Node.js 20+, and either Docker (it starts PostgreSQL for you) or a PostgreSQL 16 you can
 reach. Flutter 3 only for the mobile app.
 
@@ -196,7 +198,7 @@ backend/            Express API (src/routes, controllers, middleware, services, 
 frontend/           Next.js 16 web app (static export served by the API), e2e/smoke.mjs (Playwright)
 mobile/             Flutter client
 deployment/         postgres/init (schema at head), backup/ (nightly dump + restore), cloudflare/ (tunnel config)
-docs/               data-isolation.md, production-checklist.md, ai-features.md, HANDOFF.md (status and roadmap)
+docs/               GETTING-STARTED.md (start here), data-isolation.md, production-checklist.md, ai-features.md, HANDOFF.md (status and roadmap)
 Dockerfile          production image
 docker-compose.yml  production stack; docker-compose.dev.yml is the local database only
 scripts/dev.sh      one-command local development (see Quick start); root package.json has `npm run dev`

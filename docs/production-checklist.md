@@ -68,7 +68,7 @@ Fix every `MISSING` line before inviting anyone.
    Create the L3 admin of each venture first; they invite their own people.
 3. **TLS.** Terminate https in front of `127.0.0.1:5000`, forward WebSocket upgrades (`/socket.io`), and
    set `TRUST_PROXY=1`. Example Caddyfile: `internalx.example.com { reverse_proxy 127.0.0.1:5000 }`.
-4. **Do not** run `seed-demo.js`, `seed_dev_users.js` or the test suite against this database.
+4. **Do not** run `seed-demo.js`, `dev-admin.js` or the test suite against this database.
 
 ## 3. Backups and restore
 
