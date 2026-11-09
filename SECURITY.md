@@ -41,9 +41,10 @@ Before you expose an instance to a network:
    `DELETE` on the application schema — not `SUPERUSER`, not `CREATEDB`, not ownership of the
    database.
 
-3. **Don't reuse the seed passwords.** `npm run seed` creates demo accounts, including an L1 Super
-   Admin, with a well-known password. It's for local development. Never run it against anything
-   reachable from the internet.
+3. **Never run `npm run seed:dev` in production.** It creates demo accounts with a well-known
+   password and refuses to run when `NODE_ENV=production`. Production has no seeded users: the first
+   Super Admin comes from `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` (first boot only —
+   remove the password afterwards) or `npm run create-admin`.
 
 4. **Set `NODE_ENV=production`.** It switches cookies to `secure`, enables the HTTPS redirect, and
    strips the demo quick-login accounts out of the web bundle.

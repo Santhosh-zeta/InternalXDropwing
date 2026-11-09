@@ -166,11 +166,11 @@ step "Verifying"
 
 if [ "$START_DB" -eq 1 ]; then
   set +e
-  ( cd backend && npm run seed >/tmp/internalx-seed.log 2>&1 )
+  ( cd backend && npm run seed >/tmp/internalx-seed.log 2>&1 && npm run seed:dev >>/tmp/internalx-seed.log 2>&1 )
   SEED_RC=$?
   set -e
   if [ $SEED_RC -eq 0 ]; then
-    ok "demo accounts seeded"
+    ok "reference data + DEV-ONLY demo accounts seeded (never do this in production)"
   else
     warn "seed did not complete — the init SQL already seeds the core rows, so this is usually fine"
     skip "details: /tmp/internalx-seed.log"
