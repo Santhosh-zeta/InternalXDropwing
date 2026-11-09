@@ -29,8 +29,9 @@ interface PendingTimesheet {
   date: string;
   notes: string;
   status: 'pending' | 'approved' | 'rejected';
-  hourly_rate: number;
-  total_cost: number;
+  // Only sent to L<=3, and null when no rate is set for the person.
+  hourly_rate?: number | null;
+  total_cost?: number | null;
 }
 
 /** `PATCH /api/timesheets/:id/approve` accepts exactly these two values. */
@@ -328,7 +329,7 @@ export default function ApprovalsView({ currentUser }: { currentUser: User }) {
           value={totals.people}
           accent="var(--color-purple-glow)"
           icon={<Users size={18} />}
-          delta={pending.length > 0 ? { value: `${currency(totals.cost)} of labour cost`, direction: 'flat' } : undefined}
+          delta={pending.length > 0 && totals.cost > 0 ? { value: `${currency(totals.cost)} of labour cost`, direction: 'flat' } : undefined}
         />
       </div>
 
@@ -403,7 +404,7 @@ export default function ApprovalsView({ currentUser }: { currentUser: User }) {
                           {entry.hours_worked}h
                         </div>
                         <div className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-                          {currency(entry.total_cost)}
+                          {entry.total_cost == null ? '—' : currency(entry.total_cost)}
                         </div>
                       </td>
                       <td className="max-w-[220px] p-4">

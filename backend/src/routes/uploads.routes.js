@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const path = require('path');
 const fs = require('fs');
-const { pool } = require('../config/database');
 const { authenticate } = require('../middleware/auth.middleware');
+const { withScope, getAccessibleDocument } = require('../utils/scope');
 const { UPLOAD_ROOT } = require('../middleware/upload.middleware');
 
 /**
@@ -15,7 +15,7 @@ const { UPLOAD_ROOT } = require('../middleware/upload.middleware');
  * `Date.now() + counter`, which is guessable. This router replaces the static
  * mount for documents: the URL shape is unchanged (`/uploads/<stored name>`, as
  * the web client builds it) but every request now has to carry a session and
- * pass the same venture check that `GET /api/documents` applies to the listing.
+ * pass the same scope check (utils/scope.js documentWhere) that `GET /api/documents` applies.
  *
  * Avatars are NOT served here — see the express.static mount for
  * /uploads/avatars in server.js and the note there about why they stay public.
@@ -38,20 +38,7 @@ const INLINE_SAFE_TYPES = new Set([
   'image/webp',
 ]);
 
-/**
- * Mirrors the visibility rule in document.controller.getDocuments: L1–L5 see
- * everything, L6 and below see their own venture's documents plus the global
- * ones. Kept as a small function rather than inlined so the two stay
- * comparable when either changes.
- */
-const canRead = (user, doc) => {
-  if (doc.uploaded_by === user.id) return true;
-  if (user.accessLevel < 6) return true;
-  if (doc.venture_id === null || doc.venture_id === undefined) return true;
-  return doc.venture_id === user.ventureId;
-};
-
-router.get('/:filename', authenticate, async (req, res, next) => {
+router.get('/:filename', authenticate, withScope, async (req, res, next) => {
   try {
     const { filename } = req.params;
 
@@ -66,19 +53,11 @@ router.get('/:filename', authenticate, async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'File not found' });
     }
 
-    const [docs] = await pool.query(
-      'SELECT id, file_name, original_name, mime_type, path, venture_id, uploaded_by FROM documents WHERE path = ? LIMIT 1',
-      [filename]
-    );
-
-    if (!docs.length) {
+    // Same predicate as GET /api/documents (utils/scope.js). A document the
+    // caller may not read is indistinguishable from one that does not exist.
+    const doc = await getAccessibleDocument(req.scope, { path: filename });
+    if (!doc) {
       return res.status(404).json({ success: false, message: 'File not found' });
-    }
-
-    const doc = docs[0];
-
-    if (!canRead(req.user, doc)) {
-      return res.status(403).json({ success: false, message: 'You are not authorised to access this document' });
     }
 
     const absolute = path.join(UPLOAD_ROOT, path.basename(doc.path));

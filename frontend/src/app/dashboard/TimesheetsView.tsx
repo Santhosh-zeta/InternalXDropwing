@@ -24,8 +24,8 @@ interface Timesheet {
   date: string;
   notes: string;
   status: 'pending' | 'approved' | 'rejected';
-  hourly_rate: number;
-  total_cost: number;
+  hourly_rate?: number | null;
+  total_cost?: number | null;
   created_at: string;
 }
 
@@ -329,7 +329,9 @@ export default function TimesheetsView({ currentUser }: { currentUser: User }) {
                         </td>
                         {isExecutive && (
                           <td className="p-4 text-[13px] text-[var(--color-text-secondary)]">
-                            {formatCurrency(t.total_cost)} <span className="text-[10px] text-[var(--color-text-muted)]">({formatCurrency(t.hourly_rate)}/h)</span>
+                            {t.total_cost == null || t.hourly_rate == null
+                              ? <span className="text-[var(--color-text-muted)]">{t.hourly_rate === undefined ? '—' : 'no rate set'}</span>
+                              : <>{formatCurrency(t.total_cost)} <span className="text-[10px] text-[var(--color-text-muted)]">({formatCurrency(t.hourly_rate)}/h)</span></>}
                           </td>
                         )}
                         <td className="p-4">

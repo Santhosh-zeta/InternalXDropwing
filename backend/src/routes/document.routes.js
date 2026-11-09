@@ -2,11 +2,12 @@ const express = require('express');
 const router = express.Router();
 const documentController = require('../controllers/document.controller');
 const { authenticate } = require('../middleware/auth.middleware');
+const { withScope } = require('../utils/scope');
 const { documentUpload, handleUploadErrors } = require('../middleware/upload.middleware');
 const { uploadLimiter } = require('../middleware/rateLimit.middleware');
 const { uploadDocumentRules, documentIdRules } = require('../middleware/validate.middleware');
 
-router.use(authenticate);
+router.use(authenticate, withScope);
 
 /**
  * handleUploadErrors sits between multer and the controller so a rejected file
@@ -23,5 +24,6 @@ router.post(
 );
 router.get('/', documentController.getDocuments);
 router.delete('/:id', documentIdRules, documentController.deleteDocument);
+router.patch('/:id/client-visible', documentIdRules, documentController.setClientVisible);
 
 module.exports = router;

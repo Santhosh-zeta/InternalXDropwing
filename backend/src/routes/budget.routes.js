@@ -3,92 +3,102 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
+const { withScope, atLeast, toId, ventureWhere } = require('../utils/scope');
+const { rateJoin, rateExpr, costExpr, sumColumns, money, num } = require('../utils/rates');
 
-// GET /api/budget/summary — L2 MD sees all ventures, L4 CXO sees their venture
-router.get('/summary', authenticate, reportLimiter, async (req, res) => {
+/**
+ * Finance. Requires L<=4. Global users see every venture, L3/L4 only their own.
+ * "Expenses" are labour cost of timesheets, priced by the single rate source
+ * (utils/rates.js: project rate -> user hourly rate). Rows with no rate add no
+ * cost and are counted in `unrated_hours`; nothing is estimated.
+ */
+router.use(authenticate, withScope, atLeast(4), reportLimiter);
+
+// GET /api/budget/summary
+router.get('/summary', async (req, res) => {
   try {
-    const { accessLevel, ventureId } = req.user;
-    if (accessLevel > 4) {
-      return res.status(403).json({ success: false, message: 'Access denied. Finance access requires L4 or higher.' });
-    }
+    const { scope } = req;
 
-    const isGlobal = accessLevel <= 2;
-
-    // --- Budget by Venture (from projects) ---
-    let budgetQuery = `
+    const budgetParams = [];
+    const [budgetRows] = await pool.query(`
       SELECT v.id, v.name AS venture, v.primary_color AS color, v.slug,
         COALESCE(SUM(p.budget), 0) AS allocated_budget,
-        COUNT(p.id) AS project_count
+        COUNT(p.id)::int AS project_count
       FROM ventures v
       LEFT JOIN projects p ON p.venture_id = v.id
-    `;
-    const budgetParams = [];
-    if (!isGlobal) {
-      budgetQuery += ` WHERE v.id = $1`;
-      budgetParams.push(ventureId);
-    }
-    budgetQuery += ` GROUP BY v.id, v.name, v.primary_color, v.slug ORDER BY allocated_budget DESC`;
-    const [budgetRows] = await pool.query(budgetQuery, budgetParams);
+      WHERE ${ventureWhere(scope, 'v.id', budgetParams)}
+      GROUP BY v.id, v.name, v.primary_color, v.slug
+      ORDER BY allocated_budget DESC
+    `, budgetParams);
 
-    // --- Expense simulation from timesheets ---
-    let expenseQuery = `
-      SELECT v.id AS venture_id, v.name AS venture, v.primary_color AS color,
-        COALESCE(SUM(t.hours_worked * 50), 0) AS total_expenses
+    const expParams = [];
+    const [expenseRows] = await pool.query(`
+      SELECT t.venture_id, ${sumColumns('t', 'u', 'pmr')}
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
-      JOIN ventures v ON u.venture_id = v.id
-    `;
-    const expenseParams = [];
-    if (!isGlobal) {
-      expenseQuery += ` WHERE u.venture_id = $1`;
-      expenseParams.push(ventureId);
-    }
-    expenseQuery += ` GROUP BY v.id, v.name, v.primary_color`;
-    const [expenseRows] = await pool.query(expenseQuery, expenseParams);
+      ${rateJoin('t', 'pmr')}
+      WHERE t.venture_id IS NOT NULL AND ${ventureWhere(scope, 't.venture_id', expParams)}
+      GROUP BY t.venture_id
+    `, expParams);
+    const spend = new Map(expenseRows.map(e => [e.venture_id, money(e)]));
 
-    // Merge expenses into budget rows
-    const expenseMap = {};
-    expenseRows.forEach(e => { expenseMap[e.venture_id] = e.total_expenses; });
-    const merged = budgetRows.map(b => ({
-      ...b,
-      total_expenses: expenseMap[b.id] || 0,
-      remaining: (b.allocated_budget || 0) - (expenseMap[b.id] || 0),
-      utilization: b.allocated_budget > 0
-        ? Math.min(100, Math.round(((expenseMap[b.id] || 0) / b.allocated_budget) * 100))
-        : 0,
-    }));
+    const ventures = budgetRows.map(b => {
+      const s = spend.get(b.id) || { hours: 0, cost: 0, unrated_hours: 0, rate_missing: false };
+      const allocated = num(b.allocated_budget);
+      return {
+        id: b.id, venture: b.venture, color: b.color, slug: b.slug,
+        allocated_budget: allocated,
+        project_count: b.project_count,
+        total_expenses: s.cost,
+        hours: s.hours,
+        unrated_hours: s.unrated_hours,
+        rate_missing: s.rate_missing,
+        remaining: Math.round((allocated - s.cost) * 100) / 100,
+        utilization: allocated > 0 ? Math.min(100, Math.round((s.cost / allocated) * 100)) : 0,
+      };
+    });
 
     const totals = {
-      total_budget: merged.reduce((s, r) => s + parseFloat(r.allocated_budget || 0), 0),
-      total_expenses: merged.reduce((s, r) => s + parseFloat(r.total_expenses || 0), 0),
-      ventures: merged.length,
-      projects: merged.reduce((s, r) => s + parseInt(r.project_count || 0), 0),
+      total_budget: ventures.reduce((a, r) => a + r.allocated_budget, 0),
+      total_expenses: ventures.reduce((a, r) => a + r.total_expenses, 0),
+      hours: ventures.reduce((a, r) => a + r.hours, 0),
+      unrated_hours: ventures.reduce((a, r) => a + r.unrated_hours, 0),
+      ventures: ventures.length,
+      projects: ventures.reduce((a, r) => a + r.project_count, 0),
     };
+    totals.rate_missing = totals.unrated_hours > 0;
     totals.remaining = totals.total_budget - totals.total_expenses;
     totals.utilization = totals.total_budget > 0
       ? Math.min(100, Math.round((totals.total_expenses / totals.total_budget) * 100))
       : 0;
 
-    res.json({ success: true, data: { ventures: merged, totals } });
+    res.json({ success: true, data: { ventures, totals } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// GET /api/budget/expenses — Expense line items from timesheets
-router.get('/expenses', authenticate, reportLimiter, async (req, res) => {
+// GET /api/budget/expenses — timesheet lines priced from the rate source
+router.get('/expenses', async (req, res) => {
   try {
-    const { accessLevel, ventureId } = req.user;
-    if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });
+    const { scope } = req;
+    const params = [];
+    const conditions = [ventureWhere(scope, 't.venture_id', params)];
+    // Global users may narrow to one venture; for everyone else it is just a no-op filter.
+    if (scope.global && req.query.venture_id) {
+      const v = toId(req.query.venture_id);
+      if (!v) return res.status(400).json({ success: false, message: 'Invalid venture_id' });
+      params.push(v);
+      conditions.push(`t.venture_id = $${params.length}`);
+    }
+    params.push(Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 500));
 
-    const isGlobal = accessLevel <= 2;
-    const { venture_id, limit = 50 } = req.query;
-
-    let query = `
+    const [rows] = await pool.query(`
       SELECT
         t.id, t.date, t.hours_worked,
-        t.hours_worked * 50 AS amount,
+        ${costExpr('t', 'u', 'pmr')} AS amount,
+        ${rateExpr('u', 'pmr')} IS NULL AS rate_missing,
         t.notes AS description,
         t.status,
         u.full_name AS employee,
@@ -99,70 +109,48 @@ router.get('/expenses', authenticate, reportLimiter, async (req, res) => {
         p.name AS project_title
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
-      JOIN ventures v ON u.venture_id = v.id
+      ${rateJoin('t', 'pmr')}
+      JOIN ventures v ON t.venture_id = v.id
       LEFT JOIN projects p ON t.project_id = p.id
-    `;
-    const params = [];
-    const conditions = [];
-
-    if (!isGlobal) {
-      conditions.push(`u.venture_id = $${params.length + 1}`);
-      params.push(ventureId);
-    } else if (venture_id) {
-      conditions.push(`u.venture_id = $${params.length + 1}`);
-      params.push(venture_id);
-    }
-
-    if (conditions.length) query += ` WHERE ` + conditions.join(' AND ');
-    query += ` ORDER BY t.date DESC LIMIT $${params.length + 1}`;
-    params.push(parseInt(limit) || 50);
-
-    const [rows] = await pool.query(query, params);
-    res.json({ success: true, data: rows });
+      WHERE ${conditions.join(' AND ')}
+      ORDER BY t.date DESC LIMIT $${params.length}
+    `, params);
+    res.json({ success: true, data: rows.map(r => ({ ...r, amount: r.amount == null ? null : num(r.amount) })) });
   } catch (err) {
     console.error('Budget Expenses Error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// GET /api/budget/monthly — Monthly spend trend (last 6 months)
-router.get('/monthly', authenticate, reportLimiter, async (req, res) => {
+// GET /api/budget/monthly — monthly labour cost trend (last 6 months)
+router.get('/monthly', async (req, res) => {
   try {
-    const { accessLevel, ventureId } = req.user;
-    if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });
-
-    const isGlobal = accessLevel <= 2;
-    let query = `
+    const { scope } = req;
+    const params = [];
+    const [rows] = await pool.query(`
       SELECT
-        TO_CHAR(t.date, 'Mon YYYY') AS month,
         TO_CHAR(t.date, 'YYYY-MM') AS month_key,
-        COALESCE(SUM(t.hours_worked * 50), 0) AS expenses,
-        COALESCE(SUM(t.hours_worked), 0) AS hours
+        ${sumColumns('t', 'u', 'pmr')}
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
-      WHERE t.date >= CURRENT_DATE - INTERVAL '6 months'
-    `;
-    const params = [];
-    if (!isGlobal) {
-      query += ` AND u.venture_id = $1`;
-      params.push(ventureId);
-    }
-    query += ` GROUP BY month_key, month ORDER BY month_key ASC`;
+      ${rateJoin('t', 'pmr')}
+      WHERE t.date >= date_trunc('month', CURRENT_DATE) - INTERVAL '5 months'
+        AND ${ventureWhere(scope, 't.venture_id', params)}
+      GROUP BY month_key ORDER BY month_key ASC
+    `, params);
 
-    const [rows] = await pool.query(query, params);
-
-    // Ensure we always have 6 months of data (fill gaps with 0)
     const months = [];
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
       const found = rows.find(r => r.month_key === key);
-      months.push({ 
-        month: label, 
-        expenses: found ? parseFloat(found.expenses) : 0, 
-        hours: found ? parseFloat(found.hours) : 0 
+      const m = found ? money(found) : { hours: 0, cost: 0, unrated_hours: 0 };
+      months.push({
+        month: d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        expenses: m.cost,
+        hours: m.hours,
+        unrated_hours: m.unrated_hours,
       });
     }
     res.json({ success: true, data: months });
