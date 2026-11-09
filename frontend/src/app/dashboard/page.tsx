@@ -119,11 +119,11 @@ function Dashboard() {
     <SocketProvider user={user}>
       <div className="flex min-h-screen bg-[var(--color-bg-primary)] font-sans text-[var(--color-text-primary)]">
         <SearchPalette menus={items.map((i) => ({ id: i.id, label: itemLabel(i, user) }))} onNavigate={select} />
-        <AssistantLauncher
+        {user.accessLevel < 9 && <AssistantLauncher
           accessLevel={user.accessLevel}
           hidden={current.id === 'assistant'}
           onOpenFull={items.some((i) => i.id === 'assistant') ? () => select('assistant') : undefined}
-        />
+        />}
 
         <aside className="sticky top-0 hidden h-screen w-[260px] shrink-0 flex-col overflow-y-auto border-r border-[var(--color-border)] bg-[var(--color-bg-secondary)] lg:flex">
           {sidebar}
