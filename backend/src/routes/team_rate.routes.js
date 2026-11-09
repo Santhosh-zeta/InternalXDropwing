@@ -11,7 +11,8 @@ const { num } = require('../utils/rates');
  * (utils/rates.js). L1/L2 manage anyone; L3 only people of lower seniority in
  * their own venture. Nobody else can read or write them.
  */
-router.use(authenticate, withScope, atLeast(3));
+// Per-route (not router.use): this router shares the /api/team-members mount with user.routes.js.
+const guard = [authenticate, withScope, atLeast(3)];
 
 const fail = (res, status, message) => res.status(status).json({ success: false, message });
 
@@ -27,7 +28,7 @@ const manageable = async (scope, rawId) => {
 };
 
 // GET /api/team-members/:id/rate
-router.get('/:id/rate', async (req, res) => {
+router.get('/:id/rate', guard, async (req, res) => {
   try {
     const u = await manageable(req.scope, req.params.id);
     if (!u) return fail(res, 404, 'User not found');
@@ -39,7 +40,7 @@ router.get('/:id/rate', async (req, res) => {
 });
 
 // PUT /api/team-members/:id/rate { hourly_rate: number | null }
-router.put('/:id/rate', async (req, res) => {
+router.put('/:id/rate', guard, async (req, res) => {
   try {
     const u = await manageable(req.scope, req.params.id);
     if (!u) return fail(res, 404, 'User not found');
