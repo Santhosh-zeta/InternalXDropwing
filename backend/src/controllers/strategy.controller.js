@@ -1,45 +1,41 @@
 const { pool } = require('../config/database');
+const { ventureWhere } = require('../utils/scope');
 
+/**
+ * OKRs and risks. Internal staff only; global users see every venture, everyone
+ * else only their own venture's rows. Clients get 403.
+ */
 exports.getStrategyData = async (req, res) => {
   try {
-    const accessLevel = req.user.accessLevel;
-    const ventureId = req.user.ventureId;
+    const { scope } = req;
+    if (scope.isClient) return res.status(403).json({ success: false, message: 'Not available for client accounts' });
 
-    // L1-L2 see all; L3+ only see their venture
-    const ventureFilter = (accessLevel <= 2) ? '' : ' WHERE o.venture_id = ?';
-    const ventureParams = (accessLevel <= 2) ? [] : [ventureId];
-
-    // Get OKRs with their key results
+    const okrParams = [];
     const [okrs] = await pool.query(`
       SELECT o.*, v.name as venture_name, v.slug as venture_slug
       FROM okrs o
       LEFT JOIN ventures v ON o.venture_id = v.id
-      ${ventureFilter}
+      WHERE ${ventureWhere(scope, 'o.venture_id', okrParams)}
       ORDER BY o.created_at DESC
-    `, ventureParams);
+    `, okrParams);
 
-    for (let okr of okrs) {
-      const [kr] = await pool.query('SELECT * FROM key_results WHERE okr_id = ?', [okr.id]);
-      okr.keyResults = kr.map(k => ({ text: k.title || k.text, done: !!k.is_done }));
+    if (okrs.length) {
+      const [krs] = await pool.query('SELECT * FROM key_results WHERE okr_id = ANY($1::int[]) ORDER BY id', [okrs.map(o => o.id)]);
+      for (const okr of okrs) {
+        okr.keyResults = krs.filter(k => k.okr_id === okr.id).map(k => ({ text: k.title || k.text, done: !!k.is_done }));
+      }
     }
 
-    // Get Risks (same scoping)
-    const riskFilter = (accessLevel <= 2) ? '' : ' WHERE r.venture_id = ?';
+    const riskParams = [];
     const [risks] = await pool.query(`
       SELECT r.*, v.name as venture_name
       FROM strategic_risks r
       LEFT JOIN ventures v ON r.venture_id = v.id
-      ${riskFilter}
+      WHERE ${ventureWhere(scope, 'r.venture_id', riskParams)}
       ORDER BY r.severity DESC
-    `, ventureParams);
+    `, riskParams);
 
-    res.json({
-      success: true,
-      data: {
-        okrs,
-        risks
-      }
-    });
+    res.json({ success: true, data: { okrs, risks } });
   } catch (error) {
     console.error('Error fetching strategy data:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });

@@ -147,6 +147,12 @@ export const getChatMessages = async (params: { ventureId?: string | number, rec
   return res.data;
 };
 
+export interface ChatChannels { global: boolean; ventures: { id: number; name: string; slug: string; color: string }[]; }
+export const getChatChannels = async (): Promise<{ success: boolean; data: ChatChannels }> => {
+  const res = await api.get('/chat/channels');
+  return res.data;
+};
+
 export const sendChatMessage = async (data: { content: string, ventureId?: string | number, receiverId?: number }) => {
   const res = await api.post('/chat/messages', data);
   return res.data;

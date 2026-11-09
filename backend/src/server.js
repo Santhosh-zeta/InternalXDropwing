@@ -142,6 +142,7 @@ app.use('/api/kpis', require('./routes/kpis.routes'));
 app.use('/api/client-portal', require('./routes/client_portal.routes'));
 app.use('/api/learning', require('./routes/learning.routes'));
 app.use('/api/strategy', require('./routes/strategy.routes'));
+app.use('/api/team-members', require('./routes/team_rate.routes')); // PUT /:id/rate
 
 // Serve uploads directory
 const path = require('path');
@@ -252,10 +253,7 @@ const http = require('http');
 const { Server } = require('socket.io');
 const server = http.createServer(app);
 
-const jwt = require('jsonwebtoken');
-const cookie = require('cookie');
 const { pgPool } = require('./config/database.pg');
-const { isSessionActive } = require('./services/session.service');
 
 const io = new Server(server, {
   cors: {
@@ -264,81 +262,10 @@ const io = new Server(server, {
   }
 });
 
-/**
- * JWT authentication middleware for Socket.IO.
- *
- * Three ways a caller can prove who they are, tried in order:
- *   1. `auth.token` on the handshake — what the mobile app sends, since it
- *      holds the JWT itself in flutter_secure_storage.
- *   2. An `Authorization: Bearer` header — the same shape the REST API
- *      accepts, kept for any non-browser client.
- *   3. The `internalx_token` cookie on the raw handshake request — what the
- *      web client relies on. The web app never holds the JWT in JS at all
- *      (see frontend/src/lib/api.ts): it's an `httpOnly` cookie the browser
- *      sends automatically, on the WebSocket upgrade request exactly as it
- *      would on any other same-origin request, which the `cookie` header
- *      here is parsed out of the same way `authenticate()` does for REST.
- */
-io.use(async (socket, next) => {
-  try {
-    const token = socket.handshake.auth?.token ||
-                  socket.handshake.headers?.authorization?.replace('Bearer ', '') ||
-                  cookie.parse(socket.handshake.headers?.cookie || '').internalx_token;
-    if (!token) return next(new Error('Authentication required'));
-    const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
-
-    // Same revocation check as the REST authenticate() middleware, so a
-    // logged-out token cannot keep an open chat connection alive — see
-    // middleware/auth.middleware.js for the reasoning and the fail-open
-    // behaviour if the sessions table itself is unreachable.
-    try {
-      const active = await isSessionActive(token);
-      if (!active) return next(new Error('Invalid token'));
-    } catch (err) {
-      if (err.code !== '42P01') return next(new Error('Invalid token'));
-      console.error('sessions table is missing — session revocation is NOT in effect for sockets.');
-    }
-
-    socket.user = decoded;
-    next();
-  } catch (err) {
-    next(new Error('Invalid token'));
-  }
-});
-
-io.on('connection', (socket) => {
-  socket.on('join_channel', (channelId) => {
-    socket.join(channelId);
-  });
-
-  socket.on('send_message', async (data) => {
-    const senderId = socket.user.id;
-    const payload = { ...data, sender_id: senderId };
-
-    // If it's a venture message, send to the venture room
-    if (data.ventureId) {
-      const room = data.ventureId === 'global' ? 'global' : `venture_${data.ventureId}`;
-      io.to(room).emit('receive_message', payload);
-    }
-    // If it's a DM, send to both the sender and receiver's rooms
-    else if (data.receiverId) {
-      io.to(`dm_${data.receiverId}`).emit('receive_message', payload);
-      io.to(`dm_${senderId}`).emit('receive_message', payload);
-    }
-
-    // Persist message to database
-    try {
-      await pgPool.query(
-        'INSERT INTO messages (sender_id, content, venture_id, receiver_id, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)',
-        [senderId, data.content, data.ventureId || null, data.receiverId || null]
-      );
-    } catch (dbErr) {
-      console.error('Failed to persist message:', dbErr.message);
-    }
-  });
-
-  socket.on('disconnect', () => {});
-});
+// Socket auth, room joins and typing live in socket.js; messages are only ever
+// emitted by services/chat.service.js (REST POST /api/chat/messages) via app.get('io').
+require('./socket')(io);
+app.set('io', io);
 
 /**
  * A promise that rejects with nothing listening for it, or a synchronous

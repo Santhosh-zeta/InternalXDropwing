@@ -3,13 +3,15 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate } = require('../middleware/auth.middleware');
+const { withScope, atLeast } = require('../utils/scope');
+
+// Leadership KPIs: L<=4 only, venture-scoped for L3/L4 (clients and staff never reach this).
+router.use(authenticate, withScope, atLeast(4), reportLimiter);
 
 // GET /api/kpis/hr — HR overview for L2 MD and L4 CXO
-router.get('/hr', authenticate, reportLimiter, async (req, res) => {
+router.get('/hr', async (req, res) => {
   try {
-    const { accessLevel, ventureId } = req.user;
-    if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });
-    const isGlobal = accessLevel <= 2;
+    const { ventureId, global: isGlobal } = req.scope;
 
     // Head count by venture
     let headcountQuery = `
@@ -19,7 +21,7 @@ router.get('/hr', authenticate, reportLimiter, async (req, res) => {
         SUM(CASE WHEN u.access_level BETWEEN 5 AND 7 THEN 1 ELSE 0 END) AS staff,
         SUM(CASE WHEN u.access_level = 8 THEN 1 ELSE 0 END) AS interns
       FROM ventures v
-      LEFT JOIN users u ON u.venture_id = v.id AND u.is_active = TRUE
+      LEFT JOIN users u ON u.venture_id = v.id AND u.is_active = TRUE AND u.access_level <= 8
     `;
     const headcountParams = [];
     if (!isGlobal) {
@@ -35,7 +37,7 @@ router.get('/hr', authenticate, reportLimiter, async (req, res) => {
         string_agg(DISTINCT v.name::text, ',') AS ventures
       FROM users u
       LEFT JOIN ventures v ON u.venture_id = v.id
-      WHERE u.is_active = TRUE AND u.department IS NOT NULL AND u.department != ''
+      WHERE u.is_active = TRUE AND u.access_level <= 8 AND u.department IS NOT NULL AND u.department != ''
     `;
     const deptParams = [];
     if (!isGlobal) {
@@ -56,7 +58,7 @@ router.get('/hr', authenticate, reportLimiter, async (req, res) => {
       levelQuery += ` AND u.venture_id = $1`;
       levelParams.push(ventureId);
     }
-    levelQuery += ` GROUP BY al.level_number ORDER BY al.level_number ASC`;
+    levelQuery += ` GROUP BY al.id ORDER BY al.level_number ASC`;
     const [levelRows] = await pool.query(levelQuery, levelParams);
 
     // Task performance by employee (top performers)
@@ -65,19 +67,19 @@ router.get('/hr', authenticate, reportLimiter, async (req, res) => {
         v.name AS venture, v.primary_color AS color,
         COUNT(CASE WHEN t.status = 'completed' THEN 1 END) AS completed_tasks,
         COUNT(t.id) AS total_tasks,
-        ROUND(COUNT(CASE WHEN t.status = 'completed' THEN 1 END) / NULLIF(COUNT(t.id),0) * 100, 0) AS completion_rate
+        ROUND(COUNT(CASE WHEN t.status = 'completed' THEN 1 END)::numeric / NULLIF(COUNT(t.id),0) * 100, 0) AS completion_rate
       FROM users u
       LEFT JOIN task_assignees ta ON ta.user_id = u.id
       LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= CURRENT_DATE - INTERVAL '30 days'
       LEFT JOIN ventures v ON u.venture_id = v.id
-      WHERE u.is_active = TRUE AND u.access_level >= 5
+      WHERE u.is_active = TRUE AND u.access_level BETWEEN 5 AND 8
     `;
     const perfParams = [];
     if (!isGlobal) {
       perfQuery += ` AND u.venture_id = $1`;
       perfParams.push(ventureId);
     }
-    perfQuery += ` GROUP BY u.id ORDER BY completed_tasks DESC LIMIT 15`;
+    perfQuery += ` GROUP BY u.id, v.id ORDER BY completed_tasks DESC LIMIT 15`;
     const [perfRows] = await pool.query(perfQuery, perfParams);
 
     // Timesheets summary — avg hours per week
@@ -88,12 +90,12 @@ router.get('/hr', authenticate, reportLimiter, async (req, res) => {
         COUNT(DISTINCT t.user_id) AS members_logged
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
-      JOIN ventures v ON u.venture_id = v.id
+      JOIN ventures v ON t.venture_id = v.id
       WHERE t.date >= CURRENT_DATE - INTERVAL '30 days'
     `;
     const tsParams = [];
     if (!isGlobal) {
-      tsQuery += ` AND u.venture_id = $1`;
+      tsQuery += ` AND t.venture_id = $1`;
       tsParams.push(ventureId);
     }
     tsQuery += ` GROUP BY v.id ORDER BY total_hours DESC`;
@@ -124,12 +126,9 @@ router.get('/hr', authenticate, reportLimiter, async (req, res) => {
 });
 
 // GET /api/kpis/department — Per-department KPIs for CXO (L4)
-router.get('/department', authenticate, reportLimiter, async (req, res) => {
+router.get('/department', async (req, res) => {
   try {
-    const { accessLevel, ventureId } = req.user;
-    if (accessLevel > 4) return res.status(403).json({ success: false, message: 'Access denied.' });
-
-    const isGlobal = accessLevel <= 2;
+    const { ventureId, global: isGlobal } = req.scope;
 
     let query = `
       SELECT
@@ -140,20 +139,20 @@ router.get('/department', authenticate, reportLimiter, async (req, res) => {
         COUNT(DISTINCT p.id) AS active_projects,
         COUNT(DISTINCT t.id) AS total_tasks,
         SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) AS completed_tasks,
-        ROUND(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END) / NULLIF(COUNT(DISTINCT t.id), 0) * 100, 0) AS kpi_score
+        ROUND(SUM(CASE WHEN t.status = 'completed' THEN 1 ELSE 0 END)::numeric / NULLIF(COUNT(DISTINCT t.id), 0) * 100, 0) AS kpi_score
       FROM users u
       LEFT JOIN ventures v ON u.venture_id = v.id
       LEFT JOIN projects p ON p.venture_id = u.venture_id AND p.status = 'active'
       LEFT JOIN task_assignees ta ON ta.user_id = u.id
       LEFT JOIN tasks t ON ta.task_id = t.id AND t.created_at >= CURRENT_DATE - INTERVAL '30 days'
-      WHERE u.is_active = TRUE AND u.department IS NOT NULL AND u.department != ''
+      WHERE u.is_active = TRUE AND u.access_level <= 8 AND u.department IS NOT NULL AND u.department != ''
     `;
     const params = [];
     if (!isGlobal) {
       query += ` AND u.venture_id = $1`;
       params.push(ventureId);
     }
-    query += ` GROUP BY u.department, u.venture_id ORDER BY kpi_score DESC LIMIT 30`;
+    query += ` GROUP BY u.department, u.venture_id, v.id ORDER BY kpi_score DESC LIMIT 30`;
 
     const [rows] = await pool.query(query, params);
     res.json({ success: true, data: rows });

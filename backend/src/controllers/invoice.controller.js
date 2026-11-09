@@ -1,61 +1,77 @@
 const { pool } = require('../config/database');
+const { toId, ventureWhere } = require('../utils/scope');
+const { rateJoin, rateExpr, costExpr, sumColumns, money, num } = require('../utils/rates');
+
+/**
+ * Invoices are derived from approved timesheets, grouped by venture and month,
+ * and priced from the one rate source (utils/rates.js): project rate override,
+ * else the person's hourly rate. Hours without a rate are reported as
+ * `unrated_hours` and add nothing to the amount - nothing is invented.
+ *
+ * Who sees what:
+ *   - L1/L2   every venture
+ *   - L3-L5   their own venture
+ *   - L6-L8   no finance data (403)
+ *   - L9      only lines on projects they are a member of
+ */
+const fail = (res, status, message) => res.status(status).json({ success: false, message });
+
+/** SQL scoping for the invoice source rows (alias t = timesheets). */
+const invoiceScope = (scope, params) => {
+  if (scope.isClient) {
+    params.push(scope.projectIds);
+    return `t.project_id = ANY($${params.length}::int[])`;
+  }
+  return ventureWhere(scope, 't.venture_id', params);
+};
+
+const allowed = (scope) => scope.isClient || scope.canSeeCost;
+
+/** Invoice summaries visible to `scope` (shared with the client portal). */
+const listInvoices = async (scope) => {
+  const params = [];
+  const where = invoiceScope(scope, params);
+  const [results] = await pool.query(`
+    SELECT
+      t.venture_id,
+      v.name as venture_name,
+      TO_CHAR(t.date, 'YYYY-MM') as invoice_month,
+      COUNT(t.id) as timesheet_count,
+      ${sumColumns('t', 'u', 'pmr')}
+    FROM timesheets t
+    JOIN users u ON t.user_id = u.id
+    ${rateJoin('t', 'pmr')}
+    JOIN ventures v ON t.venture_id = v.id
+    WHERE t.status = 'approved' AND ${where}
+    GROUP BY t.venture_id, v.name, invoice_month
+    ORDER BY invoice_month DESC
+  `, params);
+
+  return results.map((row) => {
+    const m = money(row);
+    return {
+      id: `INV-${row.venture_id}-${row.invoice_month}`,
+      invoice_number: `INV-${row.venture_id}-${row.invoice_month.replace('-', '')}`,
+      venture_id: row.venture_id,
+      venture_name: row.venture_name,
+      month: row.invoice_month,
+      total_hours: m.hours,
+      total_amount: m.cost,
+      unrated_hours: m.unrated_hours,
+      rate_missing: m.rate_missing,
+      timesheet_count: parseInt(row.timesheet_count, 10),
+      status: 'Unpaid', // payment tracking is not modelled yet
+      issue_date: `${row.invoice_month}-28`,
+    };
+  });
+};
+
+exports.listInvoices = listInvoices;
 
 exports.getInvoices = async (req, res, next) => {
   try {
-    const userLevel = req.user.accessLevel;
-    let ventureFilter = '';
-    const values = [];
-
-    // For clients (Level 9), only show invoices for their venture
-    if (userLevel === 9) {
-      if (!req.user.ventureId) {
-        return res.json({ success: true, data: [] });
-      }
-      ventureFilter = 'AND t.venture_id = ?';
-      values.push(req.user.ventureId);
-    } else if (userLevel > 3 && userLevel !== 9) {
-       // Managers see their venture's invoices
-       if (req.user.ventureId) {
-          ventureFilter = 'AND t.venture_id = ?';
-          values.push(req.user.ventureId);
-       }
-    }
-
-    // Group approved timesheets by venture and month
-    const query = `
-      SELECT 
-        t.venture_id,
-        v.name as venture_name,
-        TO_CHAR(t.date, 'YYYY-MM') as invoice_month,
-        SUM(t.hours_worked) as total_hours,
-        COUNT(t.id) as timesheet_count
-      FROM timesheets t
-      JOIN ventures v ON t.venture_id = v.id
-      WHERE t.status = 'approved' ${ventureFilter}
-      GROUP BY t.venture_id, v.name, invoice_month
-      ORDER BY invoice_month DESC
-    `;
-
-    const [results] = await pool.query(query, values);
-
-    const invoices = results.map(row => {
-      const BILLING_RATE = 150; // Standard $150/hr billing rate
-      const totalAmount = parseFloat(row.total_hours) * BILLING_RATE;
-      
-      return {
-        id: `INV-${row.venture_id}-${row.invoice_month}`,
-        invoice_number: `INV-${row.venture_id}-${row.invoice_month.replace('-', '')}`,
-        venture_id: row.venture_id,
-        venture_name: row.venture_name,
-        month: row.invoice_month,
-        total_hours: parseFloat(row.total_hours),
-        total_amount: totalAmount,
-        status: 'Unpaid', // Default status for demo
-        issue_date: `${row.invoice_month}-28`, // Example issue date
-      };
-    });
-
-    res.json({ success: true, data: invoices });
+    if (!allowed(req.scope)) return fail(res, 403, 'Not authorized to view invoices');
+    res.json({ success: true, data: await listInvoices(req.scope) });
   } catch (err) {
     next(err);
   }
@@ -63,67 +79,77 @@ exports.getInvoices = async (req, res, next) => {
 
 exports.getInvoiceDetails = async (req, res, next) => {
   try {
-    const { id } = req.params; // format: INV-ventureId-YYYY-MM
-    const parts = id.split('-');
-    if (parts.length !== 4) return res.status(400).json({ success: false, message: 'Invalid invoice ID format' });
+    const { scope } = req;
+    if (!allowed(scope)) return fail(res, 403, 'Not authorized to view invoices');
 
-    const ventureId = parseInt(parts[1]);
-    const month = `${parts[2]}-${parts[3]}`; // YYYY-MM
+    const parts = req.params.id.split('-'); // INV-ventureId-YYYY-MM
+    if (parts.length !== 4) return fail(res, 400, 'Invalid invoice ID format');
+    const ventureId = toId(parts[1]);
+    const month = `${parts[2]}-${parts[3]}`;
+    if (!ventureId) return fail(res, 400, 'Invalid invoice ID format');
 
-    if (req.user.accessLevel === 9 && req.user.ventureId !== ventureId) {
-      return res.status(403).json({ success: false, message: 'Not authorized to view this invoice' });
-    }
-
-    const query = `
-      SELECT t.*, 
-             u.full_name as user_name,
-             p.name as project_name,
-             ts.title as task_title
+    // The venture in the id is only a lookup key: the scope predicate decides
+    // what rows come back, so a foreign venture id simply yields "not found".
+    const params = [ventureId, month];
+    const where = invoiceScope(scope, params);
+    const [timesheets] = await pool.query(`
+      SELECT t.id, t.date, t.hours_worked, t.notes,
+             u.full_name AS user_name,
+             p.name AS project_name,
+             ts.title AS task_title,
+             ${rateExpr('u', 'pmr')} AS rate,
+             ${costExpr('t', 'u', 'pmr')} AS amount
       FROM timesheets t
       JOIN users u ON t.user_id = u.id
+      ${rateJoin('t', 'pmr')}
       LEFT JOIN projects p ON t.project_id = p.id
       LEFT JOIN tasks ts ON t.task_id = ts.id
-      WHERE t.status = 'approved' AND t.venture_id = ? AND TO_CHAR(t.date, 'YYYY-MM') = ?
+      WHERE t.status = 'approved' AND t.venture_id = $1 AND TO_CHAR(t.date, 'YYYY-MM') = $2 AND ${where}
       ORDER BY t.date ASC
-    `;
+    `, params);
 
-    const [timesheets] = await pool.query(query, [ventureId, month]);
+    if (timesheets.length === 0) return fail(res, 404, 'Invoice not found');
 
-    const BILLING_RATE = 150; 
     let totalHours = 0;
-    
-    const items = timesheets.map(t => {
-      const hours = parseFloat(t.hours_worked);
+    let totalAmount = 0;
+    let unrated = 0;
+    const items = timesheets.map((t) => {
+      const hours = num(t.hours_worked);
       totalHours += hours;
+      const hasRate = t.rate != null;
+      if (hasRate) totalAmount += parseFloat(t.amount); else unrated += hours;
       return {
         id: t.id,
         date: t.date,
         developer: t.user_name,
         project: t.project_name || 'General Deliverables',
         task: t.task_title || t.notes,
-        hours: hours,
-        amount: hours * BILLING_RATE
+        hours,
+        // The per-line rate is internal pricing detail: only L<=3 staff see it.
+        ...(scope.canSeeRates ? { rate: hasRate ? num(t.rate) : null } : {}),
+        amount: hasRate ? num(t.amount) : null,
       };
     });
 
-    // Fetch venture details for the header
     const [venture] = await pool.query('SELECT name, logo_url, primary_color FROM ventures WHERE id = ?', [ventureId]);
-    const ventureName = venture.length ? venture[0].name : 'Unknown Venture';
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       data: {
-        id,
+        id: req.params.id,
         invoice_number: `INV-${ventureId}-${month.replace('-', '')}`,
         month,
-        venture_name: ventureName,
+        venture_name: venture.length ? venture[0].name : 'Unknown Venture',
         items,
-        total_hours: totalHours,
-        total_amount: totalHours * BILLING_RATE,
-        billing_rate: BILLING_RATE,
+        total_hours: Math.round(totalHours * 100) / 100,
+        total_amount: Math.round(totalAmount * 100) / 100,
+        unrated_hours: Math.round(unrated * 100) / 100,
+        rate_missing: unrated > 0,
+        // Blended rate over the priced hours (rates can differ per person); null if nothing is priced.
+        billing_rate: totalHours - unrated > 0 ? Math.round((totalAmount / (totalHours - unrated)) * 100) / 100 : null,
         issue_date: `${month}-28`,
-        due_date: new Date(new Date(`${month}-28`).getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      }
+        due_date: new Date(new Date(`${month}-28`).getTime() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      },
     });
   } catch (err) {
     next(err);

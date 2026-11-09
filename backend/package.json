@@ -10,7 +10,8 @@
     "test": "jest --runInBand --forceExit",
     "seed": "node seed_pg.js",
     "seed:dev": "node seed_dev_users.js",
-    "create-admin": "node scripts/create-admin.js"
+    "create-admin": "node scripts/create-admin.js",
+    "migrate": "node src/migrate.js"
   },
   "jest": {
     "testEnvironment": "node",
@@ -20,7 +21,9 @@
     "globalSetup": "<rootDir>/tests/helpers/globalSetup.js",
     "testMatch": [
       "<rootDir>/tests/**/*.test.js"
-    ]
+    ],
+    "testTimeout": 30000,
+    "maxWorkers": 1
   },
   "keywords": [],
   "author": "Dropwing Groups",
@@ -44,9 +47,10 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "jest": "^29.7.0",
+    "jest": "^30.5.2",
     "nodemon": "^3.1.9",
-    "supertest": "^7.3.2"
+    "supertest": "^7.3.2",
+    "socket.io-client": "^4.8.3"
   },
   "overrides": {
     "qs": "6.16.2"

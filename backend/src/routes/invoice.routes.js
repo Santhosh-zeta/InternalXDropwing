@@ -2,10 +2,11 @@ const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controllers/invoice.controller');
 const { authenticate } = require('../middleware/auth.middleware');
+const { withScope } = require('../utils/scope');
 const { invoiceIdRules } = require('../middleware/validate.middleware');
 const { reportLimiter } = require('../middleware/rateLimit.middleware');
 
-router.use(authenticate);
+router.use(authenticate, withScope);
 
 // Get generated invoices based on approved timesheets
 router.get('/', reportLimiter, invoiceController.getInvoices);

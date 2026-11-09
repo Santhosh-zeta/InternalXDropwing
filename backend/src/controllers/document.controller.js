@@ -2,131 +2,122 @@ const { pool } = require('../config/database');
 const fs = require('fs');
 const path = require('path');
 const { logAudit } = require('../services/audit.service');
+const { UPLOAD_ROOT } = require('../middleware/upload.middleware');
+const {
+  toId, documentWhere, getAccessibleProject, getAccessibleDocument,
+} = require('../utils/scope');
 
+const fail = (res, status, message) => res.status(status).json({ success: false, message });
+const discard = (file) => { if (file) fs.unlink(file.path, () => {}); };
+
+/**
+ * Upload. The venture is derived: from the project (which must be visible to
+ * the caller) or from the caller's own venture. Only global users may name a
+ * venture, and only for a project-less document. Clients cannot upload.
+ */
 exports.uploadDocument = async (req, res, next) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file provided' });
+    const { scope } = req;
+    if (!req.file) return fail(res, 400, 'No file provided');
+    if (scope.isClient) { discard(req.file); return fail(res, 403, 'Clients cannot upload documents'); }
+
+    const { projectId, clientVisible } = req.body;
+    let ventureId = scope.global ? toId(req.body.ventureId) : scope.ventureId;
+    let project = null;
+
+    if (projectId) {
+      project = await getAccessibleProject(scope, projectId);
+      if (!project) { discard(req.file); return fail(res, 404, 'Project not found'); }
+      ventureId = project.venture_id;
     }
+    if (ventureId != null && !scope.global && ventureId !== scope.ventureId) {
+      discard(req.file);
+      return fail(res, 403, 'Not allowed to upload to this venture');
+    }
+    // Only venture admins and global users decide what clients can see.
+    const visible = !!project && (scope.global || scope.isVentureAdmin) && ['true', '1', true].includes(clientVisible);
 
-    const { ventureId, projectId } = req.body;
     const { originalname, filename, mimetype, size } = req.file;
-
-    const query = `
-      INSERT INTO documents (file_name, original_name, mime_type, size, path, venture_id, project_id, uploaded_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id
-    `;
-
-    const values = [
-      filename,
-      originalname,
-      mimetype,
-      size,
-      filename, // path or filename
-      ventureId || null,
-      projectId || null,
-      req.user.id
-    ];
-
-    const [result] = await pool.query(query, values);
-
-    // Fetch the inserted record to return it
+    const [result] = await pool.query(
+      `INSERT INTO documents (file_name, original_name, mime_type, size, path, venture_id, project_id, uploaded_by, client_visible)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+      [filename, originalname, mimetype, size, filename, ventureId || null, project ? project.id : null, scope.userId, visible]
+    );
     const [inserted] = await pool.query('SELECT * FROM documents WHERE id = ?', [result.insertId]);
 
-    res.status(201).json({
-      success: true,
-      data: inserted[0]
-    });
+    res.status(201).json({ success: true, data: inserted[0] });
   } catch (err) {
+    discard(req.file);
     next(err);
   }
 };
 
+/** List. ventureId / projectId are only narrowing filters on top of the scope predicate. */
 exports.getDocuments = async (req, res, next) => {
   try {
-    const { ventureId, projectId } = req.query;
-
+    const { scope } = req;
+    const params = [];
     let query = `
       SELECT d.*, u.full_name as uploaded_by_name, v.name as venture_name, p.name as project_name
       FROM documents d
       LEFT JOIN users u ON d.uploaded_by = u.id
       LEFT JOIN ventures v ON d.venture_id = v.id
       LEFT JOIN projects p ON d.project_id = p.id
-      WHERE 1=1
+      WHERE ${documentWhere(scope, 'd', params)}
     `;
-    const values = [];
-
+    const { ventureId, projectId } = req.query;
     if (ventureId && ventureId !== 'all') {
-      query += ` AND d.venture_id = ?`;
-      values.push(ventureId);
+      const v = toId(ventureId);
+      if (!v) return fail(res, 400, 'Invalid ventureId');
+      params.push(v);
+      query += ` AND d.venture_id = $${params.length}`;
     }
     if (projectId) {
-      query += ` AND d.project_id = ?`;
-      values.push(projectId);
+      const pid = toId(projectId);
+      if (!pid) return fail(res, 400, 'Invalid projectId');
+      params.push(pid);
+      query += ` AND d.project_id = $${params.length}`;
     }
+    query += ' ORDER BY d.created_at DESC';
 
-    // Role-based filtering: L6+ (Executive Staff and below) can only see documents 
-    // from their own venture or global documents.
-    if (req.user.accessLevel >= 6) {
-      if (req.user.ventureId) {
-        // If they already filtered by a specific ventureId, check if it's theirs
-        if (ventureId && parseInt(ventureId) !== req.user.ventureId) {
-           return res.status(403).json({ success: false, message: 'You can only view documents from your own venture' });
-        }
-        // If no ventureId filter was applied yet, restrict to their venture or global
-        if (!ventureId) {
-          query += ` AND (d.venture_id = ? OR d.venture_id IS NULL)`;
-          values.push(req.user.ventureId);
-        }
-      } else {
-        // User with L6+ but no venture assigned? Restrict to global only just in case
-        if (!ventureId) {
-          query += ` AND d.venture_id IS NULL`;
-        }
-      }
-    }
-
-    query += ` ORDER BY d.created_at DESC`;
-
-    const [documents] = await pool.query(query, values);
-
-    res.json({
-      success: true,
-      data: documents
-    });
+    const [documents] = await pool.query(query, params);
+    res.json({ success: true, data: documents });
   } catch (err) {
     next(err);
   }
 };
 
+/** Staff delete their own uploads; venture admins and global users any visible document. */
 exports.deleteDocument = async (req, res, next) => {
   try {
-    const { id } = req.params;
-
-    // Check if doc exists
-    const [docs] = await pool.query('SELECT * FROM documents WHERE id = ?', [id]);
-    if (!docs.length) {
-      return res.status(404).json({ success: false, message: 'Document not found' });
+    const { scope } = req;
+    const doc = await getAccessibleDocument(scope, { id: req.params.id });
+    if (!doc) return fail(res, 404, 'Document not found');
+    if (scope.isClient || (!scope.global && !scope.isVentureAdmin && doc.uploaded_by !== scope.userId)) {
+      return fail(res, 403, 'Not authorized to delete this document');
     }
-
-    const doc = docs[0];
-
-    // Authorization check
-    if (req.user.accessLevel >= 6 && doc.uploaded_by !== req.user.id) {
-       return res.status(403).json({ success: false, message: 'Not authorized to delete this document' });
-    }
-
-    // Delete file
-    const filePath = path.join(__dirname, '../../uploads', doc.path);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
-
-    // Delete from DB
-    await pool.query('DELETE FROM documents WHERE id = ?', [id]);
-    await logAudit(req.user.id, 'DELETE_DOCUMENT', 'document', id, { documentId: id, path: doc.path });
-
+    // Stored names are generated; basename keeps a legacy/odd row inside the upload dir.
+    const filePath = path.join(UPLOAD_ROOT, path.basename(doc.path || ''));
+    if (doc.path && fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    await pool.query('DELETE FROM documents WHERE id = ?', [doc.id]);
+    await logAudit(req.user.id, 'DELETE_DOCUMENT', 'document', doc.id, { documentId: doc.id, path: doc.path });
     res.json({ success: true, message: 'Document deleted successfully' });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Share / unshare a project document with the project's clients. */
+exports.setClientVisible = async (req, res, next) => {
+  try {
+    const { scope } = req;
+    if (!scope.global && !scope.isVentureAdmin) return fail(res, 403, 'Not authorized');
+    const doc = await getAccessibleDocument(scope, { id: req.params.id });
+    if (!doc) return fail(res, 404, 'Document not found');
+    if (!doc.project_id) return fail(res, 400, 'Only project documents can be shared with clients');
+    const visible = req.body.clientVisible === true || req.body.clientVisible === 'true';
+    await pool.query('UPDATE documents SET client_visible = ? WHERE id = ?', [visible, doc.id]);
+    res.json({ success: true, data: { id: doc.id, client_visible: visible } });
   } catch (err) {
     next(err);
   }
