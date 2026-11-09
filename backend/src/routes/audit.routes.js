@@ -3,9 +3,15 @@ const router = express.Router();
 const { pool } = require('../config/database');
 const { reportLimiter } = require('../middleware/rateLimit.middleware');
 const { authenticate, requireLevel } = require('../middleware/auth.middleware');
+const { withScope, atLeast } = require('../utils/scope');
 
-// GET /api/audit (Level 1 only)
-router.get('/', authenticate, reportLimiter, requireLevel(1), async (req, res) => {
+const safeParse = (text) => {
+  try { return text ? JSON.parse(text) : {}; } catch { return { raw: text }; }
+};
+
+// GET /api/action-logs - global users only (L1/L2). Audit rows hold every
+// venture's activity, so there is no per-venture view for anyone else.
+router.get('/', authenticate, requireLevel(2), withScope, atLeast(2), reportLimiter, async (req, res) => {
   try {
     const [logs] = await pool.query(`
       SELECT a.*, u.full_name as user_name, u.email as user_email
@@ -15,13 +21,7 @@ router.get('/', authenticate, reportLimiter, requireLevel(1), async (req, res) =
       LIMIT 100
     `);
 
-    // Parse details
-    const parsedLogs = logs.map(l => ({
-      ...l,
-      details: l.details ? JSON.parse(l.details) : {}
-    }));
-
-    res.json({ success: true, data: parsedLogs });
+    res.json({ success: true, data: logs.map(l => ({ ...l, details: safeParse(l.details) })) });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
