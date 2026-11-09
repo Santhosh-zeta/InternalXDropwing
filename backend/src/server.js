@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const crypto = require('crypto');
 const pinoHttp = require('pino-http');
 const cookieParser = require('cookie-parser');
+const { csrfGuard } = require('./middleware/csrf.middleware');
 
 const authRoutes = require('./routes/auth.routes');
 const userRoutes = require('./routes/user.routes');
@@ -133,6 +134,7 @@ app.use((req, res, next) => {
 // CORS: CORS_ORIGINS (comma list) or FRONTEND_URL. The web app is served by this
 // server, so browsers normally make same-origin calls and never need it.
 const allowedOrigins = corsOrigins();
+app.use(csrfGuard(allowedOrigins));
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
@@ -142,7 +144,6 @@ app.use(cors({
 }));
 
 app.use(express.json({ limit: '1mb' }));
-app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Routes
 // /api/auth keeps its own dedicated limiters (rateLimit.middleware.js) sized
