@@ -1,8 +1,10 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState, ReactNode } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { User } from '@/lib/constants';
+import type { User } from '@/lib/constants';
+import { API_URL } from '@/lib/api';
+import type { ChatMessage } from '@/lib/types';
 import toast from 'react-hot-toast';
 import { MessageSquare } from 'lucide-react';
 
@@ -29,29 +31,33 @@ export function useSocket() {
 }
 
 export function SocketProvider({ children, user }: { children: ReactNode; user: User | null }) {
-  const [socket, setSocket] = useState<Socket | null>(null);
   const [latestMessages, setLatestMessages] = useState<Record<string, LatestMessageInfo>>({});
+  const userId = user?.id;
+  // Clients (L9) have no internal chat, so they never open a socket.
+  const chatEnabled = !!user && user.accessLevel < 9;
+
+  // Same origin unless NEXT_PUBLIC_API_URL points elsewhere (next dev on :3000).
+  const socket = useMemo(
+    () => (chatEnabled ? io(API_URL || undefined, { withCredentials: true, autoConnect: false }) : null),
+    [chatEnabled, userId], // eslint-disable-line react-hooks/exhaustive-deps -- a new user needs a new connection
+  );
 
   useEffect(() => {
-    // Clients (L9) have no internal chat, so they never open a socket.
-    if (!user || user.accessLevel >= 9) return;
-
-    const url = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://internalx.dropwinggroups.com';
-    const s = io(url, { withCredentials: true });
-    setSocket(s);
+    if (!socket || userId === undefined) return;
+    socket.connect();
 
     // Rooms are assigned by the server on connect (own DMs, global, and the
     // venture channels this account may use). Nothing to join from here.
 
-    const handleReceiveMessage = (msg: any) => {
+    const handleReceiveMessage = (msg: ChatMessage) => {
       // Determine the channel key for this message
       let channelKey = '';
       if (msg.ventureId !== undefined && msg.ventureId !== null) {
         channelKey = msg.ventureId === 'global' ? 'global' : `venture_${msg.ventureId}`;
-      } else if (msg.receiver_id && msg.receiver_id !== user.id) {
+      } else if (msg.receiver_id && msg.receiver_id !== userId) {
         // If we sent it, the channel is the receiver
         channelKey = `dm_${msg.receiver_id}`;
-      } else if (msg.sender_id && msg.sender_id !== user.id && msg.receiver_id === user.id) {
+      } else if (msg.sender_id && msg.sender_id !== userId && msg.receiver_id === userId) {
         // If we received a DM, the channel is the sender
         channelKey = `dm_${msg.sender_id}`;
       }
@@ -69,7 +75,7 @@ export function SocketProvider({ children, user }: { children: ReactNode; user: 
       }
 
       // Show toast if message is not from current user
-      if (msg.sender_id !== user.id) {
+      if (msg.sender_id !== userId) {
         let title = msg.sender_name;
         if (msg.ventureId === 'global') {
           title = `${msg.sender_name} in #Global HQ`;
@@ -116,13 +122,13 @@ export function SocketProvider({ children, user }: { children: ReactNode; user: 
       }
     };
 
-    s.on('receive_message', handleReceiveMessage);
+    socket.on('receive_message', handleReceiveMessage);
 
     return () => {
-      s.off('receive_message', handleReceiveMessage);
-      s.close();
+      socket.off('receive_message', handleReceiveMessage);
+      socket.disconnect();
     };
-  }, [user]);
+  }, [socket, userId]);
 
   return (
     <SocketContext.Provider value={{ socket, latestMessages, setLatestMessages }}>

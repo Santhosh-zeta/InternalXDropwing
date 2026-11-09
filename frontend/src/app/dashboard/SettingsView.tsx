@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useId } from 'react';
 import { User } from '@/lib/constants';
 import toast from 'react-hot-toast';
-import api from '@/lib/api';
+import api, { errMsg } from '@/lib/api';
 import {
   UserCircle, ShieldCheck, SlidersHorizontal,
   Camera, Check, Moon, Sun, BellOff, Mail
@@ -49,24 +49,24 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
   // Preferences state
   const [muteChatAfter5, setMuteChatAfter5] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    // Settings only renders after sign-in, on the client, so reading the DOM here is safe.
+    try {
+      return localStorage.getItem('internalx_theme') === 'light' ? 'light' : document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
 
   const confirm = useConfirm();
   const uid = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   useEffect(() => {
-    const localTheme = localStorage.getItem('internalx_theme') as 'dark' | 'light' | null;
-    if (localTheme) {
-      setTheme(localTheme);
-    } else if (typeof document !== 'undefined') {
-      setTheme(document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark');
-    }
-
-    const fetchProfile = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get('/team-members/me');
+    let cancelled = false;
+    api.get('/team-members/me').then(
+      (res) => {
+        if (cancelled) return;
         if (res.data.success) {
           const user = res.data.data;
           setFullName(user.full_name);
@@ -77,18 +77,22 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
             setEmailNotifications(user.notification_preferences.emailNotifications !== false);
           }
         }
-      } catch (err) {
-        toast.error('Failed to load profile settings');
-      } finally {
         setLoading(false);
-      }
+      },
+      (err: unknown) => {
+        if (cancelled) return;
+        toast.error(errMsg(err, 'Failed to load profile settings'));
+        setLoading(false);
+      },
+    );
+    return () => {
+      cancelled = true;
     };
-    fetchProfile();
   }, []);
 
   const handleThemeToggle = (newTheme: 'dark' | 'light') => {
     setTheme(newTheme);
-    localStorage.setItem('internalx_theme', newTheme);
+    try { localStorage.setItem('internalx_theme', newTheme); } catch { /* private mode: the theme still applies for this session */ }
     document.documentElement.setAttribute('data-theme', newTheme);
   };
 
@@ -117,9 +121,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
       // axios throws on a non-2xx response — a rejected file type (the
       // avatar allowlist is stricter than the document one: png/jpg/webp
       // only) lands here, not in the `else` above.
-      const message = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
-        || 'Error uploading avatar';
-      toast.error(message);
+      toast.error(errMsg(err, 'Error uploading avatar'));
     } finally {
       setSaving(false);
     }
@@ -141,7 +143,7 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
         toast.error(res.data.message || 'Failed to update profile');
       }
     } catch (err) {
-      toast.error('Error updating profile');
+      toast.error(errMsg(err, 'Error updating profile'));
     } finally {
       setSaving(false);
     }
@@ -172,8 +174,8 @@ export default function SettingsView({ currentUser }: SettingsViewProps) {
       } else {
         toast.error(res.data.message || 'Failed to change password');
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Error changing password');
+    } catch (err) {
+      toast.error(errMsg(err, 'Error changing password'));
     } finally {
       setSaving(false);
     }
