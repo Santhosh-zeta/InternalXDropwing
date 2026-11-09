@@ -32,11 +32,12 @@ interface Invoice {
 interface InvoiceItem {
   id: number;
   date: string;
-  developer: string;
+  developer?: string;
   project: string;
   task: string;
   hours: number;
-  amount: number;
+  /** Absent for client viewers (hours-only). */
+  amount?: number | null;
 }
 
 interface InvoiceDetails {
@@ -47,7 +48,7 @@ interface InvoiceDetails {
   items: InvoiceItem[];
   total_hours: number;
   total_amount: number;
-  billing_rate: number | null;
+  billing_rate?: number | null;
   unrated_hours?: number;
   rate_missing?: boolean;
   issue_date: string;
@@ -108,6 +109,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
   const formatCurrency = (num: number) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(num);
 
   if (selectedInvoice) {
+    const hasAmounts = selectedInvoice.items.some((i) => i.amount !== undefined);
     return (
       <div className="print-container relative">
         {/* Actions - hidden when printing */}
@@ -192,7 +194,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
                   <th scope="col" className="py-3 text-left text-sm uppercase text-gray-500">Description</th>
                   <th scope="col" className="py-3 text-center text-sm uppercase text-gray-500">Date</th>
                   <th scope="col" className="py-3 text-center text-sm uppercase text-gray-500">Hours</th>
-                  <th scope="col" className="py-3 text-right text-sm uppercase text-gray-500">Amount</th>
+                  {hasAmounts && <th scope="col" className="py-3 text-right text-sm uppercase text-gray-500">Amount</th>}
                 </tr>
               </thead>
               <tbody>
@@ -200,7 +202,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
                   <tr key={idx} className="border-b border-gray-100">
                     <td className="max-w-[300px] py-4">
                       <div className="text-base font-semibold text-gray-900">{item.task}</div>
-                      <div className="mt-1 text-xs text-gray-500">{item.project} • {item.developer}</div>
+                      <div className="mt-1 text-xs text-gray-500">{[item.project, item.developer].filter(Boolean).join(' • ')}</div>
                     </td>
                     <td className="py-4 text-center text-base text-gray-600">
                       {new Date(item.date).toLocaleDateString()}
@@ -208,9 +210,11 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
                     <td className="py-4 text-center text-base text-gray-600">
                       {item.hours}
                     </td>
-                    <td className="py-4 text-right text-base font-semibold text-gray-900">
-                      {formatCurrency(item.amount)}
-                    </td>
+                    {hasAmounts && (
+                      <td className="py-4 text-right text-base font-semibold text-gray-900">
+                        {item.amount == null ? '—' : formatCurrency(item.amount)}
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -220,7 +224,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
           <div className="flex justify-end">
             <div className="w-full max-w-[300px]">
               <div className="flex justify-between gap-4 border-b border-gray-100 py-3">
-                <span className="text-base text-gray-500">Subtotal ({selectedInvoice.total_hours} hrs{selectedInvoice.billing_rate != null ? ` @ $${selectedInvoice.billing_rate}/hr` : ''}{selectedInvoice.rate_missing ? `, ${selectedInvoice.unrated_hours} hrs have no rate set` : ''})</span>
+                <span className="text-base text-gray-500">Subtotal ({selectedInvoice.total_hours} hrs{selectedInvoice.billing_rate != null ? ` @ $${selectedInvoice.billing_rate}/hr` : ''}{selectedInvoice.rate_missing ? `, ${selectedInvoice.unrated_hours ?? 0} hrs have no rate set` : ''})</span>
                 <span className="text-base font-semibold text-gray-900">{formatCurrency(selectedInvoice.total_amount)}</span>
               </div>
               <div className="flex items-center justify-between gap-4 border-b-2 border-gray-200 py-4">
