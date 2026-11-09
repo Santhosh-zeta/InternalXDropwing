@@ -393,7 +393,7 @@ CREATE TABLE announcements (
   FOREIGN KEY (venture_id) REFERENCES ventures(id) ON DELETE SET NULL
 );
 
--- B2: full-text search indexes (same as backend/migrations/0003_b2_search.sql)
+-- B2: full-text search indexes (same as backend/migrations/0007_search.sql)
 CREATE INDEX IF NOT EXISTS idx_fts_tasks ON tasks
   USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, '')));
 CREATE INDEX IF NOT EXISTS idx_fts_projects ON projects
@@ -407,7 +407,7 @@ CREATE INDEX IF NOT EXISTS idx_fts_users ON users
 CREATE INDEX IF NOT EXISTS idx_fts_messages ON messages
   USING GIN (to_tsvector('simple', content));
 
--- B2: assistant tables (same as backend/migrations/0004_b2_assistant.sql)
+-- B2: assistant tables (same as backend/migrations/0008_assistant.sql)
 CREATE TABLE IF NOT EXISTS assistant_conversations (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -440,7 +440,7 @@ CREATE TABLE IF NOT EXISTS assistant_usage (
   PRIMARY KEY (user_id, day)
 );
 
--- B2: scheduler tables (same as backend/migrations/0005_b2_scheduler.sql)
+-- B2: scheduler tables (same as backend/migrations/0009_scheduler.sql)
 CREATE TABLE IF NOT EXISTS scheduler_runs (
   job VARCHAR(40) NOT NULL,
   run_key VARCHAR(40) NOT NULL,

@@ -7,7 +7,7 @@
  * existing list endpoints (staff directory, analytics announcements,
  * services/chat.service.js listMessages). Nothing is filtered in JS.
  *
- * Index expressions are in migrations/0003_b2_search.sql and must match.
+ * Index expressions are in migrations/0007_search.sql and must match.
  */
 const { pool } = require('../config/database');
 const { projectWhere, taskWhere, documentWhere } = require('../utils/scope');
