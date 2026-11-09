@@ -389,3 +389,17 @@ CREATE TABLE announcements (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (venture_id) REFERENCES ventures(id) ON DELETE SET NULL
 );
+
+-- B2: full-text search indexes (same as backend/migrations/0003_b2_search.sql)
+CREATE INDEX IF NOT EXISTS idx_fts_tasks ON tasks
+  USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(description, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_projects ON projects
+  USING GIN (to_tsvector('simple', coalesce(name, '') || ' ' || coalesce(description, '') || ' ' || coalesce(client_name, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_documents ON documents
+  USING GIN (to_tsvector('simple', regexp_replace(coalesce(original_name, ''), '[^[:alnum:]]+', ' ', 'g')));
+CREATE INDEX IF NOT EXISTS idx_fts_announcements ON announcements
+  USING GIN (to_tsvector('simple', coalesce(title, '') || ' ' || coalesce(content, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_users ON users
+  USING GIN (to_tsvector('simple', coalesce(full_name, '') || ' ' || coalesce(designation, '') || ' ' || coalesce(department, '')));
+CREATE INDEX IF NOT EXISTS idx_fts_messages ON messages
+  USING GIN (to_tsvector('simple', content));
