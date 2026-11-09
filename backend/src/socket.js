@@ -39,6 +39,13 @@ const authenticateSocket = async (socket, next) => {
     if (!scope) return next(new Error('Invalid token'));
     socket.user = decoded;
     socket.userId = scope.userId;
+    // Rooms the server puts this socket in. Resolved here, before the connection
+    // is announced, so handlers (registered synchronously on connect) never race it.
+    socket.autoRooms = [];
+    if (!scope.isClient) {
+      const channels = await chat.listChannels(scope);
+      socket.autoRooms.push(dmRoom(scope.userId), ...(channels.global ? ['global'] : []), ...channels.ventures.map((v) => ventureRoom(v.id)));
+    }
     next();
   } catch (err) {
     next(new Error('Invalid token'));
@@ -50,20 +57,11 @@ const ack = (cb, payload) => { if (typeof cb === 'function') cb(payload); };
 module.exports = (io) => {
   io.use(authenticateSocket);
 
-  io.on('connection', async (socket) => {
+  io.on('connection', (socket) => {
     // Always fetch scope fresh: the account may have been demoted since connect.
     const currentScope = () => scopeFor({ id: socket.userId });
 
-    try {
-      const scope = await currentScope();
-      if (!scope || scope.isClient) return; // clients: connected, but in no rooms and no chat
-      socket.join(dmRoom(scope.userId));
-      const channels = await chat.listChannels(scope);
-      if (channels.global) socket.join('global');
-      channels.ventures.forEach((v) => socket.join(ventureRoom(v.id)));
-    } catch (err) {
-      console.error('socket auto-join failed:', err.message);
-    }
+    socket.join(socket.autoRooms); // clients: connected, but in no rooms and no chat
 
     socket.on('join_channel', async (arg, cb) => {
       try {
