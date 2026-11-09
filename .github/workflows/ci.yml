@@ -6,6 +6,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Least privilege: CI only reads the repo. A job that needs more must say so itself.
+permissions:
+  contents: read
+
+# NOTE: third-party actions below are pinned by tag (v4/v2), not commit SHA: the SHAs
+# could not be looked up from the environment this was written in. Pin them
+# (`uses: owner/action@<full sha> # v4`) before relying on this for supply-chain safety.
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
