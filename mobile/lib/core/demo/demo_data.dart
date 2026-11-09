@@ -380,99 +380,20 @@ Map<String, dynamic> invoiceDetailJson(String id) {
   };
 }
 
-// ── Role management / access control / db explorer ─────────────────────
+// ── Levels / ventures for the user pickers ─────────────────────────────
 List<Map<String, dynamic>> venturesRolesJson() => ventures;
 
-List<Map<String, dynamic>> rolesJson() => [
-      {
-        'id': 1, 'venture_id': 1, 'venture_name': 'Dropwing Design Studio', 'venture_color': '#8B5CF6',
-        'role_name': 'Design Lead', 'role_key': 'design_lead', 'description': 'Owns creative direction for Dropwing projects.',
-        'color': '#8B5CF6', 'icon': '🎨', 'base_level': 5,
-        'permissions': const {'projects.manage': true, 'documents.upload': true, 'tasks.assign': true},
-        'is_active': true, 'sort_order': 1, 'created_by_name': 'Aarav Sharma', 'assigned_users_count': 2,
-        'assignedUsers': [
-          {'id': 7, 'full_name': 'Sneha Reddy', 'email': 'st@dropwing.in', 'access_level': 7, 'level_name': 'Staff', 'venture_name': 'Dropwing Design Studio'},
-        ],
-      },
-      {
-        'id': 2, 'venture_id': 2, 'venture_name': 'Fenixa Solutions', 'venture_color': '#06B6D4',
-        'role_name': 'Payments Engineer', 'role_key': 'payments_engineer', 'description': 'Owns the payments platform on-call rotation.',
-        'color': '#06B6D4', 'icon': '💳', 'base_level': 6,
-        'permissions': const {'tasks.assign': true, 'projects.view': true},
-        'is_active': true, 'sort_order': 2, 'created_by_name': 'Aarav Sharma', 'assigned_users_count': 1,
-        'assignedUsers': [
-          {'id': 10, 'full_name': 'Aditya Rao', 'email': 'st@fenixa.com', 'access_level': 7, 'level_name': 'Staff', 'venture_name': 'Fenixa Solutions'},
-        ],
-      },
-    ];
-
-List<Map<String, dynamic>> assignableTeamMembersJson() => people
-    .map((p) => {
-          'id': p['id'],
-          'full_name': p['name'],
-          'email': p['email'],
-          'access_level': p['level'],
-          'department': p['dept'],
-          'designation': p['desig'],
-          'level_name': p['levelName'],
-          'venture_name': p['ventureId'] != null ? _venture(p['ventureId'] as int)['name'] : null,
-          'venture_color': p['ventureId'] != null ? _venture(p['ventureId'] as int)['color'] : null,
-          'assigned_role_ids': p['id'] == 7 ? '1' : (p['id'] == 10 ? '2' : ''),
-          'assigned_role_names': p['id'] == 7 ? 'Design Lead' : (p['id'] == 10 ? 'Payments Engineer' : ''),
-        })
-    .toList();
-
-const _permissionKeys = [
-  'dashboard.view', 'projects.view', 'projects.manage', 'tasks.view', 'tasks.assign',
-  'documents.view', 'documents.upload', 'invoices.view', 'budget.view', 'users.manage',
-  'roles.manage', 'reports.view', 'database.access',
-];
-
 List<Map<String, dynamic>> accessControlJson() => const [
-      {'levelNumber': 1, 'levelName': 'Super Admin', 'description': 'Full system access.'},
-      {'levelNumber': 2, 'levelName': 'Managing Director', 'description': 'Strategic oversight across all ventures.'},
-      {'levelNumber': 3, 'levelName': 'Admin', 'description': 'Administrative access to assigned venture.'},
-      {'levelNumber': 4, 'levelName': 'CXO', 'description': 'Cross-departmental visibility.'},
-      {'levelNumber': 5, 'levelName': 'Manager', 'description': 'Team management and reporting.'},
-      {'levelNumber': 6, 'levelName': 'Executive Staff', 'description': 'Expanded task access.'},
-      {'levelNumber': 7, 'levelName': 'Staff', 'description': 'Standard employee access.'},
-      {'levelNumber': 8, 'levelName': 'Intern', 'description': 'Limited internship access.'},
-      {'levelNumber': 9, 'levelName': 'Client', 'description': 'External client portal access.'},
-    ].map((lvl) {
-      final level = lvl['levelNumber'] as int;
-      return {
-        'level_number': level,
-        'level_name': lvl['levelName'],
-        'description': lvl['description'],
-        'permissions': {for (final k in _permissionKeys) k: level <= 5},
-      };
-    }).toList();
-
-List<String> dbTablesJson() => const [
-      'users', 'ventures', 'access_levels', 'projects', 'tasks', 'task_assignees',
-      'timesheets', 'documents', 'messages', 'notifications', 'audit_logs',
-      'okrs', 'key_results', 'strategic_risks', 'venture_roles', 'announcements',
+      {'level_number': 1, 'level_name': 'Super Admin', 'description': 'Full system access.'},
+      {'level_number': 2, 'level_name': 'Managing Director', 'description': 'Strategic oversight across all ventures.'},
+      {'level_number': 3, 'level_name': 'Admin', 'description': 'Administrative access to assigned venture.'},
+      {'level_number': 4, 'level_name': 'CXO', 'description': 'Cross-departmental visibility.'},
+      {'level_number': 5, 'level_name': 'Manager', 'description': 'Team management and reporting.'},
+      {'level_number': 6, 'level_name': 'Executive Staff', 'description': 'Expanded task access.'},
+      {'level_number': 7, 'level_name': 'Staff', 'description': 'Standard employee access.'},
+      {'level_number': 8, 'level_name': 'Intern', 'description': 'Limited internship access.'},
+      {'level_number': 9, 'level_name': 'Client', 'description': 'External client portal access.'},
     ];
-
-Map<String, dynamic> dbTablePreviewJson(String name) {
-  if (name == 'ventures') {
-    return {
-      'columns': const [
-        {'Field': 'id', 'Type': 'integer'}, {'Field': 'name', 'Type': 'character varying'},
-        {'Field': 'slug', 'Type': 'character varying'}, {'Field': 'primary_color', 'Type': 'character varying'},
-      ],
-      'rows': ventures.map((v) => {'id': v['id'], 'name': v['name'], 'slug': v['slug'], 'primary_color': v['color']}).toList(),
-      'totalCount': ventures.length,
-    };
-  }
-  return {
-    'columns': const [
-      {'Field': 'id', 'Type': 'integer'}, {'Field': 'full_name', 'Type': 'character varying'}, {'Field': 'access_level', 'Type': 'integer'},
-    ],
-    'rows': teamMembersJson().map((u) => {'id': u['id'], 'full_name': u['full_name'], 'access_level': u['access_level']}).toList(),
-    'totalCount': teamMembersJson().length,
-  };
-}
 
 // ── Chat ────────────────────────────────────────────────────────────────
 List<Map<String, dynamic>> chatRoomsJson() => [

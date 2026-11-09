@@ -136,3 +136,6 @@ Desktop.ini
 *.swp
 *.swo
 *~
+
+# App source files that happen to match the env.* secret rule above
+!backend/src/config/env.js

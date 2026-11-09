@@ -117,9 +117,7 @@ InternalX is nineteen modules sharing one permission system. Grouped by what the
 <td><strong>👥 People</strong></td>
 <td>
 
-**User management** — full CRUD, employee IDs, venture assignment
-**Role management** — custom venture roles, duplication, bulk assignment
-**Access control** — per-level permission matrix and 2FA config
+**User management** — create/edit/deactivate people with level and venture, under strict ceilings (nobody manages a level at or above their own; venture admins stay inside their venture; the last Super Admin is protected)
 **Learning Hub** — intern onboarding checklists, resources, feedback loop
 
 </td>
@@ -139,7 +137,6 @@ InternalX is nineteen modules sharing one permission system. Grouped by what the
 <td>
 
 **Audit logs** — every privileged action, actor, and timestamp
-**Database explorer** — read-only table browser for L1, for support without shell access
 
 </td>
 </tr>
@@ -262,7 +259,7 @@ InternalX is nineteen modules sharing one permission system. Grouped by what the
 InternalXDropwing/
 ├── backend/                    Express API server
 │   ├── src/
-│   │   ├── config/             DB pool, Postgres compat shim, schema.sql
+│   │   ├── config/             DB pool, Postgres compat shim, env checks
 │   │   ├── controllers/        Business logic
 │   │   ├── middleware/         authenticate() · requireLevel()
 │   │   ├── routes/             19 route modules
@@ -270,7 +267,9 @@ InternalXDropwing/
 │   │   └── server.js           App bootstrap + Socket.IO
 │   ├── migrations/             Incremental schema changes
 │   ├── postgres_migration/     MySQL → Postgres migration reports
-│   ├── seed_pg.js              Seed ventures, levels, demo users
+│   ├── seed_pg.js              Seed ventures, levels, learning checklist (no users)
+│   ├── seed_dev_users.js       DEV-ONLY demo users (refuses NODE_ENV=production)
+│   ├── scripts/create-admin.js CLI to create/reset a Super Admin or MD
 │   └── .env.example
 │
 ├── frontend/                   Next.js 16 web client
@@ -324,9 +323,18 @@ psql -d internalx -f deployment/postgres/init/03_seed.sql
 cd backend
 cp .env.example .env      # then edit — see Configuration below
 npm install
-npm run seed              # optional: demo ventures, levels and users
 npm run dev               # → http://localhost:5000
 ```
+
+**First login.** The repository ships no user accounts. Either put `BOOTSTRAP_ADMIN_EMAIL` and a
+strong `BOOTSTRAP_ADMIN_PASSWORD` (12+ chars) in `backend/.env` — the first boot creates the Super
+Admin if none exists, after which you should delete the password from the file — or run
+`npm run create-admin -- --email you@company.com` (prompts for the password). Then invite everyone
+else from **User Management**.
+
+For local development only, `npm run seed:dev` creates one demo account per level and venture
+(password `Test@1234`, or `DEV_SEED_PASSWORD`). It refuses to run when `NODE_ENV=production`.
+`npm run seed` only loads reference data (ventures, levels, learning checklist).
 
 Verify it's up:
 
@@ -334,6 +342,16 @@ Verify it's up:
 curl http://localhost:5000/api/health
 # {"status":"ok","message":"InternalX API is running", ...}
 ```
+
+**Tests.** `npm test` in `backend/` runs Jest + Supertest against a throwaway Postgres database:
+
+```bash
+createdb internalx_test
+TEST_DATABASE_URL=postgres://postgres:postgres@localhost:5432/internalx_test npm test
+```
+
+The suite **drops and recreates the `public` schema** of that database and applies
+`deployment/postgres/init/*.sql`, so never point it at real data. CI runs it in the `backend-tests` job.
 
 ### 3 · Web
 
@@ -372,9 +390,11 @@ copy the `.env.example` templates and fill them in locally.
 | `PORT` | ✓ | Default `5000` |
 | `FRONTEND_URL` | ✓ | CORS origin **and** the base for links in outgoing email |
 | `DB_HOST` `DB_PORT` `DB_NAME` `DB_USER` `DB_PASSWORD` | ✓ | PostgreSQL connection |
-| `JWT_SECRET` | ✓ | Long random string — see below |
+| `JWT_SECRET` | ✓ | Long random string — see below. Production refuses to boot if it is missing, shorter than 32 chars, or a placeholder |
+| `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD` | first run | Creates the first Super Admin if none exists (password 12+ chars, no placeholders). Remove the password afterwards |
+| `ALLOWED_EMAIL_DOMAINS` | | Comma-separated domains allowed to self-register and sign in with Google (default: the four venture domains + `dropwinggroups.com`) |
 | `JWT_EXPIRES_IN` | | Default `8h` |
-| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | | Omit to disable Google sign-in |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | | Omit to disable Google sign-in. Google sign-in is invite-only: it never creates accounts, and requires a verified Google email on an allowed domain |
 | `SMTP_HOST` `SMTP_PORT` `SMTP_SECURE` `SMTP_USER` `SMTP_PASS` | | Omit to disable OTP and password reset email |
 
 Generate a JWT secret:
@@ -408,7 +428,7 @@ Nine levels. **Lower number = more access.** `requireLevel(n)` admits every leve
 
 | L | Role | Scope |
 | :-: | :-- | :-- |
-| **1** | Super Admin | Everything, all ventures, including the database explorer |
+| **1** | Super Admin | Everything, all ventures |
 | **2** | Managing Director | Strategic + financial oversight across all ventures |
 | **3** | Admin | Full administration of **one** assigned venture |
 | **4** | CXO | Cross-departmental visibility; no user administration |
@@ -458,7 +478,7 @@ Base URL `/api`. All routes except `/api/health` and `/api/auth/*` require a val
 </details>
 
 <details>
-<summary><strong>People & access</strong> — <code>/api/team-members</code>, <code>/api/role-management</code>, <code>/api/access-control</code></summary>
+<summary><strong>People & access</strong> — <code>/api/team-members</code></summary>
 
 | Method | Path | Purpose |
 | :-- | :-- | :-- |
@@ -468,11 +488,6 @@ Base URL `/api`. All routes except `/api/health` and `/api/auth/*` require a val
 | `PUT` | `/team-members/me/password` | Change own password |
 | `POST` | `/team-members/me/avatar` | Avatar upload (Multer) |
 | `GET` | `/team-members/ventures` · `/access-levels` | Reference data |
-| `GET` `POST` `PUT` `DELETE` | `/role-management` | Custom venture roles |
-| `POST` | `/role-management/:id/duplicate` | Clone a role |
-| `POST` `DELETE` | `/role-management/assign` | Bulk assign / unassign |
-| `GET` `PUT` | `/access-control/:level` | Per-level permission matrix |
-| `GET` `PUT` | `/access-control/2fa-config` | Two-factor policy |
 
 </details>
 
@@ -508,7 +523,7 @@ Base URL `/api`. All routes except `/api/health` and `/api/auth/*` require a val
 </details>
 
 <details>
-<summary><strong>Collaboration & governance</strong> — <code>/api/chat</code>, <code>/api/notifications</code>, <code>/api/learning</code>, <code>/api/action-logs</code>, <code>/api/database</code></summary>
+<summary><strong>Collaboration & governance</strong> — <code>/api/chat</code>, <code>/api/notifications</code>, <code>/api/learning</code>, <code>/api/action-logs</code></summary>
 
 | Method | Path | Purpose |
 | :-- | :-- | :-- |
@@ -519,7 +534,6 @@ Base URL `/api`. All routes except `/api/health` and `/api/auth/*` require a val
 | `GET` `POST` `DELETE` | `/learning/checklist` · `/resources` · `/feedback` | Learning Hub |
 | `GET` `PATCH` | `/learning/progress` | Intern progress tracking |
 | `GET` | `/action-logs` | Audit trail |
-| `GET` `POST` | `/database/tables` · `/table/:name` · `/query` | **L1 only** — read-only explorer |
 
 </details>
 
@@ -630,10 +644,9 @@ Implemented:
 | Venture scoping enforced in SQL | every controller |
 | Socket.IO handshake authentication — token, header, or the same httpOnly cookie, revocation-checked | `server.js` |
 | Upload MIME/extension allowlist; authenticated, venture-scoped document downloads | `upload.middleware.js`, `uploads.routes.js` |
-| Read-only-enforced SQL console for L1 — single `SELECT`, no chaining, row cap, statement timeout, every attempt audit-logged | `sqlGuard.js`, `database.routes.js` |
 | Parameterised queries throughout (no ORM, no string-built SQL) | `database.pg.js` |
 | A real Content-Security-Policy — see [SECURITY.md](SECURITY.md) for the specific, documented exceptions it needs | `server.js` |
-| Rate limiting across the whole API, tighter on uploads/the SQL console/reports, keyed on the verified user id | `rateLimit.middleware.js` |
+| Rate limiting across the whole API, tighter on uploads/reports, per-mailbox on OTP/reset email, keyed on the verified user id | `rateLimit.middleware.js` |
 | Request validation on every mutating endpoint | `validate.middleware.js` |
 | CORS allowlist (single origin, credentials on) | `server.js` |
 | Forced HTTPS in production | `server.js` |

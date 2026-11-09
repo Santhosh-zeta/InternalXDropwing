@@ -133,19 +133,13 @@ const drawerSections = <({String title, List<DrawerLink> links})>[
           permission: Permission.viewTeam),
       DrawerLink('People', LucideIcons.userCog, '/user-management',
           permission: Permission.viewUsers),
-      DrawerLink('Roles', LucideIcons.shield, '/role-management',
-          permission: Permission.viewRoles),
     ],
   ),
   (
     title: 'Platform',
     links: [
-      DrawerLink('Access control', LucideIcons.keyRound, '/access-control',
-          permission: Permission.viewAccessControl),
       DrawerLink('Audit log', LucideIcons.scrollText, '/audit',
           permission: Permission.viewAudit),
-      DrawerLink('Database', LucideIcons.database, '/database',
-          permission: Permission.databaseConsole),
     ],
   ),
   (

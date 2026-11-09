@@ -7,7 +7,20 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "seed": "node seed_pg.js"
+    "test": "jest --runInBand --forceExit",
+    "seed": "node seed_pg.js",
+    "seed:dev": "node seed_dev_users.js",
+    "create-admin": "node scripts/create-admin.js"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "setupFiles": [
+      "<rootDir>/tests/helpers/setupEnv.js"
+    ],
+    "globalSetup": "<rootDir>/tests/helpers/globalSetup.js",
+    "testMatch": [
+      "<rootDir>/tests/**/*.test.js"
+    ]
   },
   "keywords": [],
   "author": "Dropwing Groups",
@@ -31,7 +44,9 @@
     "socket.io": "^4.8.3"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "supertest": "^7.3.2"
   },
   "overrides": {
     "qs": "6.16.2"

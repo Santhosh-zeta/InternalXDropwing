@@ -1,34 +1,50 @@
+/**
+ * Smoke test for the auth flow against a running local backend.
+ *
+ *   SMOKE_EMAIL=you@company.com SMOKE_PASSWORD='...' node scripts/smoke-test-auth.js
+ *
+ * Login is two-step (password, then emailed OTP), so the script pauses and asks
+ * for the code (in development without SMTP the backend prints it to its
+ * console). No credentials are stored in this file; use an account you created
+ * with `npm run create-admin` or `npm run seed:dev`.
+ */
 const http = require('http');
+const readline = require('readline');
+
+const promptOtp = () => new Promise((resolve) => {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  rl.question('Enter the OTP: ', (a) => { rl.close(); resolve(a.trim()); });
+});
+
+const postJson = (path, payload) => new Promise((resolve, reject) => {
+  const data = JSON.stringify(payload);
+  const req = http.request({
+    hostname: 'localhost', port: 5000, path, method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) },
+  }, res => {
+    let body = '';
+    res.on('data', c => body += c);
+    res.on('end', () => resolve({ statusCode: res.statusCode, headers: res.headers, body: JSON.parse(body || '{}') }));
+  });
+  req.on('error', reject);
+  req.write(data);
+  req.end();
+});
 
 const testUser = async (email, password, role) => {
   console.log(`\n--- Testing Role: ${role} (${email}) ---`);
   
-  // 1. Login
-  const loginData = JSON.stringify({ email, password });
-  
-  const loginOptions = {
-    hostname: 'localhost',
-    port: 5000,
-    path: '/api/auth/login',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Content-Length': loginData.length
-    }
-  };
+  // 1. Login (password) then 2. OTP
+  const step1 = await postJson('/api/auth/login', { email, password });
+  if (step1.statusCode !== 200 || !step1.body.success) {
+    console.error(`❌ Login failed for ${role}:`, step1.body);
+    return;
+  }
+  const loginRes = step1.body.requiresOTP
+    ? await postJson('/api/auth/verify-otp', { email, otp: await promptOtp() })
+    : step1;
 
-  const loginRes = await new Promise((resolve, reject) => {
-    const req = http.request(loginOptions, res => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
-      res.on('end', () => resolve({ statusCode: res.statusCode, headers: res.headers, body: JSON.parse(body) }));
-    });
-    req.on('error', reject);
-    req.write(loginData);
-    req.end();
-  });
-
-  if (loginRes.statusCode !== 200 || !loginRes.body.success) {
+  if (loginRes.statusCode !== 200 || !loginRes.body.success || !loginRes.body.data?.token) {
     console.error(`❌ Login failed for ${role}:`, loginRes.body);
     return;
   }
@@ -110,9 +126,12 @@ const testUser = async (email, password, role) => {
 };
 
 const runTests = async () => {
-  await testUser('sa@dropwinggroups.com', 'Test@1234', 'Super Admin');
-  await testUser('mg@dropwing.in', 'Test@1234', 'Manager');
-  await testUser('in@dropwing.in', 'Test@1234', 'Intern');
+  const { SMOKE_EMAIL, SMOKE_PASSWORD } = process.env;
+  if (!SMOKE_EMAIL || !SMOKE_PASSWORD) {
+    console.error('Set SMOKE_EMAIL and SMOKE_PASSWORD (an account you created yourself).');
+    process.exit(1);
+  }
+  await testUser(SMOKE_EMAIL, SMOKE_PASSWORD, 'smoke user');
 };
 
 runTests();

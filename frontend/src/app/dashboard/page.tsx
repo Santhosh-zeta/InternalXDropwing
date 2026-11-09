@@ -18,15 +18,12 @@ import TimesheetsView from './TimesheetsView';
 import SettingsView from './SettingsView';
 import InvoicesView from './InvoicesView';
 import ReportsView from './ReportsView';
-import AccessControlView from './AccessControlView';
 import BudgetView from './BudgetView';
 import DepartmentKPIsView from './DepartmentKPIsView';
 import ClientPortalView from './ClientPortalView';
 import NotificationBell from './NotificationBell';
-import DatabaseView from './DatabaseView';
 import LearningHubView from './LearningHubView';
 import StrategyView from './StrategyView';
-import RoleManagementView from './RoleManagementView';
 import CalendarView from './CalendarView';
 import ApprovalsView from './ApprovalsView';
 import { SocketProvider } from '@/components/SocketProvider';
@@ -34,7 +31,7 @@ import { SocketProvider } from '@/components/SocketProvider';
 import {
   Hexagon, LayoutDashboard, FolderKanban, CheckSquare, Users,
   ShieldCheck, Activity, MessageSquare, BookOpen, Settings,
-  FileText, Database, BarChart3, TrendingUp, DollarSign,
+  FileText, BarChart3, TrendingUp, DollarSign,
   PieChart, Briefcase, FileSignature, LogOut, Search,
   User as UserIcon, Building2, Crown, Lock, Menu, X,
   CalendarDays, ClipboardCheck
@@ -47,10 +44,10 @@ const LEVEL_COLORS: Record<number, string> = {
 };
 
 const ACCESS_MENUS: Record<number, string[]> = {
-  1: ['System Overview', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'User Management', 'Role Management', 'Access Control', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Database', 'Reports'],
-  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Strategy', 'Role Management', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
+  1: ['System Overview', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'User Management', 'Audit Logs', 'Team Chat', 'Learning Hub', 'Settings', 'Invoices', 'Reports'],
+  2: ['Executive Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Strategy', 'Financials', 'HR Overview', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
   3: ['Admin Panel', 'Projects', 'User Management', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Chat', 'Learning Hub', 'Invoices', 'Settings', 'Reports'],
-  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Management', 'Role Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
+  4: ['C-Suite Overview', 'Projects', 'Department KPIs', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Management', 'Team Chat', 'Learning Hub', 'Settings', 'Budget', 'Reports'],
   5: ['Team Dashboard', 'Projects', 'Tasks', 'Calendar', 'Approvals', 'Documents', 'Team Members', 'Team Chat', 'Learning Hub', 'Settings', 'Reports'],
   6: ['My Projects', 'Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
   7: ['My Dashboard', 'My Projects', 'My Tasks', 'Calendar', 'Documents', 'Timesheets', 'Team Chat', 'Settings'],
@@ -84,15 +81,12 @@ const MENU_ICONS: Record<string, React.ElementType> = {
   'User Management': Users,
   'Team Members': Users,
   'Team Management': Users,
-  'Role Management': Users,
-  'Access Control': ShieldCheck,
   'Audit Logs': Activity,
   'Team Chat': MessageSquare,
   'Messages': MessageSquare,
   'Learning Hub': BookOpen,
   'Settings': Settings,
   'Invoices': DollarSign,
-  'Database': Database,
   'Reports': BarChart3,
   'Strategy': TrendingUp,
   'Financials': DollarSign,
@@ -557,7 +551,7 @@ export default function DashboardPage() {
               {/* Stats grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">
                 {[
-                  { label: 'Access Control', value: `Level ${user.accessLevel}`, sub: user.levelName, icon: ShieldCheck },
+                  { label: 'Access Level', value: `Level ${user.accessLevel}`, sub: user.levelName, icon: ShieldCheck },
                   { label: 'Department', value: user.department || 'Executive', sub: user.designation || 'Oversight', icon: Briefcase },
                   { label: 'Employee ID', value: user.employeeId || 'Global Auth', sub: 'Verified Session', icon: Lock },
                   { label: 'Workspace', value: user.venture?.name || 'All Ventures', sub: 'Active Environment', icon: Building2 },
@@ -620,12 +614,6 @@ export default function DashboardPage() {
               <ReportsView currentUser={user} />
             ) : currentMenu === 'Learning Hub' ? (
               <LearningHubView currentUser={user} />
-            ) : currentMenu === 'Database' ? (
-              <DatabaseView />
-            ) : currentMenu === 'Role Management' ? (
-              <RoleManagementView currentUser={user} />
-            ) : currentMenu === 'Access Control' ? (
-              <AccessControlView currentUser={user} />
             ) : (
               <div className="bg-[var(--color-bg-card)] rounded-2xl p-8 sm:p-12 border border-[var(--color-border)] shadow-sm flex flex-col items-center justify-center text-center">
                 <div className="w-16 h-16 bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-border)] flex items-center justify-center mb-6">

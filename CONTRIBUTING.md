@@ -21,7 +21,7 @@ docker compose up -d          # PostgreSQL 16 on :5432
 
 # API
 cd backend && cp .env.example .env   # fill in your values
-npm install && npm run seed && npm run dev
+npm install && npm run seed && npm run seed:dev && npm run dev
 
 # Web
 cd frontend && cp .env.example .env.local

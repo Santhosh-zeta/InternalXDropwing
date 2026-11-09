@@ -17,10 +17,6 @@ CREATE INDEX idx_sessions_token_hash ON sessions(token_hash);
 -- lookup and the hourly cleanup sweep's "WHERE expires_at <= CURRENT_TIMESTAMP".
 CREATE INDEX idx_sessions_expires_at ON sessions(expires_at);
 
--- venture_roles & assignments
-CREATE INDEX idx_venture_roles_venture_id ON venture_roles(venture_id);
-CREATE INDEX idx_venture_role_assignments_user_id ON venture_role_assignments(user_id);
-CREATE INDEX idx_venture_role_assignments_role_id ON venture_role_assignments(role_id);
 
 -- projects & members
 CREATE INDEX idx_projects_venture_id ON projects(venture_id);

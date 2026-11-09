@@ -24,12 +24,12 @@ INSERT INTO access_levels (level_number, level_name, description) VALUES
 (9, 'Client', 'External client portal access')
 ON CONFLICT (level_number) DO NOTHING;
 
--- 3. Super Admin User
--- Note: Replace password_hash with a secure bcrypt hash before running in production
-INSERT INTO users (employee_id, full_name, email, password_hash, access_level, venture_id, department, designation, is_verified) VALUES
-('DG-SA-001', 'Super Admin', 'sa@dropwinggroups.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiEkw2/dz/m.S5W2rFpj8Hkf1Xku', 1, NULL, 'Executive', 'Super Administrator', TRUE),
-('DG-MD-001', 'Managing Director', 'md@dropwinggroups.com', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TiEkw2/dz/m.S5W2rFpj8Hkf1Xku', 2, NULL, 'Executive', 'Managing Director', TRUE)
-ON CONFLICT (email) DO NOTHING;
+-- 3. Users
+-- Intentionally NO user rows are seeded here: a seeded account with a known
+-- password in a public repo is a standing backdoor. The first Super Admin is
+-- created on first boot by backend/src/services/bootstrap.js from the
+-- BOOTSTRAP_ADMIN_EMAIL / BOOTSTRAP_ADMIN_PASSWORD env vars, or at any time with
+-- `npm run create-admin` in backend/.
 
 -- 4. Initial Strategy OKRs
 INSERT INTO okrs (venture_id, objective, progress, color) VALUES
