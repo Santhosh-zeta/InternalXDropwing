@@ -10,8 +10,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "InternalX — Dropwing Groups Portal",
-  description: "Internal management portal for Dropwing Groups and its ventures: Dropwing Design Studio, Fenixa Solutions, PerSyniX, and Grovia.",
+  title: "Fenixa Solutions — Engineering & Software Studio",
+  description: "End-to-end software development, agile sprints, system architecture, defect tracking, and release management platform customized for Fenixa Solutions.",
   robots: "noindex, nofollow",
 };
 

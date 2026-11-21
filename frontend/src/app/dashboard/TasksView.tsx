@@ -87,17 +87,17 @@ export default function TasksView({ currentUser }: { currentUser: User }) {
     <div className="flex flex-col">
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Tasks</h2>
-          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Organize and track work. Drag a card, or use its arrows, to change its status.</p>
+          <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Issues, Stories & Defect Backlog</h2>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">Fenixa Solutions engineering backlog. Organize user stories, engineering tasks, and defects across sprints.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Select aria-label="Filter tasks by project" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} className="h-9 w-auto min-w-40">
-            <option value="all">All projects</option>
+            <option value="all">All software projects</option>
             {(projects.data ?? []).map((p) => (
               <option key={p.id} value={p.id}>{p.name}</option>
             ))}
           </Select>
-          {canWrite && newTaskButton('New task')}
+          {canWrite && newTaskButton('New issue')}
         </div>
       </div>
 

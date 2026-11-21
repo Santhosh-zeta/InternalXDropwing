@@ -1,6 +1,6 @@
 import axios, { isAxiosError } from 'axios';
 import type { User } from './constants';
-import type { Analytics, AppNotification, AuditLog, ChatMessage, Envelope, EnvelopeWith, Payload, Project, Task, TeamMember, UserTaskActivity, Venture } from './types';
+import type { Analytics, AppNotification, AuditLog, ChatMessage, Envelope, EnvelopeWith, Payload, Project, Task, TeamMember, UserTaskActivity, Venture, SoftwareEpic, SoftwareSprint, SprintRetroNote, SoftwareRelease, SoftwareIssue, TaskComment, SoftwareMetricsData } from './types';
 
 /**
  * Origin of the API. Empty (same origin) in production, where the backend serves
@@ -271,6 +271,63 @@ export const proposeTasksFromNotes = async (notes: string): Promise<NotesProposa
   (await api.post('/assistant/notes/propose', { notes })).data.data;
 export const createTasksFromNotes = async (tasks: ConfirmedTask[]): Promise<{ created: number; failed: number; results: { index: number; ok: boolean; id?: number; error?: string }[] }> =>
   (await api.post('/assistant/notes/create', { tasks })).data.data;
+
+// ==========================================
+// FENIXA SOFTWARE SUITE API (from WorkZ)
+// ==========================================
+export const getSoftwareEpics = async (signal?: AbortSignal, projectId?: number): Promise<Envelope<SoftwareEpic[]>> =>
+  (await api.get('/software/epics', { signal, params: { project_id: projectId } })).data;
+
+export const createSoftwareEpic = async (payload: Payload): Promise<Envelope<SoftwareEpic>> =>
+  (await api.post('/software/epics', payload)).data;
+
+export const updateSoftwareEpic = async (id: number, payload: Payload): Promise<Envelope<void>> =>
+  (await api.put(`/software/epics/${id}`, payload)).data;
+
+export const deleteSoftwareEpic = async (id: number): Promise<Envelope<void>> =>
+  (await api.delete(`/software/epics/${id}`)).data;
+
+export const getSoftwareSprints = async (signal?: AbortSignal, projectId?: number): Promise<Envelope<SoftwareSprint[]>> =>
+  (await api.get('/software/sprints', { signal, params: { project_id: projectId } })).data;
+
+export const createSoftwareSprint = async (payload: Payload): Promise<Envelope<SoftwareSprint>> =>
+  (await api.post('/software/sprints', payload)).data;
+
+export const updateSoftwareSprint = async (id: number, payload: Payload): Promise<Envelope<void>> =>
+  (await api.put(`/software/sprints/${id}`, payload)).data;
+
+export const getSprintRetros = async (sprintId: number): Promise<Envelope<SprintRetroNote[]>> =>
+  (await api.get(`/software/sprints/${sprintId}/retro`)).data;
+
+export const createSprintRetro = async (sprintId: number, payload: Payload): Promise<Envelope<SprintRetroNote>> =>
+  (await api.post(`/software/sprints/${sprintId}/retro`, payload)).data;
+
+export const getSoftwareReleases = async (signal?: AbortSignal, projectId?: number): Promise<Envelope<SoftwareRelease[]>> =>
+  (await api.get('/software/releases', { signal, params: { project_id: projectId } })).data;
+
+export const createSoftwareRelease = async (payload: Payload): Promise<Envelope<SoftwareRelease>> =>
+  (await api.post('/software/releases', payload)).data;
+
+export const updateSoftwareRelease = async (id: number, payload: Payload): Promise<Envelope<void>> =>
+  (await api.put(`/software/releases/${id}`, payload)).data;
+
+export const getSoftwareIssues = async (signal?: AbortSignal, params?: Record<string, unknown>): Promise<Envelope<SoftwareIssue[]>> =>
+  (await api.get('/software/issues', { signal, params })).data;
+
+export const createSoftwareIssue = async (payload: Payload): Promise<Envelope<SoftwareIssue>> =>
+  (await api.post('/software/issues', payload)).data;
+
+export const updateSoftwareIssue = async (id: number, payload: Payload): Promise<Envelope<void>> =>
+  (await api.put(`/software/issues/${id}`, payload)).data;
+
+export const getIssueComments = async (id: number): Promise<Envelope<TaskComment[]>> =>
+  (await api.get(`/software/issues/${id}/comments`)).data;
+
+export const addIssueComment = async (id: number, payload: { content: string }): Promise<Envelope<{ id: number }>> =>
+  (await api.post(`/software/issues/${id}/comments`, payload)).data;
+
+export const getSoftwareMetrics = async (signal?: AbortSignal, projectId?: number): Promise<Envelope<SoftwareMetricsData>> =>
+  (await api.get('/software/metrics', { signal, params: { project_id: projectId } })).data;
 
 export default api;
 

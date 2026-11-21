@@ -103,15 +103,15 @@ export default function HomeView({ currentUser }: { currentUser: User }) {
           {greeting(hour)}, {currentUser.fullName.split(' ')[0]}
         </h2>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          {currentUser.venture ? currentUser.venture.name : 'All ventures'} · {currentUser.levelName}
+          Fenixa Solutions · {currentUser.levelName} · Daily Engineering Standup
         </p>
       </div>
 
       <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${canApprove ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>
         <StatCard label="Due today" value={tasks.loading ? '–' : dueToday.length} icon={<CalendarClock size={20} />} accent="var(--color-cyan)" />
-        <StatCard label="Overdue" value={tasks.loading ? '–' : overdue.length} icon={<AlertTriangle size={20} />} accent="var(--color-rose)" />
+        <StatCard label="Overdue blockers" value={tasks.loading ? '–' : overdue.length} icon={<AlertTriangle size={20} />} accent="var(--color-rose)" />
         {canApprove && (
-          <StatCard label="Awaiting approval" value={sheets.loading ? '–' : (sheets.data?.length ?? 0)} icon={<ClipboardCheck size={20} />} accent="var(--color-amber)" />
+          <StatCard label="Code & Sprint approvals" value={sheets.loading ? '–' : (sheets.data?.length ?? 0)} icon={<ClipboardCheck size={20} />} accent="var(--color-amber)" />
         )}
         <StatCard label="Unread notifications" value={notifications.loading ? '–' : unread.length} icon={<Bell size={20} />} accent="var(--color-purple-glow)" />
       </div>
@@ -119,16 +119,16 @@ export default function HomeView({ currentUser }: { currentUser: User }) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader
-            title="My tasks"
-            description="Open tasks assigned to you, soonest due first."
-            action={<Button size="sm" variant="ghost" onClick={() => setView('tasks')}>All tasks</Button>}
+            title="My sprint issues & tasks"
+            description="Active tickets assigned to you in the current sprint, soonest due first."
+            action={<Button size="sm" variant="secondary" onClick={() => setView('software')}>Software Studio</Button>}
           />
 
           {canCreate && (
             <form onSubmit={quickAdd} className="mb-4 flex flex-col gap-2 sm:flex-row" aria-label="Add a task for yourself">
               <Input
                 aria-label="New task title"
-                placeholder="Add a task for yourself…"
+                placeholder="Log an issue or task for yourself…"
                 value={title}
                 maxLength={255}
                 onChange={(e) => setTitle(e.target.value)}

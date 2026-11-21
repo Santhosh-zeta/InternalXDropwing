@@ -49,7 +49,7 @@ export default function UserManagementView({ currentUser }: { currentUser: User 
       const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
       const doc = new jsPDF();
       doc.setFontSize(18);
-      doc.text('InternalX - Team members', 14, 22);
+      doc.text('Fenixa Solutions - Engineering Team', 14, 22);
       autoTable(doc, {
         head: [['Name', 'Email', 'Role', 'Department', 'Level']],
         body: rows.map((u) => [u.full_name, u.email, u.designation || '-', u.department || '-', `L${u.access_level} ${u.level_name ?? ''}`]),

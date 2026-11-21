@@ -262,7 +262,7 @@ export default function InvoicesView({ currentUser }: { currentUser: User }) {
           Billing &amp; Invoices
         </h2>
         <p className="mt-1 text-base text-[var(--color-text-muted)]">
-          {currentUser.accessLevel === 9 ? 'View and download your monthly statements and deliverables.' : 'Manage generated invoices for client ventures.'}
+          {currentUser.accessLevel === 9 ? 'View and download your monthly software deliverables statements.' : 'Client project invoices and billing statements for Fenixa Solutions.'}
         </p>
       </div>
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { forgotPassword } from '@/lib/api';
-import { Mail, Hexagon, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Mail, Code2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button, Field, Input, tint } from '@/components/ui';
 
@@ -73,10 +73,11 @@ export default function ForgotPasswordPage() {
               color: 'var(--color-purple-glow)'
             }}
           >
-            <Hexagon size={20} strokeWidth={2.5} />
+            <Code2 size={22} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>InternalX</h1>
+            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>Fenixa Solutions</h1>
+            <p className="text-[10px] font-semibold tracking-widest uppercase mt-1" style={{ color: 'var(--color-text-muted)' }}>Software Engineering Studio</p>
           </div>
         </motion.div>
 
@@ -160,7 +161,7 @@ export default function ForgotPasswordPage() {
                           setEmail(e.target.value);
                           if (emailError) setEmailError('');
                         }}
-                        placeholder="name@dropwing.com"
+                        placeholder="engineer@fenixasolutions.com"
                         className={FOCUS_RING}
                         style={controlStyle(invalid)}
                       />

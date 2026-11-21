@@ -29,8 +29,8 @@ export default function AssistantView({ currentUser }: { currentUser: User }) {
     return (
       <EmptyState
         icon={<Sparkles size={20} />}
-        title="Ask InternalX is not set up yet"
-        description={chat.status.setupHint || 'Your administrator has not enabled the assistant on this server.'}
+        title="Fenixa AI Architect is not set up yet"
+        description={chat.status.setupHint || 'Your administrator has not enabled the engineering assistant on this server.'}
       />
     );
   }

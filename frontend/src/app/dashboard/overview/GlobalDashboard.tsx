@@ -17,7 +17,7 @@ export default function GlobalDashboard({ users, tasks, analytics }: DashboardPr
   return (
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="People" value={users.length} icon={<Users size={18} />} accent="var(--color-purple-glow)" />
+        <StatCard label="Engineers" value={users.length} icon={<Users size={18} />} accent="var(--color-purple-glow)" />
         <StatCard label="In progress" value={count('in-progress')} icon={<Clock size={18} />} accent="var(--color-cyan)" />
         <StatCard label="Completed" value={count('completed')} icon={<CheckCircle size={18} />} accent="var(--color-emerald)" />
         <StatCard label="Pending" value={count('pending')} icon={<Activity size={18} />} accent="var(--color-amber)" />
@@ -25,12 +25,12 @@ export default function GlobalDashboard({ users, tasks, analytics }: DashboardPr
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
         <Card className="xl:col-span-3">
-          <CardHeader title="Task completion (7 days)" description="Tasks marked complete each day this week." />
+          <CardHeader title="Sprint & Issue completion (7 days)" description="Tickets and user stories marked complete each day this week." />
           <VelocityChart data={velocity} color="var(--color-purple-glow)" />
         </Card>
 
         <Card>
-          <CardHeader title="Budget by venture" description="Total project budget per venture." />
+          <CardHeader title="Budget by project" description="Engineering project budget allocation." />
           {budgets.length === 0 ? (
             <EmptyState icon={<HardDrive size={20} />} title="No budgets recorded" description="Add a budget to a project and each venture's share shows up here." />
           ) : (

@@ -119,7 +119,7 @@ export default function ClientPortalView({ currentUser }: { currentUser: User })
           <div className="min-w-0">
             <div className={cn('mb-1', MICRO_LABEL)} style={{ color: vc }}>Client Portal</div>
             <h2 className="m-0 truncate text-xl font-black text-[var(--color-text-primary)] sm:text-2xl">
-              {v?.name || currentUser.venture?.name || 'Your Portal'}
+              {v?.name || currentUser.venture?.name || 'Fenixa Solutions Delivery Portal'}
             </h2>
           </div>
         </div>

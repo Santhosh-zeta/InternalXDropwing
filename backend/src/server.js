@@ -165,6 +165,7 @@ app.use('/api', apiLimiter);
 app.use('/api/team-members', userRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/projects', require('./routes/project.routes'));
+app.use('/api/software', require('./routes/software.routes'));
 app.use('/api/chat', require('./routes/chat.routes'));
 app.use('/api/platform-metrics', require('./routes/analytics.routes'));
 app.use('/api/action-logs', require('./routes/audit.routes'));

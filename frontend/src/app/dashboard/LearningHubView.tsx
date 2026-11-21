@@ -116,8 +116,8 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
   };
 
   const TABS = isManager
-    ? [{ id: 'progress', label: 'Intern Progress', icon: <BarChart3 size={15} aria-hidden="true" /> }, { id: 'manage_checklists', label: 'Checklists', icon: <CheckSquare size={15} aria-hidden="true" /> }, { id: 'resources', label: 'Resources', icon: <BookOpen size={15} aria-hidden="true" /> }, { id: 'feedback', label: 'Feedback', icon: <MessageSquare size={15} aria-hidden="true" /> }]
-    : [{ id: 'checklist', label: 'My Checklist', icon: <CheckSquare size={15} aria-hidden="true" /> }, { id: 'resources', label: 'Resources', icon: <BookOpen size={15} aria-hidden="true" /> }, { id: 'feedback', label: 'My Feedback', icon: <MessageSquare size={15} aria-hidden="true" /> }];
+    ? [{ id: 'progress', label: 'Engineer Onboarding', icon: <BarChart3 size={15} aria-hidden="true" /> }, { id: 'manage_checklists', label: 'Checklists', icon: <CheckSquare size={15} aria-hidden="true" /> }, { id: 'resources', label: 'Wiki & Tech Resources', icon: <BookOpen size={15} aria-hidden="true" /> }, { id: 'feedback', label: 'Mentorship Feedback', icon: <MessageSquare size={15} aria-hidden="true" /> }]
+    : [{ id: 'checklist', label: 'My Onboarding Checklist', icon: <CheckSquare size={15} aria-hidden="true" /> }, { id: 'resources', label: 'Wiki & Tech Resources', icon: <BookOpen size={15} aria-hidden="true" /> }, { id: 'feedback', label: 'My Feedback', icon: <MessageSquare size={15} aria-hidden="true" /> }];
 
   const resourceIcon = (type: string) => type === 'video' ? <Video size={18} aria-hidden="true" /> : type === 'document' ? <FileText size={18} aria-hidden="true" /> : <Link2 size={18} aria-hidden="true" />;
 
@@ -166,8 +166,8 @@ export default function LearningHubView({ currentUser }: LearningHubViewProps) {
           {activeTab === 'checklist' && (
             <div className="flex flex-col gap-4">
               <Card className="shadow-sm">
-                <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-1">Your Learning Checklist</h3>
-                <p className="text-[var(--color-text-secondary)] text-[13px] font-medium">Complete these items to progress in your internship.</p>
+                <h3 className="text-lg font-bold text-[var(--color-text-primary)] mb-1">Engineering Onboarding & Checklist</h3>
+                <p className="text-[var(--color-text-secondary)] text-[13px] font-medium">Complete these milestones to set up your dev environment and review Fenixa coding standards.</p>
               </Card>
               {checklists.length === 0
                 ? (

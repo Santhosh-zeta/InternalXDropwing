@@ -6,13 +6,12 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { loginUser, verifyOtp, googleLogin, getAuthConfig } from '@/lib/api';
 import GoogleSignIn from '@/components/GoogleSignIn';
-import { VENTURES } from '@/lib/constants';
 import {
   Mail,
   Lock,
   Eye,
   EyeOff,
-  Hexagon,
+  Code2,
   ArrowRight,
   KeyRound
 } from 'lucide-react';
@@ -236,11 +235,11 @@ export default function LoginPage() {
               color: 'var(--color-purple-glow)'
             }}
           >
-            <Hexagon size={20} strokeWidth={2.5} />
+            <Code2 size={22} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>InternalX</h1>
-            <p className="text-[10px] font-semibold tracking-widest uppercase mt-1" style={{ color: 'var(--color-text-muted)' }}>Dropwing Groups</p>
+            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>Fenixa Solutions</h1>
+            <p className="text-[10px] font-semibold tracking-widest uppercase mt-1" style={{ color: 'var(--color-text-muted)' }}>Software Engineering Studio</p>
           </div>
         </motion.div>
 
@@ -251,16 +250,16 @@ export default function LoginPage() {
           className="relative z-10 max-w-md"
         >
           <h2 className="text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1] mb-6">
-            Enterprise intelligence, seamlessly unified.
+            End-to-end software delivery, unified.
           </h2>
           <p className="text-lg leading-relaxed mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-            Access all venture operations, financial analytics, and team collaboration modules from a single, secure command center.
+            From product requirements and architecture design to agile sprint execution, automated QA defect tracking, and production CI/CD releases.
           </p>
 
           <ul className="flex flex-wrap gap-2 list-none">
-            {VENTURES.map(v => (
+            {['Requirements & PRDs', 'Agile Sprints', 'Scrum & Kanban', 'Architecture Specs', 'QA Defect Tracker', 'CI/CD Releases', 'Velocity & Retros'].map(tag => (
               <li
-                key={v.slug}
+                key={tag}
                 className="px-3 py-1.5 rounded-full text-xs font-medium border"
                 style={{
                   background: 'var(--color-bg-primary)',
@@ -268,14 +267,14 @@ export default function LoginPage() {
                   color: 'var(--color-text-secondary)'
                 }}
               >
-                {v.name}
+                {tag}
               </li>
             ))}
           </ul>
         </motion.div>
 
         <div className="relative z-10 text-sm font-medium" style={{ color: 'var(--color-text-muted)' }}>
-          &copy; {new Date().getFullYear()} Dropwing Groups. All rights reserved.
+          &copy; {new Date().getFullYear()} Fenixa Solutions. All rights reserved.
         </div>
       </div>
 
@@ -298,10 +297,11 @@ export default function LoginPage() {
                 color: 'var(--color-purple-glow)'
               }}
             >
-              <Hexagon size={20} strokeWidth={2.5} />
+              <Code2 size={22} strokeWidth={2.5} />
             </div>
             <div>
-              <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>InternalX</h1>
+              <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>Fenixa Solutions</h1>
+              <p className="text-[10px] font-semibold tracking-widest uppercase mt-1" style={{ color: 'var(--color-text-muted)' }}>Software Engineering Studio</p>
             </div>
           </motion.div>
 
@@ -314,10 +314,10 @@ export default function LoginPage() {
               transition={{ duration: 0.4 }}
             >
               <h2 className="text-2xl font-semibold tracking-tight mb-2" style={{ color: 'var(--color-text-primary)' }}>
-                Sign in to your account
+                Sign in to Fenixa Studio
               </h2>
               <p className="text-sm mb-8" style={{ color: 'var(--color-text-secondary)' }}>
-                Enter your credentials to access your workspace.
+                Enter your engineer credentials to access your sprint workspace.
               </p>
 
               <FormAlert message={formError} />
@@ -345,7 +345,7 @@ export default function LoginPage() {
                           setEmail(e.target.value);
                           if (emailError) setEmailError('');
                         }}
-                        placeholder="name@dropwing.com"
+                        placeholder="engineer@fenixasolutions.com"
                         className={FOCUS_RING}
                         style={controlStyle(invalid)}
                       />

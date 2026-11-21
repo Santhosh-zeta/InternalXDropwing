@@ -28,9 +28,9 @@ const AXIS_TICK_CATEGORY = { fontSize: 12, fill: 'var(--color-text-secondary)' }
 
 const TABS = [
   { id: 'overview' as const, label: 'Overview', icon: <BarChart3 size={15} aria-hidden="true" /> },
-  { id: 'tasks' as const, label: 'Task Velocity', icon: <CheckCircle2 size={15} aria-hidden="true" /> },
-  { id: 'ventures' as const, label: 'Ventures', icon: <Building2 size={15} aria-hidden="true" /> },
-  { id: 'team' as const, label: 'Team', icon: <Users size={15} aria-hidden="true" /> },
+  { id: 'tasks' as const, label: 'Sprint Velocity', icon: <CheckCircle2 size={15} aria-hidden="true" /> },
+  { id: 'ventures' as const, label: 'Projects & Releases', icon: <Building2 size={15} aria-hidden="true" /> },
+  { id: 'team' as const, label: 'Engineers', icon: <Users size={15} aria-hidden="true" /> },
 ];
 
 /** Skeleton mirroring the KPI tile row plus the chart panels beneath it. */

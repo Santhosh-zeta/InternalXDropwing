@@ -35,7 +35,7 @@ function Dashboard() {
   const View = current.component;
 
   useEffect(() => {
-    document.title = `${label} · InternalX`;
+    document.title = `${label} · Fenixa Solutions`;
   }, [label]);
 
   // A URL pointing at a view the user may not open (`?view=audit` as an intern)

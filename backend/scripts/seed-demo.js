@@ -135,6 +135,122 @@ const seedDemo = async (pool, { password, quiet = true } = {}) => {
     }
   }
 
+  // ── Fenixa Solutions Software Suite Seed (WorkZ Integration) ──
+  try {
+    const fxVid = ventureId['fx'];
+    const fxP1 = projects['fx.p1'];
+    const fxLead = users['fx.l5'];
+    const fxDev = users['fx.l7'];
+
+    // 1. Epics
+    const [e1] = await q(
+      `INSERT INTO software_epics (project_id, venture_id, key, title, summary, prd_content, priority, owner_id)
+       VALUES ($1, $2, 'FEN-E1', 'Authentication & Multi-Tenant Security Engine',
+       'Zero-trust security architecture with 9-level RBAC and OTP verification.',
+       '## Requirements Specification\n- Multi-tenant tenant isolation\n- Rate limited login\n- JWT sessions with HttpOnly cookies',
+       'high', $3) RETURNING id`,
+      [fxP1, fxVid, fxLead]
+    );
+
+    const [e2] = await q(
+      `INSERT INTO software_epics (project_id, venture_id, key, title, summary, prd_content, priority, owner_id)
+       VALUES ($1, $2, 'FEN-E2', 'Real-Time Collaborative Workspace & Sockets',
+       'WebSocket infrastructure for low-latency team messaging and optimistic kanban boards.',
+       '## Requirements Specification\n- Channel segregation\n- Fallback polling\n- Reconnection handling',
+       'medium', $3) RETURNING id`,
+      [fxP1, fxVid, fxLead]
+    );
+
+    // 2. Sprints
+    const [s1] = await q(
+      `INSERT INTO sprints (project_id, venture_id, name, goal, status, start_date, end_date)
+       VALUES ($1, $2, 'Sprint 14 - OAuth2 Gateway & Security',
+       'Deliver hardened session management, OTP rate limits, and drag-and-drop Kanban.',
+       'active', CURRENT_DATE - INTERVAL '5 days', CURRENT_DATE + INTERVAL '9 days') RETURNING id`,
+      [fxP1, fxVid]
+    );
+
+    const [s2] = await q(
+      `INSERT INTO sprints (project_id, venture_id, name, goal, status, start_date, end_date)
+       VALUES ($1, $2, 'Sprint 15 - Performance, Caching & Gantt Roadmap',
+       'Scale PostgreSQL connection pooling and implement timeline zoom.',
+       'planned', CURRENT_DATE + INTERVAL '10 days', CURRENT_DATE + INTERVAL '24 days') RETURNING id`,
+      [fxP1, fxVid]
+    );
+
+    // 3. Releases
+    const [rel1] = await q(
+      `INSERT INTO software_releases (project_id, venture_id, version_name, description, status, release_date, release_notes)
+       VALUES ($1, $2, 'v1.2.0-rc1', 'Fenixa Cloud Core Engine Milestone', 'released', CURRENT_DATE - INTERVAL '2 days',
+       '### Release Highlights\n- Hardened 9-level RBAC\n- Transactional SQL migrations\n- Session cookie protection') RETURNING id`,
+      [fxP1, fxVid]
+    );
+
+    // 4. Software Issues (Stories, Bugs, Tasks with Story Points)
+    const addIssue = async (key, title, type, priority, points, sprintId, epicId, status, env, repro, criteria) => {
+      const [it] = await q(
+        `INSERT INTO tasks (
+          title, description, status, priority, assigned_to, assigned_by, venture_id, project_id,
+          issue_key, issue_type, story_points, sprint_id, epic_id, release_id, environment,
+          steps_to_reproduce, acceptance_criteria
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING id`,
+        [
+          title, `${title} description and implementation details`, status, priority, fxDev, fxLead,
+          fxVid, fxP1, key, type, points, sprintId, epicId, rel1.id, env || null, repro || null, criteria || null
+        ]
+      );
+      await q('INSERT INTO task_assignees (task_id, user_id) VALUES ($1, $2)', [it.id, fxDev]);
+      return it.id;
+    };
+
+    const iss1 = await addIssue(
+      'FEN-101', 'Implement JWT Refresh Token Rotation with HttpOnly Guard',
+      'story', 'high', 5, s1.id, e1.id, 'completed', null, null,
+      'Given an expired access token, When a refresh token is presented, Then issue a new token pair and invalidate prior refresh token.'
+    );
+
+    const iss2 = await addIssue(
+      'FEN-102', 'Build Interactive Scrum / Kanban Board with Drag & Drop',
+      'story', 'urgent', 8, s1.id, e2.id, 'in-progress', null, null,
+      'Cards can be dragged between To Do, In Progress, and Completed with immediate status update.'
+    );
+
+    const iss3 = await addIssue(
+      'FEN-103', 'Defect: Session Invalidation Race Condition on Rapid Logout',
+      'bug', 'urgent', 3, s1.id, e1.id, 'in-progress', 'production',
+      '1. Open two browser tabs\n2. Click logout simultaneously\n3. One request throws 500 error instead of clean redirect',
+      null
+    );
+
+    const iss4 = await addIssue(
+      'FEN-104', 'Configure PostgreSQL Migration Runner with Advisory Locks',
+      'task', 'medium', 3, s1.id, e1.id, 'completed', null, null, null
+    );
+
+    const iss5 = await addIssue(
+      'FEN-105', 'Gantt Timeline Roadmap with Multi-Resolution Zoom Levels',
+      'story', 'medium', 8, null, e2.id, 'pending', null, null,
+      'Users can zoom across Weeks, Months, and Quarters to inspect Epic completion timelines.'
+    );
+
+    // 5. Comments on Active Issue
+    await q(
+      `INSERT INTO task_comments (task_id, author_id, content) VALUES ($1, $2, $3)`,
+      [iss2, fxLead, 'Architecture looks solid. Please ensure touch drag-and-drop works smoothly on mobile browsers.']
+    );
+
+    // 6. Retrospective Notes for Sprint 14
+    await q(
+      `INSERT INTO sprint_notes (sprint_id, author_id, category, content) VALUES
+       ($1, $2, 'went_well', 'Transactional migration runner executed with zero downtime across test environments.'),
+       ($1, $2, 'to_improve', 'Need clearer Gherkin acceptance criteria before sprint kick-off.'),
+       ($1, $2, 'action_item', 'Automate Playwright smoke test runs in GitHub Actions CI pipeline.')`,
+      [s1.id, fxLead]
+    );
+  } catch (err) {
+    console.warn('[seedDemo] Note: software suite seed skipped (tables will be created on migration):', err.message);
+  }
+
   // ── documents (small real files so downloads work in dev) ──
   const uploadRoot = path.join(__dirname, '../uploads');
   fs.mkdirSync(uploadRoot, { recursive: true });

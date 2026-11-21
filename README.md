@@ -32,6 +32,7 @@ between ventures and between internal staff and external clients.
 
 | Domain | Modules |
 | :-- | :-- |
+| Software Engineering (Fenixa) | **Fenixa Software Studio**: End-to-end SDLC from Requirement Analysis & PRDs, Agile Backlog grooming & Sprints, Interactive Drag-and-Drop Kanban Boards, Gantt Timeline Roadmaps, QA & Defect Tracking, Release Pipelines, and Sprint Retrospectives |
 | Operations | Projects (members, milestones), Tasks, Timesheets with approval, Documents (per-project, optionally client-visible) |
 | Finance | Invoices, Budget, Reports (costs come from one rate source: project rate, else user hourly rate; no rate means no invented cost) |
 | Strategy | OKRs and key results, strategic risks, department KPIs |

@@ -148,9 +148,9 @@ export default function StrategyView({ currentUser }: StrategyViewProps) {
 
   const header = (
     <div>
-      <h2 className="text-2xl font-black text-[var(--color-text-primary)]">Corporate Strategy &amp; OKRs</h2>
+      <h2 className="text-2xl font-black text-[var(--color-text-primary)]">Product Strategy &amp; OKRs</h2>
       <p className="mt-1 text-sm font-medium text-[var(--color-text-secondary)]">
-        High-level objectives, key results, and strategic risks across all Dropwing ventures.
+        High-level product objectives, architectural milestones, and delivery risks for Fenixa Solutions.
       </p>
     </div>
   );

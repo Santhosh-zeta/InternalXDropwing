@@ -204,10 +204,9 @@ export default function CalendarView({ currentUser }: { currentUser: User }) {
 
   const header = (
     <div className="mb-6">
-      <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Calendar</h2>
+      <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Sprint Calendar & Deadlines</h2>
       <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-        Task due dates, project milestones and logged hours
-        {currentUser.venture ? ` across ${currentUser.venture.name}` : ' across every venture'}.
+        Sprint cycles, release delivery dates, milestone deadlines and developer worklogs for Fenixa Solutions · {currentUser.levelName}.
       </p>
     </div>
   );

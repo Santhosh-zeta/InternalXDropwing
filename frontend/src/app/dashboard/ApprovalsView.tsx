@@ -257,10 +257,9 @@ export default function ApprovalsView({ currentUser }: { currentUser: User }) {
   const header = (
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
-        <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Approvals</h2>
+        <h2 className="text-2xl font-bold tracking-tight text-[var(--color-text-primary)]">Code & Timesheet Approvals</h2>
         <p className="mt-1 text-sm text-[var(--color-text-muted)]">
-          Timesheets waiting on your decision
-          {currentUser.venture ? ` in ${currentUser.venture.name}` : ' across every venture'}.
+          Engineering worklogs and timesheets waiting on your review and signoff in Fenixa Solutions.
         </p>
       </div>
       {pending.length > 0 && (

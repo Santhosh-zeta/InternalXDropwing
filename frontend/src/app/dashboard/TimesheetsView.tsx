@@ -67,8 +67,8 @@ export default function TimesheetsView() {
   return (
     <div className="pb-10">
       <div className="mb-8">
-        <h2 className="text-2xl font-extrabold text-[var(--color-text-primary)]">My timesheets</h2>
-        <p className="mt-1 text-sm text-[var(--color-text-muted)]">Log your daily hours. A manager approves them.</p>
+        <h2 className="text-2xl font-extrabold text-[var(--color-text-primary)]">Developer Worklogs & Timesheets</h2>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">Log your engineering hours and sprint task allocations. Reviewed by engineering leads.</p>
       </div>
 
       <div className="flex flex-col items-start gap-6 lg:flex-row">

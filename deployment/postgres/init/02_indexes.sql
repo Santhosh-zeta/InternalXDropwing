@@ -76,3 +76,22 @@ CREATE INDEX idx_announcements_venture_id ON announcements(venture_id);
 -- dashboard load, "assignees of a task" on every task detail view.
 CREATE INDEX IF NOT EXISTS idx_task_assignees_user ON task_assignees(user_id);
 CREATE INDEX IF NOT EXISTS idx_task_assignees_task ON task_assignees(task_id);
+
+-- Fenixa Software Suite indexes (0010)
+CREATE INDEX IF NOT EXISTS idx_software_epics_project ON software_epics(project_id);
+CREATE INDEX IF NOT EXISTS idx_software_epics_venture ON software_epics(venture_id);
+CREATE INDEX IF NOT EXISTS idx_sprints_project ON sprints(project_id);
+CREATE INDEX IF NOT EXISTS idx_sprints_venture ON sprints(venture_id);
+CREATE INDEX IF NOT EXISTS idx_sprints_status ON sprints(status);
+CREATE INDEX IF NOT EXISTS idx_sprint_notes_sprint ON sprint_notes(sprint_id);
+CREATE INDEX IF NOT EXISTS idx_software_releases_project ON software_releases(project_id);
+CREATE INDEX IF NOT EXISTS idx_software_releases_venture ON software_releases(venture_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_sprint_id ON tasks(sprint_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_epic_id ON tasks(epic_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_release_id ON tasks(release_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_issue_key ON tasks(issue_key);
+CREATE INDEX IF NOT EXISTS idx_tasks_issue_type ON tasks(issue_type);
+CREATE INDEX IF NOT EXISTS idx_task_comments_task ON task_comments(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_links_source ON task_links(source_task_id);
+CREATE INDEX IF NOT EXISTS idx_task_links_target ON task_links(target_task_id);
+

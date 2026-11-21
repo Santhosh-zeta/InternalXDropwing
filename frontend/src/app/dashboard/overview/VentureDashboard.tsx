@@ -27,20 +27,20 @@ export default function VentureDashboard({ currentUser, users, tasks, analytics 
           <LayoutDashboard size={24} strokeWidth={2} />
         </div>
         <div className="min-w-0">
-          <h2 className="truncate text-xl font-bold tracking-tight text-[var(--color-text-primary)]">{currentUser.venture?.name || 'Venture'} overview</h2>
-          <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">Your team and ongoing work.</p>
+          <h2 className="truncate text-xl font-bold tracking-tight text-[var(--color-text-primary)]">{currentUser.venture?.name || 'Fenixa Solutions'} Overview</h2>
+          <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">Software engineering team, active sprint trajectory and ongoing deliverables.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatCard label="Team members" value={users.length} icon={<Users size={18} />} accent={ventureColor} />
-        <StatCard label="Tasks in progress" value={inProgress} icon={<Activity size={18} />} accent="var(--color-amber)" />
-        <StatCard label="Tasks completed" value={completed} icon={<CheckCircle size={18} />} accent="var(--color-emerald)" />
+        <StatCard label="Engineers & leads" value={users.length} icon={<Users size={18} />} accent={ventureColor} />
+        <StatCard label="Sprint issues in progress" value={inProgress} icon={<Activity size={18} />} accent="var(--color-amber)" />
+        <StatCard label="Sprint issues completed" value={completed} icon={<CheckCircle size={18} />} accent="var(--color-emerald)" />
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-3">
-          <CardHeader title="Task completion (7 days)" description="Tasks completed by this venture each day." />
+          <CardHeader title="Story point & issue completion (7 days)" description="Issues completed by Fenixa Solutions each day." />
           <VelocityChart data={velocity} color={ventureColor} />
         </Card>
 

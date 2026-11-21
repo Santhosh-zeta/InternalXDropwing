@@ -2,8 +2,8 @@ import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
 import {
   Home, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, ClipboardCheck, FileText,
-  Clock, Users, TrendingUp, Wallet, PieChart, Receipt, BarChart3, MessageSquare, BookOpen,
-  ShieldCheck, Settings, Briefcase, Sparkles, type LucideIcon,
+  Clock, Users, Wallet, PieChart, BarChart3, MessageSquare, BookOpen,
+  ShieldCheck, Settings, Briefcase, Sparkles, Code2, type LucideIcon,
 } from 'lucide-react';
 import type { User } from '@/lib/constants';
 import { SkeletonTable } from '@/components/ui';
@@ -21,7 +21,7 @@ const load = (importer: () => Promise<{ default: ComponentType<ViewProps> }>) =>
     ),
   });
 
-export type MenuGroup = 'Work' | 'Company' | 'Team' | 'Account';
+export type MenuGroup = 'Engineering' | 'Quality & Specs' | 'Management' | 'Studio';
 
 export interface MenuItem {
   /** URL id: `/dashboard?view=<id>`. Stable, lowercase, no spaces. */
@@ -42,38 +42,40 @@ export interface MenuItem {
 }
 
 /**
- * The single list of dashboard views. To add one, append an entry: the
- * sidebar, the URL (`?view=<id>`), access gating and the page title all come
- * from here. The server enforces the same rules; this only decides what to
- * offer. Order is the sidebar order within each group.
+ * Fenixa Solutions - End-to-end Software Development & Management Suite.
+ * Primary focus is software lifecycle: Requirements, Sprints, Kanban Board,
+ * Roadmaps, QA Defects, Releases, and Retrospectives.
  */
 export const MENU: MenuItem[] = [
-  { id: 'home', label: 'Today', icon: Home, group: 'Work', component: load(() => import('./HomeView')) },
-  { id: 'portal', label: 'Project Status', icon: Briefcase, group: 'Work', minLevel: 9, maxLevel: 9, component: load(() => import('./ClientPortalView')) },
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard, group: 'Work', maxLevel: 5, component: load(() => import('./OverviewView')) },
-  { id: 'projects', label: (u) => (u.accessLevel >= 6 ? 'My Projects' : 'Projects'), icon: FolderKanban, group: 'Work', component: load(() => import('./ProjectsView')) },
-  { id: 'tasks', label: (u) => (u.accessLevel >= 6 ? 'My Tasks' : 'Tasks'), icon: CheckSquare, group: 'Work', component: load(() => import('./TasksView')) },
-  { id: 'calendar', label: 'Calendar', icon: CalendarDays, group: 'Work', component: load(() => import('./CalendarView')) },
-  { id: 'approvals', label: 'Approvals', icon: ClipboardCheck, group: 'Work', maxLevel: 5, component: load(() => import('./ApprovalsView')) },
-  { id: 'timesheets', label: 'Timesheets', icon: Clock, group: 'Work', minLevel: 6, component: load(() => import('./TimesheetsView')) },
-  { id: 'documents', label: 'Documents', icon: FileText, group: 'Work', component: load(() => import('./DocumentsView')) },
+  // Engineering Core Lifecycle
+  { id: 'software', label: 'Software Studio', icon: Code2, group: 'Engineering', component: load(() => import('./SoftwareStudioView')) },
+  { id: 'tasks', label: (u) => (u.accessLevel >= 6 ? 'My Issues & Bugs' : 'Issues & Bugs'), icon: CheckSquare, group: 'Engineering', component: load(() => import('./TasksView')) },
+  { id: 'projects', label: 'Software Projects', icon: FolderKanban, group: 'Engineering', component: load(() => import('./ProjectsView')) },
+  { id: 'calendar', label: 'Sprint Deadlines & Releases', icon: CalendarDays, group: 'Engineering', component: load(() => import('./CalendarView')) },
+  { id: 'home', label: 'Daily Standup', icon: Home, group: 'Engineering', component: load(() => import('./HomeView')) },
 
-  { id: 'team', label: (u) => (u.accessLevel <= 3 ? 'User Management' : 'Team'), icon: Users, group: 'Company', maxLevel: 5, component: load(() => import('./UserManagementView')) },
-  { id: 'strategy', label: 'Strategy', icon: TrendingUp, group: 'Company', maxLevel: 4, component: load(() => import('./StrategyView')) },
-  { id: 'kpis', label: 'Department KPIs', icon: PieChart, group: 'Company', maxLevel: 4, component: load(() => import('./DepartmentKPIsView')) },
-  { id: 'budget', label: 'Budget', icon: Wallet, group: 'Company', maxLevel: 4, component: load(() => import('./BudgetView')) },
-  { id: 'invoices', label: 'Invoices', icon: Receipt, group: 'Company', maxLevel: 5, component: load(() => import('./InvoicesView')) },
-  { id: 'reports', label: 'Reports', icon: BarChart3, group: 'Company', maxLevel: 5, component: load(() => import('./ReportsView')) },
+  // Quality, Specs & Delivery
+  { id: 'documents', label: 'Architecture & Tech Specs', icon: FileText, group: 'Quality & Specs', component: load(() => import('./DocumentsView')) },
+  { id: 'approvals', label: 'Code & Sprint Approvals', icon: ClipboardCheck, group: 'Quality & Specs', maxLevel: 5, component: load(() => import('./ApprovalsView')) },
+  { id: 'timesheets', label: 'Dev Worklogs', icon: Clock, group: 'Quality & Specs', minLevel: 6, component: load(() => import('./TimesheetsView')) },
+  { id: 'portal', label: 'Client Delivery Portal', icon: Briefcase, group: 'Quality & Specs', minLevel: 9, maxLevel: 9, component: load(() => import('./ClientPortalView')) },
 
-  { id: 'chat', label: 'Team Chat', icon: MessageSquare, group: 'Team', component: load(() => import('./ChatView')) },
-  { id: 'assistant', label: 'Ask InternalX', icon: Sparkles, group: 'Team', component: load(() => import('./AssistantView')) },
-  { id: 'learning', label: 'Learning Hub', icon: BookOpen, group: 'Team', visible: (u) => u.accessLevel <= 5 || u.accessLevel === 8, component: load(() => import('./LearningHubView')) },
+  // Engineering Operations & Management
+  { id: 'overview', label: 'Engineering Overview', icon: LayoutDashboard, group: 'Management', maxLevel: 5, component: load(() => import('./OverviewView')) },
+  { id: 'kpis', label: 'Velocity & KPIs', icon: PieChart, group: 'Management', maxLevel: 4, component: load(() => import('./DepartmentKPIsView')) },
+  { id: 'team', label: (u) => (u.accessLevel <= 3 ? 'Engineer Management' : 'Engineering Team'), icon: Users, group: 'Management', maxLevel: 5, component: load(() => import('./UserManagementView')) },
+  { id: 'budget', label: 'Cloud & Project Costing', icon: Wallet, group: 'Management', maxLevel: 4, component: load(() => import('./BudgetView')) },
+  { id: 'reports', label: 'Sprint & Release Reports', icon: BarChart3, group: 'Management', maxLevel: 5, component: load(() => import('./ReportsView')) },
 
-  { id: 'audit', label: 'Audit Logs', icon: ShieldCheck, group: 'Account', maxLevel: 2, component: load(() => import('./AuditLogsView')) },
-  { id: 'settings', label: 'Settings', icon: Settings, group: 'Account', minLevel: 1, maxLevel: 9, component: load(() => import('./SettingsView')) },
+  // Collaboration & Studio
+  { id: 'chat', label: 'Developer Chat', icon: MessageSquare, group: 'Studio', component: load(() => import('./ChatView')) },
+  { id: 'assistant', label: 'Fenixa AI Architect', icon: Sparkles, group: 'Studio', component: load(() => import('./AssistantView')) },
+  { id: 'learning', label: 'Engineering Wiki & Docs', icon: BookOpen, group: 'Studio', visible: (u) => u.accessLevel <= 5 || u.accessLevel === 8, component: load(() => import('./LearningHubView')) },
+  { id: 'audit', label: 'DevOps & Audit Logs', icon: ShieldCheck, group: 'Studio', maxLevel: 2, component: load(() => import('./AuditLogsView')) },
+  { id: 'settings', label: 'Studio Settings', icon: Settings, group: 'Studio', minLevel: 1, maxLevel: 9, component: load(() => import('./SettingsView')) },
 ];
 
-export const GROUP_ORDER: MenuGroup[] = ['Work', 'Company', 'Team', 'Account'];
+export const GROUP_ORDER: MenuGroup[] = ['Engineering', 'Quality & Specs', 'Management', 'Studio'];
 
 export const itemLabel = (item: MenuItem, user: User): string =>
   typeof item.label === 'function' ? item.label(user) : item.label;
@@ -87,8 +89,8 @@ export function canSee(item: MenuItem, user: User): boolean {
 /** Menu entries this user is offered, in sidebar order. */
 export const menuFor = (user: User): MenuItem[] => MENU.filter((item) => canSee(item, user));
 
-/** The first view a user lands on: Today for staff, the portal for clients. */
-export const defaultViewId = (user: User): string => (user.accessLevel === 9 ? 'portal' : 'home');
+/** The first view a user lands on: Software Studio for engineers/staff, client portal for clients. */
+export const defaultViewId = (user: User): string => (user.accessLevel === 9 ? 'portal' : 'software');
 
 /** Resolve `?view=` to an allowed item, falling back to the user's landing view. */
 export function resolveView(user: User, id: string | null): MenuItem {

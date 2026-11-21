@@ -138,8 +138,8 @@ export default function DocumentsView({ currentUser }: { currentUser: User }) {
     <div className="flex flex-col gap-6 pb-10">
       <Card className="flex flex-wrap items-center justify-between gap-4 shadow-sm">
         <div>
-          <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Documents</h2>
-          <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Files for your projects and venture. Attach a file to a project to share it with that project&apos;s team.</p>
+          <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Architecture & Tech Specs</h2>
+          <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Technical specifications, Architecture Decision Records (ADRs), API schemas, and project assets.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Select aria-label="Attach upload to project" value={projectId} onChange={(e) => setProjectId(e.target.value)} className="h-10 w-auto min-w-44">

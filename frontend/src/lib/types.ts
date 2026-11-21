@@ -178,3 +178,131 @@ export interface ChatMessage {
   ventureId?: number | 'global' | null;
   venture_name?: string | null;
 }
+
+// ==========================================
+// FENIXA SOFTWARE SUITE TYPES (from WorkZ)
+// ==========================================
+
+export type IssueType = 'epic' | 'story' | 'task' | 'bug' | 'subtask';
+export type SprintStatus = 'planned' | 'active' | 'completed';
+export type ReleaseStatus = 'unreleased' | 'released' | 'archived';
+export type RetroCategory = 'went_well' | 'to_improve' | 'action_item';
+
+export interface SoftwareEpic {
+  id: number;
+  project_id: number;
+  venture_id: number;
+  key: string;
+  title: string;
+  summary?: string;
+  prd_content?: string;
+  status: 'draft' | 'in_review' | 'approved' | 'in_progress' | 'completed';
+  priority: Priority;
+  owner_name?: string;
+  owner_avatar?: string;
+  project_name?: string;
+  venture_name?: string;
+  total_issues: number;
+  completed_issues: number;
+  total_points: number;
+  completed_points: number;
+  created_at: string;
+}
+
+export interface SoftwareSprint {
+  id: number;
+  project_id: number;
+  venture_id: number;
+  name: string;
+  goal?: string;
+  status: SprintStatus;
+  start_date?: string;
+  end_date?: string;
+  project_name?: string;
+  total_issues: number;
+  completed_issues: number;
+  total_points: number;
+  completed_points: number;
+  created_at: string;
+}
+
+export interface SprintRetroNote {
+  id: number;
+  sprint_id: number;
+  author_id: number;
+  author_name: string;
+  author_avatar?: string;
+  category: RetroCategory;
+  content: string;
+  created_at: string;
+}
+
+export interface SoftwareRelease {
+  id: number;
+  project_id: number;
+  venture_id: number;
+  version_name: string;
+  description?: string;
+  status: ReleaseStatus;
+  release_date?: string;
+  release_notes?: string;
+  project_name?: string;
+  total_issues: number;
+  completed_issues: number;
+  created_at: string;
+}
+
+export interface SoftwareIssue {
+  id: number;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: Priority;
+  assigned_to?: number;
+  assigned_by?: number;
+  assigned_to_name?: string;
+  assigned_to_avatar?: string;
+  venture_id: number;
+  project_id: number;
+  project_name?: string;
+  issue_key?: string;
+  issue_type: IssueType;
+  story_points?: number;
+  sprint_id?: number;
+  sprint_name?: string;
+  sprint_status?: SprintStatus;
+  epic_id?: number;
+  epic_title?: string;
+  epic_key?: string;
+  release_id?: number;
+  release_version?: string;
+  estimate_hours?: number;
+  time_spent_hours?: number;
+  resolution?: string;
+  environment?: string;
+  steps_to_reproduce?: string;
+  acceptance_criteria?: string;
+  board_order?: number;
+  assignees: TaskAssignee[];
+  comment_count?: number;
+  subtask_count?: number;
+  created_at: string;
+  due_date?: string;
+}
+
+export interface TaskComment {
+  id: number;
+  task_id: number;
+  author_id: number;
+  author_name: string;
+  author_avatar?: string;
+  content: string;
+  created_at: string;
+}
+
+export interface SoftwareMetricsData {
+  types: { type: string; count: number }[];
+  statuses: { status: string; count: number }[];
+  velocity: { id: number; name: string; committed_points: number; completed_points: number }[];
+}
+

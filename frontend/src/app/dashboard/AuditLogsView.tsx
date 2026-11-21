@@ -54,9 +54,9 @@ export default function AuditLogsView() {
               <ShieldCheck size={24} className="text-[var(--color-rose)]" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Security & Audit Logs</h2>
+              <h2 className="text-xl font-bold text-[var(--color-text-primary)]">DevOps & Security Audit Logs</h2>
               <p className="text-[13px] text-[var(--color-text-secondary)] mt-1">
-                The latest 100 recorded actions across the system. Visible to L1 and L2 only.
+                Recorded engineering events, access requests, deploy triggers, and configuration changes across Fenixa Solutions.
               </p>
             </div>
           </div>

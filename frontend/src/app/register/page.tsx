@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { register, getAuthConfig } from '@/lib/api';
-import { Mail, Lock, User, Hexagon, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, User, Code2, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button, Field, Input, tint } from '@/components/ui';
 
@@ -116,10 +116,11 @@ export default function RegisterPage() {
               color: 'var(--color-purple-glow)'
             }}
           >
-            <Hexagon size={20} strokeWidth={2.5} />
+            <Code2 size={22} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>InternalX</h1>
+            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>Fenixa Solutions</h1>
+            <p className="text-[10px] font-semibold tracking-widest uppercase mt-1" style={{ color: 'var(--color-text-muted)' }}>Software Engineering Studio</p>
           </div>
         </motion.div>
 
@@ -135,12 +136,12 @@ export default function RegisterPage() {
         >
           <div className="mb-6 text-center">
             <h3 className="text-2xl font-semibold tracking-tight mb-2" style={{ color: 'var(--color-text-primary)' }}>
-              {selfRegistration === false ? 'Access is by invitation' : 'Request an account'}
+              {selfRegistration === false ? 'Access is by invitation' : 'Request an engineer account'}
             </h3>
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
               {selfRegistration === false
-                ? 'InternalX accounts are created by your administrator. Check your email for an invitation link, or ask your administrator to invite you.'
-                : 'An administrator must approve your account before you can sign in.'}
+                ? 'Fenixa Solutions accounts are created by your engineering lead or studio administrator. Check your email for an invitation link, or reach out to your team lead.'
+                : 'An engineering administrator must approve your account before you can access the sprint boards.'}
             </p>
           </div>
 
@@ -208,7 +209,7 @@ export default function RegisterPage() {
                       setEmail(e.target.value);
                       if (emailError) setEmailError('');
                     }}
-                    placeholder="name@dropwing.com"
+                    placeholder="engineer@fenixasolutions.com"
                     className={FOCUS_RING}
                     style={controlStyle(invalid)}
                   />

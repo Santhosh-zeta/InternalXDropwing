@@ -58,10 +58,10 @@ export default function ProjectsView({ currentUser }: { currentUser: User }) {
       <div className="flex flex-col gap-4 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-card)] p-5 shadow-sm sm:p-6">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Projects</h2>
-            <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Deliverables by phase, with their team, milestones and progress.</p>
+            <h2 className="text-xl font-bold text-[var(--color-text-primary)]">Software Projects & Repositories</h2>
+            <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Fenixa Solutions engineering deliverables, microservices, repositories, and milestone pipelines.</p>
           </div>
-          {canCreate && newButton('New project')}
+          {canCreate && newButton('New software project')}
         </div>
 
         <div className="flex flex-wrap gap-3">

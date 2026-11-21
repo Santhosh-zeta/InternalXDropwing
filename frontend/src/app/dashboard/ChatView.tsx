@@ -28,7 +28,7 @@ export default function ChatView({ currentUser }: ChatViewProps) {
     () => (usersState.data ?? []).filter((u) => u.id !== currentUser.id && u.access_level < 9),
     [usersState.data, currentUser.id],
   );
-  const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'venture', id: 'global', name: 'Global HQ', color: 'var(--color-purple-glow)' });
+  const [activeChannel, setActiveChannel] = useState<Channel>({ type: 'venture', id: 'global', name: 'Fenixa Engineering HQ', color: 'var(--color-purple-glow)' });
   const channelKey = `${activeChannel.type}-${activeChannel.id}`;
   const history = useApi(channelKey, async () => {
     const params = activeChannel.type === 'venture' ? { ventureId: activeChannel.id } : { receiverId: activeChannel.id as number };

@@ -108,8 +108,8 @@ export function AssistantChat({ status, statusError, messages, busy, onSend, onS
     return (
       <EmptyState
         icon={<Sparkles size={20} />}
-        title="Ask InternalX is not set up yet"
-        description={status.setupHint || 'Your administrator has not enabled the assistant on this server.'}
+        title="Fenixa AI Architect is not set up yet"
+        description={status.setupHint || 'Your administrator has not enabled the engineering assistant on this server.'}
       />
     );
   }
@@ -143,9 +143,9 @@ export function AssistantChat({ status, statusError, messages, busy, onSend, onS
             <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-secondary)]">
               <Sparkles size={22} className="text-[var(--color-purple-glow)]" aria-hidden="true" />
             </span>
-            <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Ask InternalX</h3>
+            <h3 className="text-base font-semibold text-[var(--color-text-primary)]">Fenixa AI Architect</h3>
             <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">
-              Ask about your tasks, projects, deadlines and hours. I can only read what you already have access to.
+              Your agile sprint copilot & architecture assistant. Ask about requirements, user stories, sprint velocity, and code reviews.
             </p>
             <div className="mt-5 flex w-full flex-col gap-2">
               {status.suggestions.map((s) => (

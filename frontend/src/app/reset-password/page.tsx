@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { resetPassword } from '@/lib/api';
-import { Lock, Eye, EyeOff, Hexagon, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Lock, Eye, EyeOff, Code2, ArrowRight, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button, Field, Input, tint } from '@/components/ui';
 
@@ -264,10 +264,11 @@ export default function ResetPasswordPage() {
               color: 'var(--color-purple-glow)'
             }}
           >
-            <Hexagon size={20} strokeWidth={2.5} />
+            <Code2 size={22} strokeWidth={2.5} />
           </div>
           <div>
-            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>InternalX</h1>
+            <h1 className="font-bold text-xl tracking-tight leading-none" style={{ color: 'var(--color-text-primary)' }}>Fenixa Solutions</h1>
+            <p className="text-[10px] font-semibold tracking-widest uppercase mt-1" style={{ color: 'var(--color-text-muted)' }}>Software Engineering Studio</p>
           </div>
         </motion.div>
 

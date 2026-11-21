@@ -52,19 +52,19 @@ export default function AssistantLauncher({ hidden, accessLevel, onOpenFull }: P
           ref={buttonRef}
           type="button"
           onClick={() => setOpen(true)}
-          aria-label="Ask InternalX"
+          aria-label="Fenixa AI Architect"
           aria-haspopup="dialog"
           className="fixed bottom-5 right-5 z-[90] flex h-12 items-center gap-2 rounded-full bg-[var(--color-purple-glow)] px-5 text-[13px] font-semibold text-white shadow-[var(--shadow-glow-brand)] transition-transform hover:scale-[1.03] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-purple-light)]"
         >
           <Sparkles size={16} aria-hidden="true" />
-          <span className="hidden sm:inline">Ask InternalX</span>
+          <span className="hidden sm:inline">Fenixa AI Copilot</span>
         </button>
       )}
 
       {open && !hidden && (
         <aside
           role="dialog"
-          aria-label="Ask InternalX"
+          aria-label="Fenixa AI Architect"
           className={cn(
             'fixed inset-y-0 right-0 z-[95] flex w-full flex-col border-l border-[var(--color-border)] bg-[var(--color-bg-primary)] shadow-[var(--shadow-overlay)] sm:w-[440px]',
             'animate-slide-in-right',
@@ -73,7 +73,7 @@ export default function AssistantLauncher({ hidden, accessLevel, onOpenFull }: P
           <header className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] bg-[var(--color-bg-secondary)] px-4 py-3">
             <div className="flex min-w-0 items-center gap-2">
               <Sparkles size={16} className="text-[var(--color-purple-glow)]" aria-hidden="true" />
-              <h2 className="truncate text-sm font-bold text-[var(--color-text-primary)]">Ask InternalX</h2>
+              <h2 className="truncate text-sm font-bold text-[var(--color-text-primary)]">Fenixa AI Architect</h2>
             </div>
             <div className="flex items-center gap-1">
               {chat.messages.length > 0 && (

@@ -19,8 +19,8 @@ export interface User {
 }
 
 export const VENTURES = [
-  { name: 'Dropwing Design Studio', slug: 'dropwing', color: '#8b5cf6', emoji: '🎨' },
   { name: 'Fenixa Solutions', slug: 'fenixa', color: '#06b6d4', emoji: '💻' },
-  { name: 'PerSyniX', slug: 'persynix', color: '#f59e0b', emoji: '🔄' },
-  { name: 'Grovia', slug: 'grovia', color: '#10b981', emoji: '🌱' },
+  { name: 'Fenixa Cloud & DevOps', slug: 'fenixa-cloud', color: '#6366f1', emoji: '⚡' },
+  { name: 'Fenixa QA & Architecture', slug: 'fenixa-qa', color: '#10b981', emoji: '🛡️' },
+  { name: 'Fenixa AI Labs', slug: 'fenixa-ai', color: '#8b5cf6', emoji: '🤖' },
 ];

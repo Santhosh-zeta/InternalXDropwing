@@ -94,7 +94,7 @@ export default function DepartmentKPIsView({ currentUser }: { currentUser: User 
       {totals && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
-            label="Total Employees"
+            label="Engineers & Staff"
             value={totals.total_employees}
             accent={color}
             icon={<Users size={18} />}

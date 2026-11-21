@@ -1,6 +1,6 @@
 'use client';
 
-import { Hexagon, LogOut, Crown, Building2, Briefcase, User as UserIcon } from 'lucide-react';
+import { Code2, LogOut, Crown, Building2, Briefcase, User as UserIcon } from 'lucide-react';
 import type { User } from '@/lib/constants';
 import { GROUP_ORDER, itemLabel, type MenuItem } from './menu';
 
@@ -28,11 +28,11 @@ export default function SidebarBody({ user, items, activeId, onSelect, onLogout 
       <div className="border-b border-[var(--color-border)] p-5">
         <div className="mb-5 flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--color-purple-glow)] text-white shadow-sm">
-            <Hexagon size={16} strokeWidth={2.5} aria-hidden="true" />
+            <Code2 size={16} strokeWidth={2.5} aria-hidden="true" />
           </div>
           <div className="min-w-0">
-            <div className="text-[15px] font-bold leading-none tracking-tight text-[var(--color-text-primary)]">InternalX</div>
-            <div className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">Dropwing Groups</div>
+            <div className="text-[15px] font-bold leading-none tracking-tight text-[var(--color-text-primary)]">Fenixa Solutions</div>
+            <div className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-[var(--color-text-muted)]">Software Studio</div>
           </div>
         </div>
 
@@ -44,9 +44,7 @@ export default function SidebarBody({ user, items, activeId, onSelect, onLogout 
             <div className="min-w-0">
               <div className="truncate text-xs font-semibold text-[var(--color-text-primary)]">{user.fullName}</div>
               <div className="truncate text-[11px] font-medium" style={{ color }}>{user.levelName}</div>
-              {user.venture && (
-                <div className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">{user.venture.name}</div>
-              )}
+              <div className="mt-0.5 truncate text-[11px] text-[var(--color-text-muted)]">{user.venture?.name || 'Fenixa Solutions'}</div>
             </div>
           </div>
         </div>
